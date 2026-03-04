@@ -5,16 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8fbb11b9-d718-4b01-84b2-5235edcb9c60" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api_server.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/production_agent.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sap_commerce_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/schemas/redis_store.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/schemas/session.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/state_machine.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/static/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/production_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/production_agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sap_commerce_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/sap_commerce_tools.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -92,7 +86,7 @@
       <updated>1772482406145</updated>
       <workItem from="1772482407239" duration="5428000" />
       <workItem from="1772526553422" duration="33398000" />
-      <workItem from="1772612454395" duration="1324000" />
+      <workItem from="1772612454395" duration="8980000" />
     </task>
     <servers />
   </component>
@@ -100,8 +94,18 @@
     <option name="version" value="3" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="0638d3ac-56a7-4ae0-99ec-926059253171" value="TOOL_WINDOW" />
+      </map>
+    </option>
     <option name="TAB_STATES">
       <map>
+        <entry key="0638d3ac-56a7-4ae0-99ec-926059253171">
+          <value>
+            <State />
+          </value>
+        </entry>
         <entry key="MAIN">
           <value>
             <State />
@@ -120,17 +124,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/sap_commerce_tools.py</url>
-          <line>261</line>
-          <option name="timeStamp" value="12" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/sap_commerce_tools.py</url>
-          <line>263</line>
-          <option name="timeStamp" value="13" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/sap_commerce_tools.py</url>
-          <line>349</line>
+          <line>314</line>
           <option name="timeStamp" value="17" />
         </line-breakpoint>
       </breakpoints>

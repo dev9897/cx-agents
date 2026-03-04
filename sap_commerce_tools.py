@@ -56,6 +56,10 @@ def _headers(token: Optional[str] = None) -> dict:
     h = {"Content-Type": "application/json", "Accept": "application/json"}
     if token:
         h["Authorization"] = f"Bearer {token}"
+        logger.debug("_headers | token_len=%d | token_preview=%s...%s",
+                     len(token), token[:10], token[-6:])
+    else:
+        logger.warning("_headers | NO token provided — request will be unauthenticated")
     return h
 
 
@@ -120,31 +124,13 @@ def _safe_request(method: str, url: str, tool_name: str, **kwargs) -> Optional[h
         raise  # re-raise so caller can call _handle_http_error
 
 
-def _resolve_user_and_cart(user_id: str, cart_id: str) -> tuple[str, str]:
+def _resolve_user(user_id: str) -> str:
     """
-    SAP OCC uses different URL segments depending on whether the user is
-    anonymous or authenticated:
-
-      Authenticated : users/current/carts/{numeric_code}
-      Anonymous     : users/anonymous/carts/{guid}
-
-    Rules:
-    - If user_id is blank / "anonymous" / "guest"  → force path to "anonymous"
-      and use cart_guid (the long UUID) as the cart identifier.
-    - If user_id is "current" or a real username   → keep as-is, use cart code.
-
-    The cart_id passed in should always be the value stored in ShoppingState,
-    which create_cart now returns as:
-      - cart_guid  for anonymous sessions
-      - cart_code  for authenticated sessions
+    Returns the SAP user path segment.
+    SAP accepts 'current' for any password-grant (user) token.
+    Always use a password-grant token in SAP_STATIC_TOKEN, not client_credentials.
     """
-    anonymous = user_id.lower() in ("", "anonymous", "guest")
-    resolved_user = "anonymous" if anonymous else user_id
-    logger.debug(
-        "_resolve_user_and_cart | in=(user=%r, cart=%r) → out=(user=%r, cart=%r)",
-        user_id, cart_id, resolved_user, cart_id,
-    )
-    return resolved_user, cart_id
+    return user_id or "current"
 
 
 # ─────────────────────────────────────────────
@@ -218,29 +204,6 @@ def server_account_login(username: str, password: str) -> dict:
         return {"success": False, "error": "Invalid credentials", "status_code": resp.status_code}
     except httpx.HTTPError as e:
         return _handle_http_error(e, "server_account_login", url)
-
-
-@tool
-def guest_token() -> dict:
-    """Obtain an anonymous/guest OAuth token (client_credentials)."""
-    url = _auth_url()
-    logger.info("guest_token | url=%s", url)
-    try:
-        resp = _safe_request("POST", url, "guest_token", data={
-            "grant_type":    "client_credentials",
-            "client_id":     CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
-        })
-        if resp.status_code == 200:
-            data = resp.json()
-            token = data.get("access_token", "")
-            logger.info("guest_token | success | token_len=%d", len(token))
-            return {"success": True, "access_token": token}
-        logger.warning("guest_token | failed | status=%d | body=%s", resp.status_code, resp.text[:200])
-        return {"success": False, "error": resp.text}
-    except httpx.HTTPError as e:
-        return _handle_http_error(e, "guest_token", url)
-
 
 # ─────────────────────────────────────────────
 # Product Search
@@ -334,18 +297,20 @@ def get_product_details(
 @tool
 def create_cart(access_token: str, user_id: str = "current") -> dict:
     """
-    Create a new shopping cart.
-
-    For anonymous users (user_id='anonymous'), SAP returns a GUID which must
-    be used in all subsequent cart operations.
-    For authenticated users (user_id='current'), SAP returns a numeric code.
-
-    Returns cart_id (the correct identifier to use for this session) and
-    cart_guid (the GUID, always present).
+    Create a new shopping cart for the authenticated user.
+    Returns cart code to use in all subsequent cart operations.
     """
-    resolved_user = "anonymous" if user_id.lower() in ("", "anonymous", "guest") else user_id
+    # SAP rejects "current" for client_credentials tokens.
+    # Use the real username from env if configured.
+    static_username = os.getenv("SAP_STATIC_USERNAME", "").strip()
+    resolved_user   = static_username if static_username else user_id
+
     url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts"
-    logger.info("create_cart | user=%s (resolved=%s) | url=%s", user_id, resolved_user, url)
+    logger.info("create_cart | user=%s | url=%s", resolved_user, url)
+    logger.debug("create_cart | token_len=%d | token=%s...%s",
+                 len(access_token) if access_token else 0,
+                 access_token[:15] if access_token else "NONE",
+                 access_token[-8:] if access_token else "NONE")
     try:
         resp = _safe_request("POST", url, "create_cart",
                              headers=_headers(access_token), json={})
@@ -353,20 +318,10 @@ def create_cart(access_token: str, user_id: str = "current") -> dict:
             data = resp.json()
             cart_code = data.get("code")
             cart_guid = data.get("guid")
-
-            # Anonymous sessions MUST use the guid in all subsequent API calls.
-            # Authenticated sessions use the numeric code.
-            is_anonymous = resolved_user == "anonymous"
-            cart_id = cart_guid if is_anonymous else cart_code
-
-            logger.info(
-                "create_cart | success | user_type=%s | cart_code=%s | cart_guid=%s | using cart_id=%s",
-                "anonymous" if is_anonymous else "authenticated",
-                cart_code, cart_guid, cart_id,
-            )
+            logger.info("create_cart | success | cart_code=%s | cart_guid=%s", cart_code, cart_guid)
             return {
                 "success":   True,
-                "cart_id":   cart_id,    # use THIS in all subsequent tool calls
+                "cart_id":   cart_code,    # authenticated users always use numeric code
                 "cart_guid": cart_guid,
                 "cart_code": cart_code,
                 "user_id":   resolved_user,
@@ -386,15 +341,11 @@ def add_to_cart(
     access_token: str = "",
     user_id: str = "current",
 ) -> dict:
-    """
-    Add a product to the shopping cart.
-    Requires cart_id (use the GUID for anonymous users, numeric code for authenticated)
-    and product_code.
-    """
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{resolved_cart}/entries"
+    """Add a product to the shopping cart. Requires cart_id and product_code."""
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/entries"
     logger.info("add_to_cart | user=%s | cart=%s | product=%s | qty=%d",
-                resolved_user, resolved_cart, product_code, quantity)
+                resolved_user, cart_id, product_code, quantity)
     try:
         resp = _safe_request("POST", url, "add_to_cart",
                              headers=_headers(access_token),
@@ -421,9 +372,9 @@ def get_cart(
     user_id: str = "current",
 ) -> dict:
     """Retrieve current cart contents."""
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{resolved_cart}"
-    logger.info("get_cart | user=%s | cart=%s", resolved_user, resolved_cart)
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}"
+    logger.info("get_cart | user=%s | cart=%s", resolved_user, cart_id)
     try:
         resp = _safe_request("GET", url, "get_cart",
                              params={"fields": "FULL"}, headers=_headers(access_token))
@@ -465,13 +416,11 @@ def set_delivery_address(
 ) -> dict:
     """
     Set delivery address on the cart.
-    address dict keys: firstName, lastName, line1, line2, town,
-                       postalCode, country (isocode e.g. 'US')
-    For anonymous users pass the cart GUID as cart_id.
+    address dict keys: firstName, lastName, line1, line2, town, postalCode, country (isocode e.g. 'DE')
     """
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{resolved_cart}/addresses/delivery"
-    logger.info("set_delivery_address | user=%s | cart=%s", resolved_user, resolved_cart)
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/addresses/delivery"
+    logger.info("set_delivery_address | user=%s | cart=%s", resolved_user, cart_id)
     payload = {
         "firstName":  address.get("firstName"),
         "lastName":   address.get("lastName"),
@@ -500,14 +449,11 @@ def set_delivery_mode(
     access_token: str = "",
     user_id: str = "current",
 ) -> dict:
-    """
-    Set delivery/shipping mode. Common codes: standard-gross, premium-gross.
-    For anonymous users pass the cart GUID as cart_id.
-    """
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{resolved_cart}/deliverymode"
+    """Set delivery/shipping mode. Common codes: standard-gross, premium-gross."""
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/deliverymode"
     logger.info("set_delivery_mode | user=%s | cart=%s | mode=%s",
-                resolved_user, resolved_cart, delivery_mode_code)
+                resolved_user, cart_id, delivery_mode_code)
     try:
         resp = _safe_request("PUT", url, "set_delivery_mode",
                              headers=_headers(access_token),
@@ -533,11 +479,10 @@ def set_payment_details(
     payment dict keys: accountHolderName, cardNumber, cardType (visa/master),
                        expiryMonth, expiryYear, cvn,
                        billingAddress (same keys as delivery address dict)
-    For anonymous users pass the cart GUID as cart_id.
     """
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{resolved_cart}/paymentdetails"
-    logger.info("set_payment_details | user=%s | cart=%s", resolved_user, resolved_cart)
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/paymentdetails"
+    logger.info("set_payment_details | user=%s | cart=%s", resolved_user, cart_id)
     billing = payment.get("billingAddress", {})
     payload = {
         "accountHolderName": payment.get("accountHolderName"),
@@ -580,17 +525,15 @@ def place_order(
 ) -> dict:
     """
     Place the order. Cart must have delivery address, delivery mode,
-    and payment details set before calling this.
-    For anonymous users pass the cart GUID as cart_id.
-    Returns order code and status.
+    and payment details set before calling this. Returns order code and status.
     """
-    resolved_user, resolved_cart = _resolve_user_and_cart(user_id, cart_id)
+    resolved_user = _resolve_user(user_id)
     url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/orders"
-    logger.info("place_order | user=%s | cart=%s", resolved_user, resolved_cart)
+    logger.info("place_order | user=%s | cart=%s", resolved_user, cart_id)
     try:
         resp = _safe_request("POST", url, "place_order",
                              headers=_headers(access_token),
-                             params={"cartId": resolved_cart,
+                             params={"cartId": cart_id,
                                      "securityCode": security_code,
                                      "fields": "FULL"})
         if resp.status_code in (200, 201):
@@ -617,7 +560,7 @@ def get_order(
     user_id: str = "current",
 ) -> dict:
     """Retrieve order details by order code."""
-    resolved_user = "anonymous" if user_id.lower() in ("", "anonymous", "guest") else user_id
+    resolved_user = _resolve_user(user_id)
     url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/orders/{order_code}"
     logger.info("get_order | order=%s | user=%s", order_code, resolved_user)
     try:
@@ -641,7 +584,6 @@ def get_order(
 # ─────────────────────────────────────────────
 
 ALL_TOOLS = [
-    guest_token,
     search_products,
     get_product_details,
     create_cart,
