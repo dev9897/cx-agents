@@ -1,12 +1,3 @@
-"""
-production_agent.py
-===================
-SAP Commerce Cloud Shopping Agent — Production Grade
-Covers: Claude API via ChatAnthropic, Security, Observability, Resilience,
-        Cost Control, Context Management, Streaming, Prompt Caching,
-        Checkpointing, Human-in-the-loop, Error Handling, Testing hooks.
-"""
-
 from __future__ import annotations
 
 import json
@@ -27,7 +18,6 @@ from dotenv import load_dotenv
 # populated before that import runs.
 load_dotenv()
 
-# ── LangChain / LangGraph ────────────────────────────────────────────────────
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import (
     AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage,
@@ -56,6 +46,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("sap_agent")
+
+# Force DEBUG on the tools logger so token diagnostics always show in dev
+if os.getenv("SAP_STATIC_TOKEN"):
+    logging.getLogger("sap_agent.tools").setLevel(logging.DEBUG)
 
 # Enable LangSmith tracing if configured
 if CONFIG.observability.tracing_backend == "langsmith":
@@ -177,7 +171,6 @@ _anthropic_rate_limiter = InMemoryRateLimiter(
     max_bucket_size=10,
 )
 
-
 _llm = ChatAnthropic(
     base_url="https://api.anthropic.com",
     model="claude-haiku-4-5",               # "claude-sonnet-4-6"
@@ -192,7 +185,6 @@ _llm = ChatAnthropic(
     # Uses cache_control beta — automatically handled by langchain-anthropic >= 0.3
     default_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
 )
-
 
 """_llm = ChatOllama(
     model="mistral:latest",   # or whatever name shows in `ollama list`
@@ -601,8 +593,36 @@ def state_sync_node(state: ShoppingState) -> dict:
     return updates
 
 
-# Pre-built ToolNode — handles parallel tool execution + error formatting
-_tool_node = ToolNode(ALL_TOOLS)
+# Pre-built ToolNode
+_raw_tool_node = ToolNode(ALL_TOOLS)
+
+
+def tool_node_with_injection(state: ShoppingState) -> dict:
+    """
+    Injects access_token from session state into every tool call.
+    Claude never needs to pass the token — it comes from state automatically.
+    """
+    last = state["messages"][-1]
+    if not isinstance(last, AIMessage) or not last.tool_calls:
+        return _raw_tool_node.invoke(state)
+
+    access_token = state.get("access_token") or ""
+
+    patched_calls = []
+    for tc in last.tool_calls:
+        args = dict(tc.get("args", {}))
+        if not args.get("access_token") and access_token:
+            args["access_token"] = access_token
+            logger.debug("tool_injection | %s | injected access_token", tc.get("name"))
+        patched_calls.append({**tc, "args": args})
+
+    patched_msg = AIMessage(
+        content=last.content,
+        tool_calls=patched_calls,
+        id=last.id,
+    )
+    patched_state = {**state, "messages": state["messages"][:-1] + [patched_msg]}
+    return _raw_tool_node.invoke(patched_state)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -636,7 +656,7 @@ def build_production_graph():
 
     g.add_node("agent",          agent_node)
     g.add_node("human_approval", human_approval_node)
-    g.add_node("tools",          _tool_node)
+    g.add_node("tools",          tool_node_with_injection)
     g.add_node("sync",           state_sync_node)
 
     g.add_edge(START, "agent")
@@ -660,80 +680,8 @@ def build_production_graph():
     checkpointer = MemorySaver()
     return g.compile(checkpointer=checkpointer, interrupt_before=[])
 
-
 production_graph = build_production_graph()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PUBLIC API
-# ─────────────────────────────────────────────────────────────────────────────
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ANONYMOUS TOKEN BOOTSTRAP
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _fetch_anonymous_token() -> Optional[str]:
-    """
-    Obtain a guest/anonymous OAuth token from SAP Commerce Cloud.
-
-    SAP OCC requires *every* API call (even product search) to carry a
-    Bearer token.  Without this, all tool calls return 401 / 403, Claude
-    receives an error, and the content block it produces can crash Pydantic.
-
-    Endpoint: POST {SAP_BASE_URL}/authorizationserver/oauth/token
-    Grant:    client_credentials  (anonymous / guest access)
-    """
-    import httpx
-
-    base          = os.getenv("SAP_BASE_URL", "").rstrip("/")
-    client_id     = os.getenv("SAP_CLIENT_ID", "")
-    client_secret = os.getenv("SAP_CLIENT_SECRET", "")
-    ssl_verify    = os.getenv("SAP_SSL_VERIFY", "true").lower() != "false"
-
-    # SAP token endpoint lives one level above /occ/v2
-    # e.g. https://my-sap.example.com/authorizationserver/oauth/token
-    token_url = base.replace("/occ/v2", "") + "/authorizationserver/oauth/token"
-
-    logger.info("🔑 Fetching anonymous SAP token → %s", token_url)
-
-    try:
-        resp = httpx.post(
-            token_url,
-            data={
-                "grant_type":    "client_credentials",
-                "client_id":     client_id,
-                "client_secret": client_secret,
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=10,
-            verify=ssl_verify,
-        )
-        resp.raise_for_status()
-        token = resp.json().get("access_token")
-        if token:
-            logger.info("✅ Anonymous SAP token obtained (len=%d)", len(token))
-        else:
-            logger.error("❌ SAP token response missing 'access_token': %s", resp.text[:300])
-        return token
-
-    except httpx.ConnectError as e:
-        cause = str(e.__cause__ or e)
-        if "CERTIFICATE_VERIFY_FAILED" in cause or "SSL" in cause.upper():
-            _log_ssl_error(e, context="fetch_anonymous_token", url=token_url)
-        else:
-            logger.error("❌ Connection error fetching SAP token | url=%s | %s", token_url, cause)
-        return None
-
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            "❌ SAP token endpoint returned %d | url=%s | body=%s",
-            e.response.status_code, token_url, e.response.text[:300],
-        )
-        return None
-
-    except Exception:
-        logger.exception("❌ Unexpected error fetching anonymous SAP token | url=%s", token_url)
-        return None
 
 
 def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
@@ -746,35 +694,27 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
     thread_id = str(uuid.uuid4())
 
     # Allow a hardcoded token for dev/testing — set SAP_STATIC_TOKEN in .env
-    # to skip the OAuth flow entirely.
-    static_token    = os.getenv("SAP_STATIC_TOKEN")
-    static_username = os.getenv("SAP_STATIC_USERNAME", "dev-user")
-
+    # to skip the OAuth flow entirely. Must be a password-grant token, not client_credentials.
+    # Never use this in production.
+    static_token ="8ZLSDZxna5k5IbrkAc-OAhcWs_A"
     if static_token:
         logger.warning(
-            "⚠️  new_session | Using SAP_STATIC_TOKEN as logged-in user '%s' — dev mode only | session=%s",
-            static_username, thread_id,
+            "⚠️  new_session | Using SAP_STATIC_TOKEN — dev mode only | session=%s",
+            thread_id,
         )
         access_token     = static_token
         resolved_user_id = "current"
-        resolved_username = static_username
+        resolved_username = os.getenv("SAP_STATIC_USERNAME", "lang-graph-user")
     else:
-        access_token      = _fetch_anonymous_token()
-        resolved_user_id  = user_id
-        resolved_username = None
-        if not access_token:
-            logger.warning(
-                "new_session | Could not obtain anonymous SAP token | session=%s",
-                thread_id,
-            )
+        logger.warning("new_session | Could not obtain SAP token | session=%s", thread_id)
 
     init_state = ShoppingState(
         messages=[],
         access_token=access_token,
-        user_id=resolved_user_id,       # "current" for static token, "anonymous" otherwise
+        user_id=resolved_user_id,
         cart_id=None,
         order_code=None,
-        username=resolved_username,     # set so system prompt shows "Authenticated: Yes — logged in as X"
+        username=resolved_username,
         session_id=thread_id,
         total_input_tokens=0,
         total_output_tokens=0,
@@ -783,6 +723,24 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         consecutive_errors=0,
     )
 
+    logger.info(
+        "new_session | session=%s | user_id=%s | token_len=%d | token_preview=%s",
+        thread_id,
+        resolved_user_id,
+        len(access_token) if access_token else 0,
+        (access_token[:12] + "...") if access_token and len(access_token) > 12 else repr(access_token),
+    )
+    logger.debug(
+        "new_session | full init_state keys=%s | access_token in state=%r | user_id in state=%r",
+        list(init_state.keys()),
+        init_state.get("access_token", "MISSING")[:10] if init_state.get("access_token") else "NONE",
+        init_state.get("user_id", "MISSING"),
+    )
+
+    audit("SESSION_START", thread_id, {
+        "user_id": resolved_user_id,
+        "token_ok": bool(access_token and len(access_token) > 20),
+    })
     return init_state, thread_id
 
 
@@ -825,6 +783,12 @@ def run_turn(user_message: str, thread_id: str,
     )
 
     # ── Invoke ───────────────────────────────────────────────────────────────
+    logger.debug(
+        "run_turn | thread=%s | access_token_len=%d | user_id=%s",
+        thread_id,
+        len(state.get("access_token") or ""),
+        state.get("user_id"),
+    )
     try:
         if approval_response:
             # Resume after human interrupt
@@ -832,6 +796,13 @@ def run_turn(user_message: str, thread_id: str,
         else:
             state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
             new_state = production_graph.invoke(state, config=lg_config)
+
+        # LangGraph MemorySaver merges checkpoint state on every invoke.
+        # Explicitly restore access_token from our session store so it is
+        # never overwritten by a stale checkpoint value.
+        if state.get("access_token"):
+            new_state["access_token"] = state["access_token"]
+            new_state["user_id"]      = state.get("user_id", "current")
 
     except Exception as exc:
         if _is_ssl_error(exc):
