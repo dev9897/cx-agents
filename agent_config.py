@@ -63,7 +63,7 @@ class ResilienceConfig:
     enable_llm_fallback: bool = True
 
     # Context window management — trim old messages automatically
-    max_messages_in_context: int = 20
+    max_messages_in_context: int = 50
     context_trim_strategy: Literal["oldest_first", "keep_system"] = "oldest_first"
 
 
