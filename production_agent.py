@@ -38,8 +38,8 @@ from security_layer import (
     SecurityMiddleware, audit, detect_prompt_injection,
     rate_limiter, sanitise_input, scrub_pii,
 )
-from sap_commerce_tools import ALL_TOOLS, place_order
-
+from mcp_client import get_tools_sync
+ALL_TOOLS = get_tools_sync()
 # ── Observability ────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, CONFIG.observability.log_level),
@@ -203,7 +203,6 @@ _llm_with_tools = _llm.bind_tools(ALL_TOOLS)
 class ShoppingState(TypedDict):
     # Core conversation
     messages: Annotated[list[BaseMessage], add_messages]
-
     # SAP session
     access_token: Optional[str]
     user_id: str                  # "current" | "anonymous"
@@ -290,21 +289,60 @@ def _build_system_message(state: ShoppingState) -> SystemMessage:
 
 def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     """
-    Prevent context overflow. Keep the last N messages.
-    Uses LangChain's trim_messages to respect token limits.
+    Prevent context overflow while keeping tool call / tool result pairs intact.
+
+    Anthropic's API requires that every ToolMessage (tool_result) is immediately
+    preceded by the AIMessage (tool_use) that produced it. trim_messages() can
+    split these pairs when truncating, causing a 400 BadRequestError.
+
+    Strategy:
+    1. Always keep the last MAX_MESSAGES messages as a hard fallback.
+    2. Walk forward from the trim point and skip forward until we land on a
+       HumanMessage — never start mid tool-call/result pair.
     """
-    if len(messages) <= CONFIG.resilience.max_messages_in_context:
+    max_msgs = CONFIG.resilience.max_messages_in_context
+
+    if len(messages) <= max_msgs:
         return messages
-    # Always keep system message + last N turns
-    return trim_messages(
-        messages,
-        max_tokens=CONFIG.claude.max_input_tokens,
-        strategy="last",
-        token_counter=_llm,
-        include_system=True,
-        allow_partial=False,
-        start_on="human",
+
+    # Take the last max_msgs messages
+    trimmed = messages[-max_msgs:]
+
+    # Walk forward until we find a safe start point (HumanMessage).
+    # This ensures we never start with an orphaned ToolMessage or AIMessage
+    # that has tool_calls without the preceding context.
+    for i, msg in enumerate(trimmed):
+        if isinstance(msg, HumanMessage):
+            trimmed = trimmed[i:]
+            break
+
+    # Final safety check: if the first message is a ToolMessage, something
+    # is still wrong — drop messages until it isn't.
+    while trimmed and isinstance(trimmed[0], ToolMessage):
+        trimmed = trimmed[1:]
+
+    # Also ensure no ToolMessage appears without a preceding AIMessage with tool_calls.
+    # Walk through and remove any orphaned ToolMessages.
+    safe = []
+    for i, msg in enumerate(trimmed):
+        if isinstance(msg, ToolMessage):
+            # Check the previous message has a matching tool_call
+            prev = safe[-1] if safe else None
+            if isinstance(prev, AIMessage) and prev.tool_calls:
+                safe.append(msg)
+            else:
+                logger.warning(
+                    "_trim_context | dropping orphaned ToolMessage tool_call_id=%s",
+                    getattr(msg, "tool_call_id", "?"),
+                )
+        else:
+            safe.append(msg)
+
+    logger.debug(
+        "_trim_context | original=%d → trimmed=%d → safe=%d",
+        len(messages), len(trimmed), len(safe),
     )
+    return safe
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -681,7 +719,6 @@ def build_production_graph():
     return g.compile(checkpointer=checkpointer, interrupt_before=[])
 
 production_graph = build_production_graph()
-
 
 
 def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
