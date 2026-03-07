@@ -5,12 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8fbb11b9-d718-4b01-84b2-5235edcb9c60" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/mcp_client.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sap_commerce_mcp_server.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/token_vault.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent_config.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent_config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/production_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/production_agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sap_commerce_mcp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/sap_commerce_mcp_server.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,32 +35,32 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "JavaScript Debug.index.html.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.agent_config.executor": "Run",
-    "Python.langchain.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.production_agent.executor": "Run",
-    "Python.sap_commerce_mcp_server.executor": "Run",
-    "Python.sap_commerce_tools.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "ai.playground.ignore.import.keys.banner.in.settings": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/home/dev/PycharmProjects/cx-agents",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;JavaScript Debug.index.html.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.agent_config.executor&quot;: &quot;Run&quot;,
+    &quot;Python.langchain.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.production_agent.executor&quot;: &quot;Run&quot;,
+    &quot;Python.sap_commerce_mcp_server.executor&quot;: &quot;Run&quot;,
+    &quot;Python.sap_commerce_tools.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/dev/PycharmProjects/cx-agents&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -93,7 +89,8 @@
       <workItem from="1772612454395" duration="14835000" />
       <workItem from="1772783043701" duration="1618000" />
       <workItem from="1772796221235" duration="307000" />
-      <workItem from="1772810734833" duration="11541000" />
+      <workItem from="1772810734833" duration="12370000" />
+      <workItem from="1772909719328" duration="2605000" />
     </task>
     <servers />
   </component>
