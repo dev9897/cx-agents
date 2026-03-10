@@ -30,7 +30,7 @@ from langgraph.checkpoint.memory import MemorySaver          # swap → AsyncSql
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langgraph.types import interrupt                         # Human-in-the-loop
+from langgraph.types import Command, interrupt                 # Human-in-the-loop
 
 # ── Local modules ────────────────────────────────────────────────────────────
 from agent_config import CONFIG
@@ -219,6 +219,7 @@ class ShoppingState(TypedDict):
     # Error handling
     last_error: Optional[str]
     consecutive_errors: int
+    rejected_tool_calls: Optional[list[str]]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -303,7 +304,13 @@ def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     max_msgs = CONFIG.resilience.max_messages_in_context
 
     if len(messages) <= max_msgs:
-        return messages
+        # Even if we don't trim, validate the message structure
+        validated = _validate_tool_message_pairs(messages)
+        logger.debug(
+            "_trim_context | no trimming needed | original=%d → validated=%d",
+            len(messages), len(validated)
+        )
+        return validated
 
     # Take the last max_msgs messages
     trimmed = messages[-max_msgs:]
@@ -321,27 +328,98 @@ def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     while trimmed and isinstance(trimmed[0], ToolMessage):
         trimmed = trimmed[1:]
 
-    # Also ensure no ToolMessage appears without a preceding AIMessage with tool_calls.
-    # Walk through and remove any orphaned ToolMessages.
-    safe = []
-    for i, msg in enumerate(trimmed):
-        if isinstance(msg, ToolMessage):
-            # Check the previous message has a matching tool_call
-            prev = safe[-1] if safe else None
-            if isinstance(prev, AIMessage) and prev.tool_calls:
-                safe.append(msg)
-            else:
-                logger.warning(
-                    "_trim_context | dropping orphaned ToolMessage tool_call_id=%s",
-                    getattr(msg, "tool_call_id", "?"),
-                )
-        else:
-            safe.append(msg)
+    # Validate tool call/result pairs
+    safe = _validate_tool_message_pairs(trimmed)
 
     logger.debug(
         "_trim_context | original=%d → trimmed=%d → safe=%d",
         len(messages), len(trimmed), len(safe),
     )
+    return safe
+
+
+def _validate_tool_message_pairs(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """
+    Ensure every AIMessage with tool_calls is followed by corresponding ToolMessages,
+    and every ToolMessage has a preceding AIMessage with matching tool_call.
+    """
+    safe = []
+    pending_tool_calls = {}  # tool_call_id -> tool_call
+
+    for i, msg in enumerate(messages):
+        if isinstance(msg, AIMessage):
+            if msg.tool_calls:
+                # Track tool calls that need results
+                for tc in msg.tool_calls:
+                    pending_tool_calls[tc["id"]] = tc
+                safe.append(msg)
+            else:
+                safe.append(msg)
+
+        elif isinstance(msg, ToolMessage):
+            tool_call_id = getattr(msg, "tool_call_id", None)
+            if tool_call_id and tool_call_id in pending_tool_calls:
+                # This ToolMessage matches a pending tool call
+                safe.append(msg)
+                del pending_tool_calls[tool_call_id]
+            else:
+                logger.warning(
+                    "_validate_tool_message_pairs | dropping orphaned ToolMessage tool_call_id=%s",
+                    tool_call_id or "?",
+                )
+
+        else:
+            # HumanMessage, SystemMessage, etc.
+            safe.append(msg)
+
+    # Check for unmatched tool calls
+    if pending_tool_calls:
+        logger.error(
+            "_validate_tool_message_pairs | found %d unmatched tool_calls: %s | cleaning up...",
+            len(pending_tool_calls),
+            list(pending_tool_calls.keys())
+        )
+        # Remove AIMessages with unmatched tool calls to prevent API errors
+        final_safe = []
+        for msg in safe:
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                # Keep only tool calls that have results
+                matched_tool_calls = [
+                    tc for tc in msg.tool_calls
+                    if tc["id"] not in pending_tool_calls
+                ]
+                if matched_tool_calls:
+                    # Create new message with only matched tool calls
+                    new_msg = AIMessage(
+                        content=msg.content,
+                        tool_calls=matched_tool_calls,
+                        id=msg.id,
+                    )
+                    final_safe.append(new_msg)
+                    logger.debug(
+                        "_validate_tool_message_pairs | kept %d/%d tool calls for message %s",
+                        len(matched_tool_calls), len(msg.tool_calls), msg.id
+                    )
+                else:
+                    # If no tool calls remain, create message without tool calls
+                    new_msg = AIMessage(
+                        content=msg.content,
+                        id=msg.id,
+                    )
+                    final_safe.append(new_msg)
+                    logger.debug(
+                        "_validate_tool_message_pairs | removed all tool calls from message %s",
+                        msg.id
+                    )
+            else:
+                final_safe.append(msg)
+
+        logger.info(
+            "_validate_tool_message_pairs | cleanup complete | removed %d unmatched tool calls",
+            len(pending_tool_calls)
+        )
+        return final_safe
+
     return safe
 
 
@@ -453,12 +531,71 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
     trimmed    = _trim_context(state["messages"])
     all_msgs   = [system_msg] + trimmed
 
+    # Debug tool call/result pairing before sending to Claude
+    tool_call_debug = []
+    for i, msg in enumerate(all_msgs):
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            tool_call_debug.append(f"AI#{i}: {[tc['id'][:8] for tc in msg.tool_calls]}")
+        elif isinstance(msg, ToolMessage):
+            tool_call_id = getattr(msg, "tool_call_id", "?")
+            tool_call_debug.append(f"Tool#{i}: {tool_call_id[:8] if tool_call_id != '?' else '?'}")
+
     logger.debug(
-        "agent_node | session=%s | turn=%d | messages_in_context=%d",
+        "agent_node | session=%s | turn=%d | messages_in_context=%d | tool_flow=%s",
         session_id,
         state.get("turn_count", 0),
         len(all_msgs),
+        " → ".join(tool_call_debug) if tool_call_debug else "no_tools",
     )
+
+    # Additional debugging for unmatched tool calls
+    unmatched_calls = []
+    pending_calls = {}
+    for msg in all_msgs:
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for tc in msg.tool_calls:
+                pending_calls[tc["id"]] = tc["name"]
+        elif isinstance(msg, ToolMessage):
+            tool_call_id = getattr(msg, "tool_call_id", None)
+            if tool_call_id and tool_call_id in pending_calls:
+                del pending_calls[tool_call_id]
+
+    if pending_calls:
+        logger.error(
+            "agent_node | session=%s | CRITICAL: About to send unmatched tool calls to Claude: %s | EMERGENCY CLEANUP",
+            session_id, list(pending_calls.keys())
+        )
+        # Log the actual messages being sent for debugging
+        for i, msg in enumerate(all_msgs[-10:]):  # Last 10 messages
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                logger.error("agent_node | msg[%d] AIMessage tool_calls: %s", i, [tc["id"] for tc in msg.tool_calls])
+            elif isinstance(msg, ToolMessage):
+                logger.error("agent_node | msg[%d] ToolMessage tool_call_id: %s", i, getattr(msg, "tool_call_id", "?"))
+
+        # EMERGENCY: Remove problematic tool calls to prevent API error
+        cleaned_msgs = []
+        for msg in all_msgs:
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                # Remove unmatched tool calls
+                safe_tool_calls = [tc for tc in msg.tool_calls if tc["id"] not in pending_calls]
+                if safe_tool_calls:
+                    cleaned_msgs.append(AIMessage(
+                        content=msg.content,
+                        tool_calls=safe_tool_calls,
+                        id=msg.id,
+                    ))
+                else:
+                    # Remove tool calls entirely
+                    cleaned_msgs.append(AIMessage(
+                        content=msg.content,
+                        id=msg.id,
+                    ))
+            else:
+                cleaned_msgs.append(msg)
+
+        all_msgs = cleaned_msgs
+        logger.warning("agent_node | session=%s | Emergency cleanup applied - removed %d unmatched tool calls",
+                      session_id, len(pending_calls))
 
     try:
         response = _llm_invoke_with_retry(_llm_with_tools, all_msgs, config)
@@ -545,6 +682,8 @@ def human_approval_node(state: ShoppingState) -> dict:
     if not isinstance(last, AIMessage) or not last.tool_calls:
         return {}
 
+    rejected_tool_calls = []
+
     for tc in last.tool_calls:
         if tc["name"] == "place_order":
             # Pause and send to client for approval
@@ -557,14 +696,13 @@ def human_approval_node(state: ShoppingState) -> dict:
             })
             if not approval.get("approved"):
                 audit("ORDER_REJECTED", state.get("session_id", "?"), tc["args"])
-                # Replace the tool call with a rejection message
-                return {
-                    "messages": [ToolMessage(
-                        content=json.dumps({"success": False, "reason": "User cancelled order."}),
-                        tool_call_id=tc["id"],
-                    )]
-                }
-            audit("ORDER_APPROVED", state.get("session_id", "?"), tc["args"])
+                rejected_tool_calls.append(tc["id"])
+            else:
+                audit("ORDER_APPROVED", state.get("session_id", "?"), tc["args"])
+
+    # Store rejected tool calls in state for the tools node to handle
+    if rejected_tool_calls:
+        return {"rejected_tool_calls": rejected_tool_calls}
 
     return {}
 
@@ -646,21 +784,52 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
 
     access_token = state.get("access_token") or ""
 
+    # Ensure rejected_tool_calls is always a list, never None
+    rejected_tool_calls = state.get("rejected_tool_calls")
+    if rejected_tool_calls is None:
+        rejected_tool_calls = []
+
+    # Create tool results for rejected calls first
+    tool_results = []
+    for tool_call in last.tool_calls:
+        if tool_call["id"] in rejected_tool_calls:
+            tool_results.append(ToolMessage(
+                content=json.dumps({"success": False, "reason": "User cancelled order."}),
+                tool_call_id=tool_call["id"],
+            ))
+
+    # Process remaining (non-rejected) tool calls
     patched_calls = []
     for tc in last.tool_calls:
-        args = dict(tc.get("args", {}))
-        if not args.get("access_token") and access_token:
-            args["access_token"] = access_token
-            logger.debug("tool_injection | %s | injected access_token", tc.get("name"))
-        patched_calls.append({**tc, "args": args})
+        if tc["id"] not in rejected_tool_calls:
+            args = dict(tc.get("args", {}))
+            # ALWAYS override access_token from state — Claude may pass
+            # user_id ("current") as the token by mistake.
+            if access_token:
+                args["access_token"] = access_token
+                logger.debug("tool_injection | %s | injected access_token (len=%d)", tc.get("name"), len(access_token))
+            patched_calls.append({**tc, "args": args})
 
+    # If all tool calls were rejected, just return the rejection messages
+    if not patched_calls:
+        return {"messages": tool_results, "rejected_tool_calls": None}
+
+    # Execute non-rejected tool calls
     patched_msg = AIMessage(
         content=last.content,
         tool_calls=patched_calls,
         id=last.id,
     )
     patched_state = {**state, "messages": state["messages"][:-1] + [patched_msg]}
-    return _raw_tool_node.invoke(patched_state)
+    result = _raw_tool_node.invoke(patched_state)
+
+    # Add rejected tool results to the beginning of the results
+    if tool_results:
+        result["messages"] = tool_results + result.get("messages", [])
+
+    # Clear rejected tool calls from state
+    result["rejected_tool_calls"] = None
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -828,8 +997,11 @@ def run_turn(user_message: str, thread_id: str,
     )
     try:
         if approval_response:
-            # Resume after human interrupt
-            new_state = production_graph.invoke(approval_response, config=lg_config)
+            # Resume after human interrupt — must use Command(resume=...)
+            # so LangGraph continues from the interrupted node, not restart.
+            new_state = production_graph.invoke(
+                Command(resume=approval_response), config=lg_config
+            )
         else:
             state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
             new_state = production_graph.invoke(state, config=lg_config)
