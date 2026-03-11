@@ -26,11 +26,11 @@ load_dotenv()
 # STEP 2: Validate required environment variables before booting
 # ─────────────────────────────────────────────────────────────────────────────
 REQUIRED_ENV_VARS = [
-    "ANTHROPIC_API_KEY",
     "SAP_BASE_URL",
     "SAP_SITE_ID",
     "SAP_CLIENT_ID",
     "SAP_CLIENT_SECRET",
+    "ANTHROPIC_API_KEY",
 ]
 
 logging.basicConfig(
@@ -210,8 +210,8 @@ def run_server():
     import uvicorn
     from agent_config import CONFIG
 
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("localhost", "0.0.0.0")
+    port = int(os.getenv("PORT", "8004"))
     reload = os.getenv("ENVIRONMENT", "production") == "development"
 
     print(f"\n🚀  Starting SAP Commerce Agent API")

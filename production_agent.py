@@ -38,8 +38,9 @@ from security_layer import (
     SecurityMiddleware, audit, detect_prompt_injection,
     rate_limiter, sanitise_input, scrub_pii,
 )
-from mcp_client import get_tools_sync
+from mcp_client import get_tools_sync, get_mcp_session_id
 ALL_TOOLS = get_tools_sync()
+_MCP_SESSION_ID = get_mcp_session_id()
 # ── Observability ────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, CONFIG.observability.log_level),
@@ -209,6 +210,7 @@ class ShoppingState(TypedDict):
     cart_id: Optional[str]
     order_code: Optional[str]
     username: Optional[str]
+    mcp_session_id: Optional[str]  # MCP token vault session_id
 
     # Observability / cost
     session_id: str
@@ -274,12 +276,16 @@ def _build_system_message(state: ShoppingState) -> SystemMessage:
     username = state.get("username")
     authenticated = bool(state.get("access_token")) and state.get("user_id") == "current"
 
+    mcp_session = state.get("mcp_session_id") or _MCP_SESSION_ID
     dynamic = f"""
 ## Current session
 - Authenticated : {"Yes — logged in as " + username if authenticated else "No (guest)"}
 - User ID       : {state.get("user_id", "anonymous")}
 - Cart ID       : {state.get("cart_id") or "Not created yet"}
+- Session ID    : {mcp_session or "Not available — call account_login or guest_token first"}
 - Turn          : {state.get("turn_count", 0)}
+
+IMPORTANT: When calling tools that require session_id, always use: {mcp_session}
 """.strip()
     return SystemMessage(content=_STATIC_SYSTEM + "\n\n" + dynamic)
 
@@ -921,6 +927,7 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         cart_id=None,
         order_code=None,
         username=resolved_username,
+        mcp_session_id=_MCP_SESSION_ID,
         session_id=thread_id,
         total_input_tokens=0,
         total_output_tokens=0,

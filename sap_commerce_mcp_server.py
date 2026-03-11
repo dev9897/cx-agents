@@ -21,6 +21,19 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s [MCP] %(message)s")
 logger = logging.getLogger("sap_mcp")
 
+# ── Register static token in vault (dev mode) ────────────────────────────────
+_STATIC_TOKEN = os.getenv("SAP_STATIC_TOKEN")
+STATIC_SESSION_ID = None
+if _STATIC_TOKEN:
+    _static_username = os.getenv("SAP_STATIC_USERNAME", "lang-graph-user")
+    STATIC_SESSION_ID = vault.store(
+        access_token=_STATIC_TOKEN,
+        username=_static_username,
+        expires_in=999_999,  # effectively never expires
+    )
+    logger.info("Registered static token in vault | session=%s | user=%s",
+                STATIC_SESSION_ID, _static_username)
+
 # ── HTTP client ───────────────────────────────────────────────────────────────
 _http = httpx.Client(timeout=30.0, verify=False)  # verify=False for local dev SAP
 
@@ -614,10 +627,22 @@ def server_health() -> dict:
         start = time.time()
         r     = _http.get(f"{BASE_URL}/{SITE_ID}/catalogs", timeout=5)
         ms    = round((time.time() - start) * 1000)
-        return {"success": True, "reachable": True,
-                "status_code": r.status_code, "response_ms": ms}
+        result = {"success": True, "reachable": True,
+                  "status_code": r.status_code, "response_ms": ms}
+        if STATIC_SESSION_ID:
+            result["static_session_id"] = STATIC_SESSION_ID
+        return result
     except Exception as e:
         return {"success": False, "reachable": False, "error": str(e)}
+
+
+@mcp.tool()
+def get_static_session() -> dict:
+    """Get the pre-configured static session_id for dev/testing.
+    Returns the session_id that is already registered in the token vault."""
+    if STATIC_SESSION_ID:
+        return {"success": True, "session_id": STATIC_SESSION_ID}
+    return {"success": False, "error": "No static token configured"}
 
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
