@@ -1,0 +1,51 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cx-agents-mcp
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      containerConcurrency: 80
+      containers:
+        - image: gcr.io/YOUR_PROJECT_ID/cx-agents-mcp:latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            # ── MCP Transport (must be streamable-http for Cloud Run) ───────
+            - name: MCP_TRANSPORT
+              value: "streamable-http"
+            - name: MCP_HOST
+              value: "0.0.0.0"
+
+            # ── SAP Commerce ───────────────────────────────────────────────
+            - name: SAP_BASE_URL
+              value: "https://your-sap-host/occ/v2"
+            - name: SAP_SITE_ID
+              value: "electronics"
+            - name: SAP_CLIENT_ID
+              value: "personalizationSetupClient"
+            - name: SAP_SSL_VERIFY
+              value: "false"
+            - name: SAP_STATIC_USERNAME
+              value: "lang-graph-user"
+
+            # ── Secrets from Google Secret Manager ─────────────────────────
+            - name: SAP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sap-client-secret    # secret name in Secret Manager
+                  key: latest
+            - name: SAP_STATIC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sap-static-token     # secret name in Secret Manager
+                  key: latest
