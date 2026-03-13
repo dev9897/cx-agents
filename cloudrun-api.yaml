@@ -2,6 +2,8 @@ apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
   name: cx-agents-api
+  labels:
+    cloud.googleapis.com/location: europe-west3
   annotations:
     run.googleapis.com/ingress: all
 spec:
