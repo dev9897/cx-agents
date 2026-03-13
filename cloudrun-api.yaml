@@ -1,0 +1,65 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cx-agents-api
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      containerConcurrency: 80
+      containers:
+        - image: gcr.io/YOUR_PROJECT_ID/cx-agents-api:latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            # ── App ────────────────────────────────────────────────────────
+            - name: ENVIRONMENT
+              value: "production"
+            - name: CLAUDE_MODEL
+              value: "claude-haiku-4-5"
+
+            # ── SAP Commerce ───────────────────────────────────────────────
+            - name: SAP_BASE_URL
+              value: "https://your-sap-host/occ/v2"
+            - name: SAP_OCC_PREFIX
+              value: "/occ/v2"
+            - name: SAP_SITE_ID
+              value: "electronics"
+            - name: SAP_CLIENT_ID
+              value: "personalizationSetupClient"
+            - name: SAP_SSL_VERIFY
+              value: "false"
+
+            # ── Secrets from Google Secret Manager ─────────────────────────
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: anthropic-api-key    # secret name in Secret Manager
+                  key: latest
+            - name: SAP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sap-client-secret    # secret name in Secret Manager
+                  key: latest
+            - name: SAP_STATIC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sap-static-token     # secret name in Secret Manager
+                  key: latest
+
+            # ── Observability (optional) ───────────────────────────────────
+            - name: LANGCHAIN_TRACING_V2
+              value: "false"
+            # - name: LANGSMITH_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: langsmith-api-key
+            #       key: latest
