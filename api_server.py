@@ -88,6 +88,8 @@ class ChatResponse(BaseModel):
     cart_id: Optional[str] = None
     order_code: Optional[str] = None
     awaiting_approval: bool = False
+    username: Optional[str] = None
+    authenticated: bool = False
 
 
 class ApprovalRequest(BaseModel):
@@ -245,6 +247,8 @@ def chat(req: ChatRequest):
         awaiting,
     )
 
+    is_authenticated = bool(new_state.get("access_token")) and new_state.get("user_id") == "current"
+
     return ChatResponse(
         session_id=thread_id,
         reply=reply,
@@ -253,6 +257,8 @@ def chat(req: ChatRequest):
         cart_id=new_state.get("cart_id"),
         order_code=new_state.get("order_code"),
         awaiting_approval=awaiting,
+        username=new_state.get("username") if is_authenticated else None,
+        authenticated=is_authenticated,
     )
 
 

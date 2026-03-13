@@ -485,6 +485,88 @@
   }
   .user-pill .logout-link:hover { color: var(--danger); }
 
+  /* ── Product Cards ── */
+  .product-cards-wrap {
+    margin: 12px -4px 4px;
+  }
+  .product-cards-intro {
+    font-size: 14px; line-height: 1.7; margin-bottom: 10px;
+  }
+  .product-cards {
+    display: flex; gap: 12px;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 4px 4px 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .product-cards::-webkit-scrollbar { height: 5px; }
+  .product-cards::-webkit-scrollbar-track { background: transparent; }
+  .product-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .product-card {
+    flex: 0 0 220px; scroll-snap-align: start;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column;
+    transition: all .2s; position: relative;
+  }
+  .product-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+  .product-card-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    line-height: 1.4; margin-bottom: 8px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 36px;
+  }
+  .product-card-code {
+    font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .product-card-price {
+    font-size: 18px; font-weight: 700; color: var(--accent);
+    font-family: var(--font-mono); margin-bottom: 6px;
+  }
+  .product-card-meta {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .product-card-stock {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .product-card-stock.in-stock { background: var(--success-bg); color: var(--success); }
+  .product-card-stock.out-of-stock { background: var(--danger-bg); color: var(--danger); }
+  .product-card-stock.low-stock { background: var(--warning-bg); color: var(--warning); }
+  .product-card-rating {
+    font-size: 11px; color: var(--warning);
+    display: flex; align-items: center; gap: 3px;
+  }
+  .product-card-rating .stars { letter-spacing: -1px; }
+  .product-card-rating .val { color: var(--text-secondary); font-family: var(--font-mono); }
+
+  .product-card-actions { margin-top: auto; display: flex; gap: 6px; }
+  .product-card-btn {
+    flex: 1; padding: 7px 10px; border-radius: 6px; font-size: 12px;
+    font-family: var(--font-ui); font-weight: 600;
+    cursor: pointer; transition: all .15s; border: none; text-align: center;
+  }
+  .product-card-btn.add-cart {
+    background: var(--accent); color: white;
+  }
+  .product-card-btn.add-cart:hover { background: var(--accent-hover); }
+  .product-card-btn.details {
+    background: transparent; color: var(--accent); border: 1px solid var(--border);
+  }
+  .product-card-btn.details:hover { border-color: var(--accent); background: var(--accent-light); }
+
+  .product-scroll-hint {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* Widen bubble when it has product cards */
+  .bubble:has(.product-cards-wrap) { max-width: 720px; }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .sidebar { display: none; }
@@ -793,6 +875,13 @@
       updateSidebar(d);
       parseCartFromReply(d);
 
+      // Sync auth state from server (covers static token / pre-authenticated sessions)
+      if (d.authenticated && d.username && !currentUser) {
+        currentUser = d.username;
+        updateAuthUI(d.username);
+        updateSidebarUser(d.username);
+      }
+
       if (d.awaiting_approval) showOrderConfirm(d.session_id);
     } catch (err) {
       typing.remove();
@@ -901,12 +990,297 @@
     avatar.textContent = role === 'agent' ? 'AI' : 'U';
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.innerHTML  = formatText(text);
+
+    if (role === 'agent' && isProductSearchReply(text)) {
+      const parsed = parseProductsFromText(text);
+      if (parsed.products.length > 0) {
+        bubble.innerHTML = buildProductCardsHTML(parsed.intro, parsed.products, parsed.outro);
+      } else {
+        bubble.innerHTML = formatText(text);
+      }
+    } else {
+      bubble.innerHTML = formatText(text);
+    }
+
     div.appendChild(avatar);
     div.appendChild(bubble);
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
     return div;
+  }
+
+  // ── Detect if reply is a product search result ──
+  function isProductSearchReply(text) {
+    const lower = text.toLowerCase();
+    // Must NOT be a cart, checkout, order, or detail response
+    const isCartOrOrder = /added to (your )?cart|cart (contents|total|summary)|order (placed|confirmed|#|code)|checkout|delivery (address|mode)|payment|shipping|entry.?number|your order|has been added/i.test(lower);
+    if (isCartOrOrder) return false;
+
+    // Must look like a search/browse result
+    const hasSearchContext = /found|result|here are|available|match|showing|products? (for|i found|in)|catalog|search|top result|browse/i.test(lower);
+    if (!hasSearchContext) return false;
+
+    // Must have a product table OR a numbered list with price/code details
+    const hasProductTable = /\|\s*(product|name)\s*\|/i.test(text);
+    const hasNumberedProducts = /^\s*\d+[\.\)]\s*.+/m.test(text) && /price|stock|\$\d/im.test(text);
+    const hasBoldProducts = /\*\*.+?\*\*/.test(text) && /price|stock|\$\d/im.test(text);
+
+    return hasProductTable || hasNumberedProducts || hasBoldProducts;
+  }
+
+  // ── Product parsing from agent text ──
+  function parseProductsFromText(text) {
+    // Try markdown table first, then fall back to bold-name list
+    const tableResult = parseMarkdownTable(text);
+    if (tableResult.products.length > 0) return tableResult;
+    return parseBoldList(text);
+  }
+
+  // Parse markdown table format:
+  // | Product | Price | Stock | Rating |
+  // |---------|-------|-------|--------|
+  // | Name    | $X.XX | ...   | ...    |
+  function parseMarkdownTable(text) {
+    const lines = text.split('\n');
+    const introLines = [];
+    const outroLines = [];
+    const products = [];
+    let headerIdx = -1;
+    let colMap = {};  // column name → index
+
+    // Find the header row (contains | Product | or | Name |)
+    for (let i = 0; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (t.startsWith('|') && t.endsWith('|')) {
+        const cells = t.split('|').map(c => c.trim()).filter(c => c);
+        const lower = cells.map(c => c.toLowerCase());
+        if (lower.some(c => c === 'product' || c === 'name')) {
+          headerIdx = i;
+          cells.forEach((c, idx) => { colMap[c.toLowerCase()] = idx; });
+          break;
+        }
+      }
+    }
+
+    if (headerIdx === -1) return { intro: '', products: [], outro: '' };
+
+    // Collect intro (everything before header)
+    for (let i = 0; i < headerIdx; i++) introLines.push(lines[i]);
+
+    // Skip header and separator rows, parse data rows
+    let dataStart = headerIdx + 1;
+    // Skip separator line like |---|---|---|
+    if (dataStart < lines.length && lines[dataStart].trim().match(/^\|[\s\-:|]+\|$/)) {
+      dataStart++;
+    }
+
+    let dataEnd = dataStart;
+    for (let i = dataStart; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (t.startsWith('|') && t.endsWith('|')) {
+        const cells = t.split('|').map(c => c.trim()).filter(c => c);
+        if (cells.length < 2 || cells.every(c => c.match(/^[-:]+$/))) continue;
+
+        const nameIdx = colMap['product'] ?? colMap['name'] ?? 0;
+        const priceIdx = colMap['price'] ?? 1;
+        const stockIdx = colMap['stock'] ?? 2;
+        const ratingIdx = colMap['rating'] ?? 3;
+
+        const name = (cells[nameIdx] || '').replace(/\*\*/g, '').trim();
+        const price = (cells[priceIdx] || '').replace(/\*\*/g, '').trim();
+        const stock = (cells[stockIdx] || '').trim();
+        const ratingRaw = (cells[ratingIdx] || '').replace(/[^0-9.]/g, '').trim();
+        const rating = ratingRaw ? parseFloat(ratingRaw) : null;
+
+        if (name && name !== '---') {
+          products.push({ name, price: price || null, code: null, stock: stock || null, rating });
+        }
+        dataEnd = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    // Collect outro (everything after table)
+    for (let i = dataEnd; i < lines.length; i++) outroLines.push(lines[i]);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      products,
+      outro: outroLines.join('\n').trim(),
+    };
+  }
+
+  // Fallback: parse numbered/bulleted product list
+  // Handles both:
+  //   1. **Product Name** - $XX.XX
+  //   1. Product Name (Code: 1312564)
+  //      - Price: $7.61
+  //      - Stock: In Stock
+  function parseBoldList(text) {
+    const lines = text.split('\n');
+    const products = [];
+    const introLines = [];
+    const outroLines = [];
+    let inProducts = false;
+    let doneProducts = false;
+    let currentProduct = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // Skip markdown headings (### Battery Chargers)
+      if (trimmed.match(/^#{1,4}\s+/)) {
+        if (!inProducts) introLines.push(lines[i]);
+        continue;
+      }
+
+      // Match numbered product line: "1. Name (Code: xxx)" or "1. **Name** - $price"
+      const boldMatch = trimmed.match(
+        /^(\d+)[\.\)]\s+\*\*(.+?)\*\*\s*(?:[-–—]\s*)?(.*)$/
+      );
+      const plainMatch = trimmed.match(
+        /^(\d+)[\.\)]\s+(.+?)(?:\s*\((?:Code|SKU)[:\s]*([A-Za-z0-9_-]+)\))?\s*$/
+      );
+
+      if (boldMatch) {
+        if (currentProduct) products.push(currentProduct);
+        inProducts = true;
+        const name = boldMatch[2].trim();
+        const rest = boldMatch[3].trim();
+        const priceMatch = rest.match(/\$[\d,]+\.?\d*/);
+        currentProduct = { name, price: priceMatch ? priceMatch[0] : null, code: null, stock: null, rating: null };
+        const codeInline = rest.match(/(?:code|sku)[:\s]*([A-Za-z0-9_-]+)/i);
+        if (codeInline) currentProduct.code = codeInline[1];
+        continue;
+      }
+
+      if (plainMatch && !plainMatch[2].match(/^[-•]/)) {
+        // Avoid matching detail sub-lines like "- Price: $7.61"
+        if (currentProduct) products.push(currentProduct);
+        inProducts = true;
+        const name = plainMatch[2].trim();
+        const code = plainMatch[3] || null;
+        currentProduct = { name, price: null, code, stock: null, rating: null };
+        continue;
+      }
+
+      // Detail lines for current product (with or without leading dash/bullet)
+      if (currentProduct && !doneProducts) {
+        const stripped = trimmed.replace(/^[-•*]\s*/, '');
+
+        const priceLine = stripped.match(/^price[:\s]*(\$[\d,]+\.?\d*)/i);
+        const stockLine = stripped.match(/^stock[:\s]*(.*)/i);
+        const ratingLine = stripped.match(/^(?:rating|avg\.?\s*rating)[:\s]*([\d.]+)/i);
+        const codeLine = stripped.match(/^(?:code|sku|product\s*code)[:\s]*([A-Za-z0-9_-]+)/i);
+
+        if (priceLine) { currentProduct.price = priceLine[1]; continue; }
+        if (stockLine) { currentProduct.stock = stockLine[1].trim(); continue; }
+        if (ratingLine) { currentProduct.rating = parseFloat(ratingLine[1]); continue; }
+        if (codeLine && !currentProduct.code) { currentProduct.code = codeLine[1]; continue; }
+
+        // Standalone price "$7.61"
+        if (!currentProduct.price && stripped.match(/^\$[\d,]+\.?\d*$/)) {
+          currentProduct.price = stripped; continue;
+        }
+
+        if (trimmed === '') continue;
+
+        // Check if upcoming lines have more numbered products
+        let hasMore = false;
+        for (let j = i; j < lines.length; j++) {
+          if (lines[j].trim().match(/^\d+[\.\)]\s+/)) { hasMore = true; break; }
+        }
+        if (!hasMore) {
+          products.push(currentProduct); currentProduct = null;
+          doneProducts = true; outroLines.push(lines[i]); continue;
+        }
+      }
+
+      if (doneProducts) outroLines.push(lines[i]);
+      else if (!inProducts) introLines.push(lines[i]);
+    }
+
+    if (currentProduct) products.push(currentProduct);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      products,
+      outro: outroLines.join('\n').trim(),
+    };
+  }
+
+  function buildProductCardsHTML(intro, products, outro) {
+    let html = '';
+    if (intro) html += `<div class="product-cards-intro">${formatText(intro)}</div>`;
+
+    html += '<div class="product-cards-wrap">';
+    html += '<div class="product-cards">';
+    products.forEach(p => {
+      const stockClass = getStockClass(p.stock);
+      const stockLabel = getStockLabel(p.stock);
+      const ratingHTML = p.rating ? buildRatingHTML(p.rating) : '';
+
+      const safeName = esc(p.name).replace(/'/g, "\\'");
+      const addMsg = p.code
+        ? `Add product ${esc(p.code)} to my cart`
+        : `Add ${safeName} to my cart`;
+      const detailMsg = p.code
+        ? `Show details for product ${esc(p.code)}`
+        : `Show me details for ${safeName}`;
+
+      html += `<div class="product-card">
+        <div class="product-card-name">${esc(p.name)}</div>
+        ${p.code ? `<div class="product-card-code">${esc(p.code)}</div>` : ''}
+        ${p.price ? `<div class="product-card-price">${esc(p.price)}</div>` : ''}
+        <div class="product-card-meta">
+          ${stockLabel ? `<span class="product-card-stock ${stockClass}">${stockLabel}</span>` : ''}
+          ${ratingHTML}
+        </div>
+        <div class="product-card-actions">
+          <button class="product-card-btn add-cart" onclick="sendQuick('${addMsg}')">Add to Cart</button>
+          <button class="product-card-btn details" onclick="sendQuick('${detailMsg}')">Details</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    if (products.length > 2) {
+      html += '<div class="product-scroll-hint">&#8592; scroll for more &#8594;</div>';
+    }
+    html += '</div>';
+
+    if (outro) html += `<div style="margin-top:8px">${formatText(outro)}</div>`;
+    return html;
+  }
+
+  function getStockClass(stock) {
+    if (!stock) return '';
+    const s = stock.toLowerCase();
+    if (s.includes('instock') || s.includes('in stock') || s === 'instock') return 'in-stock';
+    if (s.includes('low') || s.includes('limited')) return 'low-stock';
+    if (s.includes('out') || s.includes('unavailable')) return 'out-of-stock';
+    return 'in-stock';
+  }
+
+  function getStockLabel(stock) {
+    if (!stock) return '';
+    const s = stock.toLowerCase();
+    if (s.includes('instock') || s === 'instock') return 'In Stock';
+    if (s.includes('in stock')) return 'In Stock';
+    if (s.includes('low') || s.includes('limited')) return 'Low Stock';
+    if (s.includes('out')) return 'Out of Stock';
+    return stock;
+  }
+
+  function buildRatingHTML(rating) {
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    let stars = '';
+    for (let i = 0; i < full; i++) stars += '&#9733;';
+    for (let i = 0; i < half; i++) stars += '&#9733;';
+    for (let i = 0; i < empty; i++) stars += '&#9734;';
+    return `<span class="product-card-rating"><span class="stars">${stars}</span><span class="val">${rating.toFixed(1)}</span></span>`;
   }
 
   function appendTyping() {
