@@ -1,0 +1,52 @@
+steps:
+  # ── Main API server ──────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/cx-agents-api:$COMMIT_SHA', '-f', 'Dockerfile', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/cx-agents-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cx-agents-api'
+      - '--image=gcr.io/$PROJECT_ID/cx-agents-api:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=10'
+
+  # ── MCP server ───────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/cx-agents-mcp:$COMMIT_SHA', '-f', 'Dockerfile.mcp', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/cx-agents-mcp:$COMMIT_SHA']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cx-agents-mcp'
+      - '--image=gcr.io/$PROJECT_ID/cx-agents-mcp:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=5'
+      # Required env var for MCP server on Cloud Run:
+      # --set-env-vars MCP_TRANSPORT=streamable-http  (already baked into Dockerfile.mcp)
+
+images:
+  - 'gcr.io/$PROJECT_ID/cx-agents-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/cx-agents-mcp:$COMMIT_SHA'
