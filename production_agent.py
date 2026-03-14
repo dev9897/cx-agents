@@ -25,7 +25,6 @@ from langchain_core.messages import (
 )
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import MemorySaver          # swap → AsyncSqliteSaver in prod
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
