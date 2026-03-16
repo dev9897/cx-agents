@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+# fastmcp is not in requirements.txt — install it separately
+RUN pip install --no-cache-dir -r requirements.txt fastmcp==2.0.0
+
+COPY . .
+
+# Cloud Run injects PORT; MCP server reads MCP_PORT, so we forward it.
+# MCP_TRANSPORT must be streamable-http (not stdio) for Cloud Run.
+EXPOSE 8080
+
+ENV MCP_TRANSPORT=streamable-http
+
+# Pass Cloud Run's PORT into MCP_PORT at runtime
+CMD ["sh", "-c", "MCP_PORT=${PORT:-8005} python sap_commerce_mcp_server.py"]
