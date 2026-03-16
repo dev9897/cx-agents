@@ -12,6 +12,7 @@ pydantic-settings==2.13.1
 langchain==1.2.12
 langchain-anthropic==1.3.5
 langchain-core==1.2.19
+langchain-google-genai==2.1.4
 langchain-ollama==1.0.1
 langgraph==1.1.2
 langgraph-checkpoint==4.0.1

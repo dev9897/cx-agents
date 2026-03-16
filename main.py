@@ -25,12 +25,13 @@ load_dotenv()
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 2: Validate required environment variables before booting
 # ─────────────────────────────────────────────────────────────────────────────
+_provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
 REQUIRED_ENV_VARS = [
     "SAP_BASE_URL",
     "SAP_SITE_ID",
     "SAP_CLIENT_ID",
     "SAP_CLIENT_SECRET",
-    "ANTHROPIC_API_KEY",
+    *(["GOOGLE_API_KEY"] if _provider == "gemini" else ["ANTHROPIC_API_KEY"]),
 ]
 
 logging.basicConfig(
@@ -210,7 +211,7 @@ def run_server():
     import uvicorn
     from agent_config import CONFIG
 
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8004"))
     reload = os.getenv("ENVIRONMENT", "production") == "development"
 
@@ -222,7 +223,7 @@ def run_server():
 
     uvicorn.run(
         "api_server:app",
-        host=host,
+        host="localhost",
         port=port,
         reload=reload,
         log_level=CONFIG.observability.log_level.lower(),

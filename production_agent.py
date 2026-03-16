@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import (
     AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage,
     trim_messages,
@@ -161,37 +162,39 @@ def _llm_invoke_with_retry(llm, messages, config):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 1 — Claude API via ChatAnthropic (correct model, caching, streaming)
+# FACTOR 1 — LLM selection via LLM_PROVIDER env var ("anthropic" | "gemini")
 # ─────────────────────────────────────────────────────────────────────────────
 
-# API-level rate limiter (respect Anthropic tier limits)
-_anthropic_rate_limiter = InMemoryRateLimiter(
-    requests_per_second=0.5,     # 30 RPM = 0.5/s (adjust to your tier)
-    check_every_n_seconds=0.1,
-    max_bucket_size=10,
-)
+_provider = CONFIG.llm_provider.lower()
 
-_llm = ChatAnthropic(
-    base_url="https://api.anthropic.com",
-    model="claude-haiku-4-5",               # "claude-sonnet-4-6"
-    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-    max_tokens=CONFIG.claude.max_tokens,
-    temperature=CONFIG.claude.temperature,
-    timeout=CONFIG.claude.timeout_seconds,
-    max_retries=CONFIG.claude.max_retries,
-    streaming=CONFIG.claude.streaming,
-    rate_limiter=_anthropic_rate_limiter,
-    # Prompt caching: mark system prompt as cacheable (saves ~90% on repeat calls)
-    # Uses cache_control beta — automatically handled by langchain-anthropic >= 0.3
-    default_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-)
-
-"""_llm = ChatOllama(
-    model="mistral:latest",   # or whatever name shows in `ollama list`
-    base_url="http://localhost:11434",
-    temperature=CONFIG.claude.temperature,
-    num_predict=CONFIG.claude.max_tokens,
-)"""
+if _provider == "gemini":
+    logger.info("LLM provider: Google Gemini (%s)", CONFIG.gemini.model)
+    _llm = ChatGoogleGenerativeAI(
+        model=CONFIG.gemini.model,
+        google_api_key=CONFIG.gemini.api_key,
+        max_output_tokens=CONFIG.gemini.max_tokens,
+        temperature=CONFIG.gemini.temperature,
+    )
+else:
+    logger.info("LLM provider: Anthropic Claude (%s)", CONFIG.claude.model)
+    _anthropic_rate_limiter = InMemoryRateLimiter(
+        requests_per_second=0.5,     # 30 RPM = 0.5/s (adjust to your tier)
+        check_every_n_seconds=0.1,
+        max_bucket_size=10,
+    )
+    _llm = ChatAnthropic(
+        base_url="https://api.anthropic.com",
+        model=CONFIG.claude.model,
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+        max_tokens=CONFIG.claude.max_tokens,
+        temperature=CONFIG.claude.temperature,
+        timeout=CONFIG.claude.timeout_seconds,
+        max_retries=CONFIG.claude.max_retries,
+        streaming=CONFIG.claude.streaming,
+        rate_limiter=_anthropic_rate_limiter,
+        # Prompt caching: mark system prompt as cacheable (saves ~90% on repeat calls)
+        default_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
+    )
 
 _llm_with_tools = _llm.bind_tools(ALL_TOOLS)
 

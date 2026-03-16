@@ -76,8 +76,21 @@ class CostConfig:
 
 
 @dataclass
+class GeminiConfig:
+    # Model selection — gemini-2.0-flash is fast & cheap; gemini-2.0-pro for complex tasks
+    model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    api_key: str = os.getenv("GOOGLE_API_KEY", "")
+    max_tokens: int = int(os.getenv("GEMINI_MAX_TOKENS", "1024"))
+    temperature: float = 0.0
+
+
+@dataclass
 class AgentConfig:
+    # LLM provider: "anthropic" (Claude) or "gemini" (Google Gemini)
+    llm_provider: str = os.getenv("LLM_PROVIDER", "anthropic")
+
     claude: ClaudeConfig = field(default_factory=ClaudeConfig)
+    gemini: GeminiConfig = field(default_factory=GeminiConfig)
     observability: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     resilience: ResilienceConfig = field(default_factory=ResilienceConfig)
     cost: CostConfig = field(default_factory=CostConfig)
