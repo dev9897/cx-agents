@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8fbb11b9-d718-4b01-84b2-5235edcb9c60" name="Changes" comment="" />
+    <list default="true" id="8fbb11b9-d718-4b01-84b2-5235edcb9c60" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/load_products_to_qdrant.py" beforeDir="false" afterPath="$PROJECT_DIR$/load_products_to_qdrant.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/production_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/production_agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/qdrant_tool.py" beforeDir="false" afterPath="$PROJECT_DIR$/qdrant_tool.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/reset_and_load_qdrant.py" beforeDir="false" afterPath="$PROJECT_DIR$/reset_and_load_qdrant.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

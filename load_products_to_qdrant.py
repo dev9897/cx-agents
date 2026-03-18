@@ -10,7 +10,7 @@ import httpx
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 import uuid
 
 load_dotenv()
@@ -21,11 +21,11 @@ SITE_ID        = os.getenv("SAP_SITE_ID", "electronics")
 QDRANT_HOST     = os.getenv("QDRANT_HOST")          # Qdrant Cloud URL
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")      # Qdrant Cloud API Key
 COLLECTION     = "sap_products"
-EMBED_MODEL    = "all-MiniLM-L6-v2"               # 384-dim, fast & free
+EMBED_MODEL    = "sentence-transformers/all-MiniLM-L6-v2"  # 384-dim, fast & free
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 qdrant = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
-embedder = SentenceTransformer(EMBED_MODEL)
+embedder = TextEmbedding(EMBED_MODEL)
 http = httpx.Client(timeout=30, verify=False)  # verify=False for local SAP dev
 
 
@@ -127,7 +127,7 @@ def load_products(queries: list[str] = None):
 
         # Embeddings banao
         print(f"     Batch {i//batch_size + 1}: {len(batch)} products embed kar raha hun...")
-        vectors = embedder.encode(texts, show_progress_bar=False).tolist()
+        vectors = [v.tolist() for v in embedder.embed(texts)]
 
         # Qdrant points banao
         points = []

@@ -275,6 +275,14 @@ for searching products, managing carts, and completing purchases.
 - Anonymous: use user_id="anonymous" and cart GUID as cart_id.
 - Authenticated: use user_id="current" and numeric cart code as cart_id.
 
+## Search behaviour
+- This is an electronics store. The catalog contains cameras, phones, printers, accessories, etc.
+- If a user searches for something outside the catalog (e.g. books, food, clothing),
+  tell them directly: "Our store specialises in electronics. We don't carry [item].
+  Can I help you find something in electronics?"
+- Do NOT show irrelevant products. If search results clearly don't match the user's intent,
+  say so honestly rather than presenting unrelated items.
+
 ## Checkout sequence (always in this order)
 1. set_delivery_address
 2. set_delivery_mode  (default: standard-gross)

@@ -43,9 +43,9 @@ def _get_client():
 def _get_embedder():
     global _embedder
     if _embedder is None:
-        from sentence_transformers import SentenceTransformer
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("SentenceTransformer loaded (all-MiniLM-L6-v2)")
+        from fastembed import TextEmbedding
+        _embedder = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
+        logger.info("FastEmbed loaded (all-MiniLM-L6-v2)")
     return _embedder
 
 
@@ -69,13 +69,13 @@ def semantic_search_products(query: str, top_k: int = 5) -> dict:
         client   = _get_client()
         embedder = _get_embedder()
 
-        vector = embedder.encode(query).tolist()
+        vector = list(embedder.embed([query]))[0].tolist()
 
         response = client.query_points(
             collection_name=COLLECTION_NAME,
             query=vector,
             limit=top_k,
-            score_threshold=0.2,
+            score_threshold=0.35,
             with_payload=True,
         )
 

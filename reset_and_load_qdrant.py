@@ -12,7 +12,7 @@ import httpx
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 load_dotenv()
 
@@ -25,7 +25,7 @@ COLLECTION     = "sap_products"   # agent's collection name
 
 # ── Clients ───────────────────────────────────────────────────────────────────
 qdrant   = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+embedder = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
 http     = httpx.Client(timeout=30, verify=False)
 
 _HTML_RE = re.compile(r"<[^>]+>")
@@ -101,6 +101,33 @@ def fetch_products(query: str = "*", max_pages: int = 10) -> list[dict]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# STEP 3b: Enrich products with categories from detail API
+# ─────────────────────────────────────────────────────────────────────────────
+def enrich_with_categories(products: list[dict]) -> list[dict]:
+    """Fetch categories from /products/{code} detail API (search API doesn't return them)."""
+    total = len(products)
+    for i, p in enumerate(products):
+        code = p.get("code")
+        if not code:
+            continue
+        try:
+            resp = http.get(
+                f"{SAP_URL}/{SITE_ID}/products/{code}",
+                params={"fields": "categories(FULL)"},
+            )
+            if resp.status_code == 200:
+                detail = resp.json()
+                p["categories"] = detail.get("categories", [])
+        except Exception as e:
+            print(f"    ⚠ Could not fetch categories for {code}: {e}")
+
+        if (i + 1) % 20 == 0 or (i + 1) == total:
+            print(f"   📦 Enriched {i+1}/{total} products with categories")
+
+    return products
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STEP 4: Embed + Qdrant mein daalo
 # ─────────────────────────────────────────────────────────────────────────────
 def embed_and_upsert(products: list[dict]):
@@ -117,7 +144,7 @@ def embed_and_upsert(products: list[dict]):
             text = f"{strip_html(p.get('name',''))} {strip_html(p.get('summary',''))} {strip_html(p.get('description',''))} {cats}".strip()
             texts.append(text or p.get("code", "unknown"))
 
-        vectors = embedder.encode(texts, show_progress_bar=False).tolist()
+        vectors = [v.tolist() for v in embedder.embed(texts)]
 
         points = []
         for product, vector in zip(batch, vectors):
@@ -155,15 +182,15 @@ if __name__ == "__main__":
     print("="*55)
 
     # Step 1
-    print("\n[1/4] Purana data saaf kar raha hun...")
+    print("\n[1/5] Purana data saaf kar raha hun...")
     nuke_all_collections()
 
     # Step 2
-    print("\n[2/4] Naya collection bana raha hun...")
+    print("\n[2/5] Naya collection bana raha hun...")
     create_fresh_collection()
 
     # Step 3: Multiple queries se zyada products milenge
-    print("\n[3/4] SAP se products fetch kar raha hun...")
+    print("\n[3/5] SAP se products fetch kar raha hun...")
     QUERIES = ["camera", "laptop", "phone", "headphone",
                "tv", "speaker", "tablet", "printer"]
     all_products, seen_codes = [], set()
@@ -178,8 +205,12 @@ if __name__ == "__main__":
 
     print(f"\n   Total unique products: {len(all_products)}")
 
+    # Step 3b: Enrich with categories
+    print("\n[4/5] Categories fetch kar raha hun (detail API)...")
+    enrich_with_categories(all_products)
+
     # Step 4
-    print("\n[4/4] Embedding aur Qdrant mein daal raha hun...")
+    print("\n[5/5] Embedding aur Qdrant mein daal raha hun...")
     embed_and_upsert(all_products)
 
     # Summary
