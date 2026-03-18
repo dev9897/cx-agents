@@ -55,7 +55,7 @@
     padding: 0 24px;
     height: 56px;
     border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
     box-shadow: var(--shadow-sm);
     flex-shrink: 0;
   }
@@ -121,14 +121,14 @@
     border-right: 1px solid var(--border);
     display: flex; flex-direction: column;
     padding: 16px 0;
-    background: var(--sidebar-bg);
+    background: #fafbfd;
     overflow-y: auto;
   }
 
   .sidebar-section { padding: 0 16px 20px; }
   .sidebar-label {
-    font-size: 11px; font-weight: 600;
-    color: var(--muted); letter-spacing: .06em;
+    font-size: 10.5px; font-weight: 700;
+    color: var(--muted); letter-spacing: .08em;
     text-transform: uppercase;
     margin-bottom: 10px; padding: 0 4px;
   }
@@ -241,24 +241,24 @@
     animation: fadeUp .4s ease both;
   }
   .welcome-icon {
-    width: 72px; height: 72px; border-radius: 20px;
-    background: linear-gradient(135deg, var(--accent-light), #dbeafe);
+    width: 80px; height: 80px; border-radius: 22px;
+    background: linear-gradient(135deg, var(--accent), #00b4d8);
     display: flex; align-items: center; justify-content: center;
-    font-size: 36px; margin: 0 auto 20px;
-    box-shadow: var(--shadow-md);
+    font-size: 40px; margin: 0 auto 22px;
+    box-shadow: 0 8px 24px rgba(0,112,210,.25);
   }
-  .welcome h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
-  .welcome p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+  .welcome h2 { font-size: 26px; font-weight: 700; margin-bottom: 10px; color: var(--text); letter-spacing: -.02em; }
+  .welcome p { font-size: 14px; color: var(--text-secondary); line-height: 1.65; max-width: 420px; margin: 0 auto; }
 
-  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 20px; }
   .chip {
-    padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all .15s;
+    padding: 9px 15px; border: 1px solid var(--border); border-radius: 100px;
+    font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all .18s;
     background: var(--surface); box-shadow: var(--shadow-sm);
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 7px;
   }
   .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-  .chip .chip-icon { font-size: 18px; }
+  .chip .chip-icon { font-size: 15px; }
 
   .msg { display: flex; gap: 10px; max-width: 780px; animation: fadeUp .2s ease both; }
   .msg.user { flex-direction: row-reverse; margin-left: auto; }
@@ -280,12 +280,12 @@
   }
   .msg.agent .bubble {
     background: var(--surface); border: 1px solid var(--border);
-    border-top-left-radius: 3px; box-shadow: var(--shadow-sm);
+    border-top-left-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 0 0 0 transparent;
     color: var(--text);
   }
   .msg.user .bubble {
-    background: var(--user-bg); color: var(--user-text);
-    border-top-right-radius: 3px; box-shadow: var(--shadow-sm);
+    background: linear-gradient(135deg, var(--accent), #0096e0); color: var(--user-text);
+    border-top-right-radius: 3px; box-shadow: 0 2px 8px rgba(0,112,210,.25);
   }
 
   /* Product cards inside agent bubbles */
@@ -331,7 +331,7 @@
   .input-bar {
     border-top: 1px solid var(--border);
     padding: 16px 32px 20px;
-    background: var(--surface);
+    background: linear-gradient(0deg, #ffffff 0%, #f8faff 100%);
     flex-shrink: 0;
   }
   .input-wrap {
@@ -350,12 +350,13 @@
 
   #sendBtn {
     width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-    background: var(--accent); border: none;
+    background: linear-gradient(135deg, var(--accent), #0096e0); border: none;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all .15s; color: white; font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0,112,210,.3);
   }
-  #sendBtn:hover { background: var(--accent-hover); transform: scale(1.05); }
-  #sendBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+  #sendBtn:hover { background: linear-gradient(135deg, var(--accent-hover), #007ec8); transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,112,210,.4); }
+  #sendBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
 
   .input-hint {
     font-size: 11px;
@@ -505,12 +506,19 @@
 
   .product-card {
     flex: 0 0 220px; scroll-snap-align: start;
-    background: var(--bg); border: 1px solid var(--border);
+    background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px; display: flex; flex-direction: column;
     transition: all .2s; position: relative;
+    overflow: hidden;
+  }
+  .product-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    opacity: 0; transition: opacity .2s;
   }
   .product-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .product-card:hover::before { opacity: 1; }
 
   .product-card-name {
     font-size: 13px; font-weight: 600; color: var(--text);
@@ -567,6 +575,21 @@
   /* Widen bubble when it has product cards */
   .bubble:has(.product-cards-wrap) { max-width: 720px; }
 
+  /* ── Feature grid (welcome screen) ── */
+  .feature-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-top: 28px; text-align: left;
+  }
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    transition: all .2s; cursor: default;
+  }
+  .feature-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .feature-icon { font-size: 22px; margin-bottom: 8px; }
+  .feature-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .feature-desc { font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .sidebar { display: none; }
@@ -574,6 +597,7 @@
     .input-bar { padding: 12px 16px 16px; }
     header { padding: 0 16px; }
     .token-badge { display: none; }
+    .feature-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -637,7 +661,7 @@
     <div class="sidebar-section">
       <div class="sidebar-label">Quick Actions</div>
       <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
-      <button class="quick-btn" onclick="sendQuick('Search for headphones')"><span class="icon">&#127911;</span> Find headphones</button>
+      <button class="quick-btn" onclick="sendQuick('Show me what products you have')"><span class="icon">&#128269;</span> Browse catalog</button>
       <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
       <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
     </div>
@@ -655,18 +679,35 @@
   <div class="chat-wrap">
     <div id="messages">
       <div class="welcome" id="welcome">
-        <div class="welcome-icon">&#128722;</div>
+        <div class="welcome-icon">&#128247;</div>
         <h2>SAP Commerce Electronics Store</h2>
-        <p>Your AI-powered shopping assistant. Browse the electronics catalog, manage your cart, and place orders with conversational ease.</p>
+        <p>Your AI-powered shopping assistant. Search the electronics catalog, manage your cart, and check out — all through natural conversation.</p>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">&#128269;</div>
+            <div class="feature-title">Smart Product Search</div>
+            <div class="feature-desc">Find cameras, lenses, memory cards and accessories by name, spec, or price range.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128722;</div>
+            <div class="feature-title">Cart &amp; Checkout</div>
+            <div class="feature-desc">Add items, view your cart, set delivery address and payment, then place your order.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128100;</div>
+            <div class="feature-title">Account Orders</div>
+            <div class="feature-desc">Sign in to access your order history and get personalised product recommendations.</div>
+          </div>
+        </div>
         <div class="chips">
           <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon EOS Cameras</div>
-          <div class="chip" onclick="sendQuick('Search for Sony headphones')"><span class="chip-icon">&#127911;</span> Sony Headphones</div>
-          <div class="chip" onclick="sendQuick('What power drills do you have?')"><span class="chip-icon">&#128295;</span> Power Drills</div>
+          <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
           <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
           <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">&#128248;</span> Camera Lenses</div>
-          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods & Accessories</div>
-          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries & Chargers</div>
-          <div class="chip" onclick="sendQuick('Show me webcams and video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods &amp; Accessories</div>
+          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries &amp; Chargers</div>
+          <div class="chip" onclick="sendQuick('Show me camera flashes and lighting')"><span class="chip-icon">&#9889;</span> Flashes &amp; Lighting</div>
         </div>
       </div>
     </div>
@@ -787,7 +828,7 @@
       currentUser = d.username;
       closeLogin();
       updateAuthUI(d.username);
-      appendMsg('agent', `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, headphones, or any electronics from the catalog.`);
+      appendMsg('agent', `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, memory cards, accessories, or any electronics from the catalog.`);
       updateSidebarUser(d.username);
     } catch (err) {
       showLoginError('Could not reach the server. Please try again.');

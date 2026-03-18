@@ -39,7 +39,17 @@ from security_layer import (
     rate_limiter, sanitise_input, scrub_pii,
 )
 from mcp_client import get_tools_sync, get_mcp_session_id
+from qdrant_tool import is_qdrant_configured, semantic_search_products
+
 ALL_TOOLS = get_tools_sync()
+
+# Append semantic search only when Qdrant is configured
+if is_qdrant_configured():
+    ALL_TOOLS = list(ALL_TOOLS) + [semantic_search_products]
+    print(f"✅ Qdrant semantic search enabled")
+else:
+    print("ℹ️  Qdrant not configured (QDRANT_HOST not set) — semantic search disabled")
+
 _MCP_SESSION_ID = get_mcp_session_id()
 # ── Observability ────────────────────────────────────────────────────────────
 logging.basicConfig(

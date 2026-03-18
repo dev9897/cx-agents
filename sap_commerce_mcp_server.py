@@ -15,7 +15,7 @@ CLIENT_ID     = os.getenv("SAP_CLIENT_ID", "mobile_android")
 CLIENT_SECRET = os.getenv("SAP_CLIENT_SECRET", "secret")
 MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
 MCP_PORT      = int(os.getenv("MCP_PORT", "8005"))
-MCP_HOST      = os.getenv("MCP_HOST", "0.0.0.0")
+MCP_HOST      = os.getenv("MCP_HOST", "127.0.0.1")
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s [MCP] %(message)s")

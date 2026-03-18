@@ -20,7 +20,7 @@ spec:
           resources:
             limits:
               cpu: "1"
-              memory: 1Gi
+              memory: 2Gi
           env:
             # ── App ────────────────────────────────────────────────────────
             - name: ENVIRONMENT
@@ -55,6 +55,15 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: sap-static-token     # secret name in Secret Manager
+                  key: latest
+
+            # ── Qdrant Vector DB ──────────────────────────────────────────
+            - name: QDRANT_HOST
+              value: "https://a655884f-ed46-4cab-be36-e1aa75e758d3.europe-west3-0.gcp.cloud.qdrant.io"
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: qdrant-api-key
                   key: latest
 
             # ── Observability (optional) ───────────────────────────────────
