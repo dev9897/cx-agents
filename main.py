@@ -58,10 +58,10 @@ def validate_env() -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 def _import_modules():
     """Deferred import so we can validate env before loading heavy deps."""
-    global agent_config, production_agent, api_server
-    import agent_config      as _ac;  agent_config     = _ac
-    import production_agent  as _pa;  production_agent = _pa
-    import api_server        as _as;  api_server       = _as
+    global app_config, agent_service, app_main
+    from app import config as _ac;  app_config = _ac
+    from app.services import agent_service as _as;  agent_service = _as
+    from app import main as _am;  app_main = _am
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -154,8 +154,7 @@ def check_anthropic() -> bool:
 # MODE A: CLI interactive session
 # ─────────────────────────────────────────────────────────────────────────────
 def run_cli():
-    from production_agent import get_last_ai_message, new_session, run_turn
-    from langchain_core.messages import AIMessage
+    from app.services.agent_service import get_last_ai_message, new_session, run_turn
 
     print("\n" + "="*60)
     print("  🛒  SAP Commerce Shopping Agent  —  CLI Mode")
@@ -209,20 +208,20 @@ def run_cli():
 # ─────────────────────────────────────────────────────────────────────────────
 def run_server():
     import uvicorn
-    from agent_config import CONFIG
+    from app.config import CONFIG
 
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8004"))
     reload = os.getenv("ENVIRONMENT", "production") == "development"
 
-    print(f"\n🚀  Starting SAP Commerce Agent API")
+    print(f"\n  Starting SAP Commerce Agent API v2.0")
     print(f"    Host    : {host}:{port}")
     print(f"    Model   : {CONFIG.claude.model}")
     print(f"    Reload  : {reload}")
     print(f"    Docs    : http://localhost:{port}/docs\n")
 
     uvicorn.run(
-        "api_server:app",
+        "app.main:app",
         host="localhost",
         port=port,
         reload=reload,

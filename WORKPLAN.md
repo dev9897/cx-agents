@@ -9,7 +9,7 @@
 ## Phase 1: Architecture Refactor (Foundation)
 
 ### Task 1.1 — Project restructure into layered architecture
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-19)
 **Priority**: P0 — everything depends on this
 
 Restructure flat files into a proper layered architecture:
@@ -122,7 +122,7 @@ Split the monolithic `static/index.html` (39KB) into:
 ## Phase 2: Stripe Checkout Integration
 
 ### Task 2.1 — Stripe backend integration
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-19) — stripe_client.py, checkout_service.py, checkout routes created
 **Priority**: P0
 
 - [ ] Add `stripe` to requirements.txt
@@ -141,7 +141,7 @@ Split the monolithic `static/index.html` (39KB) into:
 - [ ] Add env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`
 
 ### Task 2.2 — Agent checkout flow update
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-19) — initiate_checkout tool, updated system prompt
 **Priority**: P0
 
 - [ ] Remove `set_payment_details` tool from agent (no more card info in chat)
@@ -336,9 +336,10 @@ Split the monolithic `static/index.html` (39KB) into:
 
 ## Current Progress
 
-**Last completed**: Task plan created, branch `feature/secure-checkout-refactor` ready.
-**Next up**: Task 1.1 — Project restructure into layered architecture.
+**Last completed**: Task 1.1 (restructure), Task 2.1 (Stripe backend), Task 2.2 (agent flow).
+**Next up**: Task 1.2 — Extract frontend into separate files (CSS/JS split).
 **Blocked on**: Nothing.
+**Resume command**: "continue from WORKPLAN.md"
 
 ---
 
