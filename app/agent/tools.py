@@ -120,6 +120,119 @@ def get_order(order_code: str, access_token: str = "", user_id: str = "current")
     return sap_client.get_order(order_code, access_token, user_id)
 
 
+@tool
+def list_saved_cards(user_email: str = "") -> dict:
+    """List the user's saved payment cards.
+    Returns card IDs, brand, and last 4 digits.
+    If no cards are saved, suggest the user add a card in Settings."""
+    from app.services import payment_service
+    if not user_email:
+        return {"success": True, "cards": [], "message": "No email provided — cannot look up cards."}
+    cards = payment_service.list_saved_cards(user_email)
+    return {"success": True, "cards": cards}
+
+
+@tool
+def acp_checkout(
+    cart_id: str,
+    payment_method_id: str,
+    buyer_first_name: str,
+    buyer_last_name: str,
+    buyer_email: str,
+    address_first_name: str,
+    address_last_name: str,
+    address_line1: str,
+    address_city: str,
+    address_postal_code: str,
+    address_country: str = "US",
+    address_line2: str = "",
+    delivery_mode: str = "standard-gross",
+    access_token: str = "",
+    user_id: str = "current",
+) -> dict:
+    """
+    Complete a one-click purchase using a saved payment card via ACP.
+    This charges the saved card and places the SAP order in one step.
+    The user MUST have a saved card (payment_method_id like pm_xxx from list_saved_cards).
+    You MUST get explicit user confirmation before calling this tool.
+    """
+    from acp.models import (
+        ACPAddress, Buyer, Item, PaymentData,
+    )
+    from acp import service as acp_service
+
+    # 1. Get cart to build ACP items
+    cart = sap_client.get_cart(cart_id, access_token, user_id)
+    if not cart.get("success"):
+        return {"success": False, "error": "Could not retrieve cart"}
+
+    items = []
+    for entry in cart.get("entries", []):
+        items.append(Item(
+            id=entry.get("product_code", ""),
+            quantity=entry.get("quantity", 1),
+        ))
+
+    if not items:
+        return {"success": False, "error": "Cart is empty"}
+
+    buyer = Buyer(
+        first_name=buyer_first_name,
+        last_name=buyer_last_name,
+        full_name=f"{buyer_first_name} {buyer_last_name}",
+        email=buyer_email,
+    )
+
+    address = ACPAddress(
+        name=f"{address_first_name} {address_last_name}",
+        line_one=address_line1,
+        line_two=address_line2,
+        city=address_city,
+        postal_code=address_postal_code,
+        country=address_country,
+    )
+
+    # 2. Create ACP checkout session
+    try:
+        session = acp_service.create_checkout_session(items, buyer, address)
+    except Exception as e:
+        return {"success": False, "error": f"Failed to create checkout session: {e}"}
+
+    session_id = session.id
+
+    # 3. Set delivery mode
+    try:
+        acp_service.update_checkout_session(
+            session_id, fulfillment_option_id=delivery_mode,
+        )
+    except Exception as e:
+        return {"success": False, "error": f"Failed to set delivery mode: {e}"}
+
+    # 4. Complete with payment
+    payment_data = PaymentData(token=payment_method_id)
+
+    try:
+        result = acp_service.complete_checkout(session_id, buyer, payment_data)
+    except Exception as e:
+        return {"success": False, "error": f"Checkout failed: {e}"}
+
+    if result.status.value == "completed" and result.order:
+        return {
+            "success": True,
+            "order_code": result.order.id,
+            "order_url": result.order.permalink_url or "",
+            "message": f"Order {result.order.id} placed successfully!",
+        }
+
+    # Extract error messages
+    errors = [m.message for m in (result.messages or []) if m.message]
+    return {
+        "success": False,
+        "error": errors[0] if errors else "Checkout did not complete",
+        "status": result.status.value,
+    }
+
+
 def get_direct_sap_tools() -> list:
     """Return all LangChain tools (used as MCP fallback)."""
     return [
@@ -127,4 +240,5 @@ def get_direct_sap_tools() -> list:
         create_cart, add_to_cart, get_cart,
         set_delivery_address, set_delivery_mode,
         initiate_checkout, place_order, get_order,
+        list_saved_cards, acp_checkout,
     ]

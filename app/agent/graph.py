@@ -291,11 +291,12 @@ def human_approval_node(state: ShoppingState) -> dict:
 
     rejected_tool_calls = []
     for tc in last.tool_calls:
-        if tc["name"] == "place_order":
+        if tc["name"] in ("place_order", "acp_checkout"):
             cart_id = tc["args"].get("cart_id", "?")
+            label = "one-click purchase" if tc["name"] == "acp_checkout" else "order"
             approval = interrupt({
                 "type": "order_confirmation",
-                "message": f"Ready to place order for cart {cart_id}. Confirm?",
+                "message": f"Ready to complete {label} for cart {cart_id}. Confirm?",
                 "tool_call_id": tc["id"],
                 "args": tc["args"],
             })
@@ -397,7 +398,7 @@ def route_after_agent(state: ShoppingState) -> str:
     last = state["messages"][-1]
     if isinstance(last, AIMessage) and last.tool_calls:
         for tc in last.tool_calls:
-            if tc["name"] == "place_order":
+            if tc["name"] in ("place_order", "acp_checkout"):
                 return "human_approval"
         return "tools"
     return "sync"

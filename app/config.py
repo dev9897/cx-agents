@@ -62,6 +62,7 @@ class CostConfig:
 @dataclass
 class StripeConfig:
     secret_key: str = os.getenv("STRIPE_SECRET_KEY", "")
+    publishable_key: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     webhook_secret: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
     success_url: str = os.getenv("STRIPE_SUCCESS_URL", "http://localhost:8004/checkout/success")
     cancel_url: str = os.getenv("STRIPE_CANCEL_URL", "http://localhost:8004/checkout/cancel")

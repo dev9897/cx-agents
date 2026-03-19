@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, chat, checkout, health, websocket
+from app.api import auth, chat, checkout, health, payment, websocket
 from app.agent.state import ShoppingState
 
 # ── Shared session store ─────────────────────────────────────────────────────
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     auth.set_session_store(_sessions)
     chat.set_session_store(_sessions)
     checkout.set_session_store(_sessions)
+    payment.set_session_store(_sessions)
     websocket.set_session_store(_sessions)
 
     # Register routers
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(chat.router)
     app.include_router(checkout.router)
+    app.include_router(payment.router)
     app.include_router(websocket.router)
 
     # Try to load ACP router (optional)

@@ -75,6 +75,8 @@ class _ACPSession:
         self.selected_fulfillment_option_id: Optional[str] = None
         self.order: Optional[ACPOrder] = None
         self.messages: list[ACPMessage] = []
+        self.stripe_customer_id: Optional[str] = None
+        self.stripe_payment_intent_id: Optional[str] = None
         self.created_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
         # Cache resolved line items from SAP
@@ -554,8 +556,12 @@ def complete_checkout(
 ) -> CheckoutSessionResponse:
     """
     ACP: Complete the checkout — charge the buyer and place the order.
-    Maps to: SAP set_payment_details + place_order.
+
+    Flow: Stripe charge → SAP set_payment_details → SAP place_order.
+    If SAP fails after charge, auto-refund the Stripe PaymentIntent.
     """
+    from app.services import payment_service
+
     session = _sessions.get(session_id)
     if not session:
         raise ValueError(f"Session {session_id} not found")
@@ -569,7 +575,6 @@ def complete_checkout(
     session.buyer = buyer
     session.status = CheckoutSessionStatus.IN_PROGRESS
 
-    # Set payment details on SAP cart
     if not session.sap_cart_id:
         session.messages.append(ACPMessage(
             type=MessageType.ERROR,
@@ -578,28 +583,89 @@ def complete_checkout(
         ))
         return _build_response(session)
 
+    # ── Step 1: Charge saved card via Stripe ──────────────────────────────
+    payment_method_id = getattr(payment_data, "token", None)
+    stripe_customer_id = None
+    payment_intent_id = None
+
+    if payment_method_id and buyer.email:
+        stripe_customer_id = payment_service.ensure_stripe_customer(
+            buyer.email, buyer.full_name or buyer.first_name,
+        )
+        if stripe_customer_id:
+            session.stripe_customer_id = stripe_customer_id
+
+            # Calculate total from session totals
+            total_amount = 0
+            for t in session._totals:
+                if t.type == TotalType.TOTAL:
+                    total_amount = t.amount
+                    break
+
+            if total_amount > 0:
+                charge_result = payment_service.charge_saved_card(
+                    customer_id=stripe_customer_id,
+                    payment_method_id=payment_method_id,
+                    amount=total_amount,
+                    currency=_CURRENCY.lower(),
+                    metadata={
+                        "acp_session_id": session_id,
+                        "sap_cart_id": session.sap_cart_id,
+                    },
+                )
+                if not charge_result.get("success"):
+                    error_msg = charge_result.get("error", "Payment failed")
+                    if error_msg == "requires_3ds":
+                        session.messages.append(ACPMessage(
+                            type=MessageType.ERROR,
+                            code=ErrorCode.PAYMENT_DECLINED,
+                            message="Card requires 3D Secure authentication. Please use Stripe Checkout instead.",
+                        ))
+                    else:
+                        session.messages.append(ACPMessage(
+                            type=MessageType.ERROR,
+                            code=ErrorCode.PAYMENT_DECLINED,
+                            message=f"Payment declined: {error_msg}",
+                        ))
+                    session.status = CheckoutSessionStatus.READY_FOR_PAYMENT
+                    return _build_response(session)
+
+                payment_intent_id = charge_result.get("payment_intent_id")
+                session.stripe_payment_intent_id = payment_intent_id
+                logger.info("ACP: Stripe charge succeeded — PI %s for session %s",
+                            payment_intent_id, session_id)
+
+    # ── Step 2: Set payment details on SAP cart (placeholder for SAP records)
     ok = _sap_set_payment_details(
         session.access_token, session.sap_user,
         session.sap_cart_id, payment_data, buyer,
     )
     if not ok:
+        # Refund Stripe if SAP payment setup fails
+        if payment_intent_id:
+            payment_service.refund_charge(payment_intent_id)
+            logger.warning("ACP: Refunded PI %s after SAP payment setup failure", payment_intent_id)
         session.messages.append(ACPMessage(
             type=MessageType.ERROR,
             code=ErrorCode.PAYMENT_DECLINED,
-            message="Failed to set payment details",
+            message="Failed to set payment details on order system",
         ))
         session.status = CheckoutSessionStatus.READY_FOR_PAYMENT
         return _build_response(session)
 
-    # Place the order
+    # ── Step 3: Place SAP order ───────────────────────────────────────────
     order_data = _sap_place_order(
         session.access_token, session.sap_user, session.sap_cart_id,
     )
     if not order_data:
+        # Refund Stripe if SAP order fails
+        if payment_intent_id:
+            payment_service.refund_charge(payment_intent_id)
+            logger.warning("ACP: Refunded PI %s after SAP order failure", payment_intent_id)
         session.messages.append(ACPMessage(
             type=MessageType.ERROR,
             code=ErrorCode.PAYMENT_DECLINED,
-            message="Order placement failed",
+            message="Order placement failed — payment has been refunded",
         ))
         session.status = CheckoutSessionStatus.READY_FOR_PAYMENT
         return _build_response(session)
@@ -613,10 +679,10 @@ def complete_checkout(
     )
     session.status = CheckoutSessionStatus.COMPLETED
 
-    # Refresh totals from the final cart/order state
     _refresh_cart_state(session)
 
-    logger.info("ACP: session %s completed → order %s", session_id, order_code)
+    logger.info("ACP: session %s completed → order %s (PI: %s)",
+                 session_id, order_code, payment_intent_id or "no-stripe")
     return _build_response(session)
 
 

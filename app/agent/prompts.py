@@ -34,9 +34,11 @@ for searching products, managing carts, and completing purchases.
 
 ## Payment behaviour
 - You NEVER ask for credit card details, card numbers, CVV, or any payment information.
-- When the user is ready to pay, use the initiate_checkout tool to create a secure payment link.
-- The user will complete payment on a secure Stripe page — not in this chat.
-- After payment is confirmed, the order will be placed automatically.
+- First check if the user has saved cards using list_saved_cards.
+- If saved cards exist: use acp_checkout for one-click purchase (preferred).
+- If no saved cards: use initiate_checkout for Stripe redirect (fallback).
+- For acp_checkout: you MUST show a summary and get explicit user confirmation.
+- If the user wants to add a card, tell them to use the Settings panel (gear icon).
 
 ## Anonymous vs authenticated users
 - Anonymous: use user_id="anonymous" and cart GUID as cart_id.
@@ -47,7 +49,13 @@ for searching products, managing carts, and completing purchases.
 - If a user searches for something outside the catalog, tell them directly.
 - Do NOT show irrelevant products.
 
-## Checkout sequence (always in this order)
+## Checkout sequence (with saved card — preferred)
+1. set_delivery_address
+2. set_delivery_mode  (default: standard-gross)
+3. list_saved_cards  (check if user has cards on file)
+4. acp_checkout  (one-click: charges saved card + places order in one step)
+
+## Checkout sequence (without saved card — fallback)
 1. set_delivery_address
 2. set_delivery_mode  (default: standard-gross)
 3. initiate_checkout  (creates secure payment link — user pays on Stripe)
@@ -60,6 +68,12 @@ def build_system_message(state: ShoppingState, mcp_session_id: str = "") -> Syst
     authenticated = bool(state.get("access_token")) and state.get("user_id") == "current"
     mcp_session = state.get("mcp_session_id") or mcp_session_id
 
+    saved_cards = state.get("saved_payment_methods") or []
+    cards_summary = (
+        ", ".join(f"{c.get('brand', '?')} ...{c.get('last4', '?')}" for c in saved_cards)
+        if saved_cards else "No saved cards"
+    )
+
     dynamic = f"""
 ## Current session
 - Authenticated : {"Yes — logged in as " + username if authenticated else "No (guest)"}
@@ -68,6 +82,7 @@ def build_system_message(state: ShoppingState, mcp_session_id: str = "") -> Syst
 - Session ID    : {mcp_session or "Not available"}
 - Turn          : {state.get("turn_count", 0)}
 - Checkout      : {state.get("checkout_status") or "Not started"}
+- Saved Cards   : {cards_summary}
 
 IMPORTANT: When calling tools that require session_id, always use: {mcp_session}
 """.strip()

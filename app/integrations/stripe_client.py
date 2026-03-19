@@ -109,3 +109,152 @@ def construct_webhook_event(payload: bytes, sig_header: str) -> dict:
     except Exception as e:
         logger.exception("Stripe webhook construction failed")
         return {"success": False, "error": str(e)}
+
+
+# ── Customer Management ─────────────────────────────────────────────────────
+
+def create_customer(email: str, name: Optional[str] = None,
+                    metadata: Optional[dict] = None) -> dict:
+    """Create a Stripe Customer object."""
+    stripe = _get_stripe()
+    try:
+        params = {"email": email, "metadata": metadata or {}}
+        if name:
+            params["name"] = name
+        customer = stripe.Customer.create(**params)
+        logger.info("Stripe customer created: %s for %s", customer.id, email)
+        return {"success": True, "customer_id": customer.id}
+    except Exception as e:
+        logger.exception("Stripe create_customer failed")
+        return {"success": False, "error": str(e)}
+
+
+def get_or_create_customer(email: str, name: Optional[str] = None) -> dict:
+    """Idempotent: find existing customer by email, or create one."""
+    stripe = _get_stripe()
+    try:
+        existing = stripe.Customer.list(email=email, limit=1)
+        if existing.data:
+            cust = existing.data[0]
+            logger.info("Stripe customer found: %s for %s", cust.id, email)
+            return {"success": True, "customer_id": cust.id}
+        return create_customer(email, name)
+    except Exception as e:
+        logger.exception("Stripe get_or_create_customer failed")
+        return {"success": False, "error": str(e)}
+
+
+# ── SetupIntent (card saving) ───────────────────────────────────────────────
+
+def create_setup_intent(customer_id: str) -> dict:
+    """Create a SetupIntent for client-side card collection via Stripe Elements."""
+    stripe = _get_stripe()
+    try:
+        intent = stripe.SetupIntent.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+        )
+        logger.info("SetupIntent created: %s for customer %s", intent.id, customer_id)
+        return {
+            "success": True,
+            "setup_intent_id": intent.id,
+            "client_secret": intent.client_secret,
+        }
+    except Exception as e:
+        logger.exception("Stripe create_setup_intent failed")
+        return {"success": False, "error": str(e)}
+
+
+# ── PaymentMethod Management ────────────────────────────────────────────────
+
+def list_payment_methods(customer_id: str) -> dict:
+    """List saved cards for a customer."""
+    stripe = _get_stripe()
+    try:
+        methods = stripe.PaymentMethod.list(customer=customer_id, type="card")
+        cards = []
+        for pm in methods.data:
+            card = pm.card
+            cards.append({
+                "id": pm.id,
+                "brand": card.brand,
+                "last4": card.last4,
+                "exp_month": card.exp_month,
+                "exp_year": card.exp_year,
+            })
+        return {"success": True, "methods": cards}
+    except Exception as e:
+        logger.exception("Stripe list_payment_methods failed")
+        return {"success": False, "error": str(e)}
+
+
+def detach_payment_method(payment_method_id: str) -> dict:
+    """Remove a saved card from its customer."""
+    stripe = _get_stripe()
+    try:
+        stripe.PaymentMethod.detach(payment_method_id)
+        logger.info("PaymentMethod detached: %s", payment_method_id)
+        return {"success": True}
+    except Exception as e:
+        logger.exception("Stripe detach_payment_method failed")
+        return {"success": False, "error": str(e)}
+
+
+# ── PaymentIntent (charge saved card) ───────────────────────────────────────
+
+def create_payment_intent(customer_id: str, payment_method_id: str,
+                          amount: int, currency: str = "usd",
+                          metadata: Optional[dict] = None) -> dict:
+    """
+    Charge a saved card off-session.
+
+    amount is in minor units (cents for USD).
+    Returns payment_intent_id and status.
+    """
+    stripe = _get_stripe()
+    try:
+        intent = stripe.PaymentIntent.create(
+            customer=customer_id,
+            payment_method=payment_method_id,
+            amount=amount,
+            currency=currency,
+            off_session=True,
+            confirm=True,
+            metadata=metadata or {},
+        )
+        logger.info("PaymentIntent created: %s status=%s amount=%d %s",
+                     intent.id, intent.status, amount, currency)
+        return {
+            "success": True,
+            "payment_intent_id": intent.id,
+            "status": intent.status,  # "succeeded", "requires_action", etc.
+            "amount": intent.amount,
+            "currency": intent.currency,
+        }
+    except Exception as e:
+        error_msg = str(e)
+        # Check for 3DS/SCA requirement
+        if hasattr(e, 'error') and hasattr(e.error, 'payment_intent'):
+            pi = e.error.payment_intent
+            if pi.status == "requires_action":
+                logger.warning("PaymentIntent requires 3DS: %s", pi.id)
+                return {
+                    "success": False,
+                    "error": "requires_3ds",
+                    "payment_intent_id": pi.id,
+                    "client_secret": pi.client_secret,
+                }
+        logger.exception("Stripe create_payment_intent failed")
+        return {"success": False, "error": error_msg}
+
+
+def refund_payment_intent(payment_intent_id: str) -> dict:
+    """Refund a payment intent (used when SAP order placement fails after charge)."""
+    stripe = _get_stripe()
+    try:
+        refund = stripe.Refund.create(payment_intent=payment_intent_id)
+        logger.info("Refund created: %s for PI %s", refund.id, payment_intent_id)
+        return {"success": True, "refund_id": refund.id, "status": refund.status}
+    except Exception as e:
+        logger.exception("Stripe refund failed for PI %s", payment_intent_id)
+        return {"success": False, "error": str(e)}

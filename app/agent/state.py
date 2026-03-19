@@ -23,6 +23,10 @@ class ShoppingState(TypedDict):
     stripe_payment_url: Optional[str]
     checkout_status: Optional[str]
 
+    # ACP / saved cards
+    stripe_customer_id: Optional[str]
+    saved_payment_methods: Optional[list[dict]]
+
     # Observability / cost
     session_id: str
     total_input_tokens: int
