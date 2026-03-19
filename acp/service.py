@@ -38,9 +38,9 @@ load_dotenv()
 logger = logging.getLogger("sap_agent.acp.service")
 
 
-# ── SAP Commerce helpers (direct HTTP, not LangChain tools) ──────────────────
+# ── SAP Commerce helpers (from refactored integration layer) ─────────────────
 
-from sap_commerce_tools import (
+from app.integrations.sap_client import (
     _client,
     _headers,
     _handle_http_error,
