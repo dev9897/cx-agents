@@ -29,6 +29,7 @@ from production_agent import (
 )
 from sap_commerce_tools import server_account_login
 from security_layer import audit
+from acp.routes import router as acp_router
 
 logger = logging.getLogger("sap_agent.api")
 
@@ -38,9 +39,12 @@ app = FastAPI(title="SAP Commerce Shopping Agent", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],          # tighten to your domain in production
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# ── ACP (Agentic Commerce Protocol) ─────────────────────────────────────────
+app.include_router(acp_router)
 
 # ── Static / UI ───────────────────────────────────────────────────────────────
 _STATIC_DIR = Path(__file__).parent / "static"
