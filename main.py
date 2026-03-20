@@ -210,7 +210,7 @@ def run_server():
     import uvicorn
     from app.config import CONFIG
 
-    host = os.getenv("HOST", "127.0.0.1")
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8004"))
     reload = os.getenv("ENVIRONMENT", "production") == "development"
 
@@ -222,7 +222,7 @@ def run_server():
 
     uvicorn.run(
         "app.main:app",
-        host="localhost",
+        host=host,
         port=port,
         reload=reload,
         log_level=CONFIG.observability.log_level.lower(),
