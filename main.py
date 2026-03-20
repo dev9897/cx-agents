@@ -210,8 +210,10 @@ def run_server():
     import uvicorn
     from app.config import CONFIG
 
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8004"))
+    # Cloud Run sets K_SERVICE; bind to 0.0.0.0 there, localhost locally
+    is_cloud_run = os.getenv("K_SERVICE") is not None
+    host = os.getenv("HOST", "0.0.0.0" if is_cloud_run else "127.0.0.1")
+    port = int(os.getenv("PORT", "8080" if is_cloud_run else "8004"))
     reload = os.getenv("ENVIRONMENT", "production") == "development"
 
     print(f"\n  Starting SAP Commerce Agent API v2.0")
