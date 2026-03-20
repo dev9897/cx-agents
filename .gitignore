@@ -1,2 +1,8 @@
 __pycache__/
 /venv/
+
+# Environment files (secrets) — use .env.example as template
+.env
+.env.local
+.env.backup
+!.env.example
