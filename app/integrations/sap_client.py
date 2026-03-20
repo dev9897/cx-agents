@@ -113,6 +113,27 @@ def account_login(username: str, password: str) -> dict:
         return _handle_http_error(e, "account_login", url)
 
 
+def get_user_profile(access_token: str) -> dict:
+    """Fetch current user's profile from SAP Commerce (includes email)."""
+    url = f"{BASE_URL}/{SITE_ID}/users/current"
+    try:
+        resp = _safe_request("GET", url, "get_user_profile",
+                             params={"fields": "uid,name,firstName,lastName,displayUid"},
+                             headers=_headers(access_token))
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "success": True,
+                "email": data.get("displayUid") or data.get("uid", ""),
+                "name": data.get("name", ""),
+                "firstName": data.get("firstName", ""),
+                "lastName": data.get("lastName", ""),
+            }
+        return {"success": False, "error": f"Could not fetch profile (HTTP {resp.status_code})"}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "get_user_profile", url)
+
+
 def server_account_login(username: str, password: str) -> dict:
     """Server-side only login — NOT exposed to the LLM."""
     url = _auth_url()
@@ -127,11 +148,18 @@ def server_account_login(username: str, password: str) -> dict:
         })
         if resp.status_code == 200:
             data = resp.json()
+            access_token = data["access_token"]
+            # Fetch the real email from SAP user profile
+            profile = get_user_profile(access_token)
+            email = profile.get("email", "") if profile.get("success") else ""
             return {
                 "success": True,
-                "access_token": data["access_token"],
+                "access_token": access_token,
                 "refresh_token": data.get("refresh_token"),
                 "username": username,
+                "email": email,
+                "first_name": profile.get("firstName", ""),
+                "last_name": profile.get("lastName", ""),
             }
         return {"success": False, "error": "Invalid credentials", "status_code": resp.status_code}
     except httpx.HTTPError as e:

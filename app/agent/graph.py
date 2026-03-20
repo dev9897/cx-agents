@@ -45,10 +45,19 @@ logger = logging.getLogger("sap_agent")
 def _load_tools():
     from app.integrations.mcp_client import get_tools_sync, get_mcp_session_id
     from app.integrations.qdrant_client import is_qdrant_configured, semantic_search_products
+    from app.agent.tools import list_saved_cards, acp_checkout
 
-    tools = get_tools_sync()
+    tools = list(get_tools_sync())
+
+    # Always add ACP tools (Stripe-based, not in MCP server)
+    mcp_tool_names = {t.name for t in tools}
+    for local_tool in [list_saved_cards, acp_checkout]:
+        if local_tool.name not in mcp_tool_names:
+            tools.append(local_tool)
+            print(f"Added local tool: {local_tool.name}")
+
     if is_qdrant_configured():
-        tools = list(tools) + [semantic_search_products]
+        tools.append(semantic_search_products)
         print("Qdrant semantic search enabled")
     else:
         print("Qdrant not configured — semantic search disabled")
@@ -190,18 +199,110 @@ def _validate_tool_message_pairs(messages: list[BaseMessage]) -> list[BaseMessag
     if not pending_tool_calls:
         return safe
 
-    # Remove unmatched tool calls
+    # Remove unmatched tool calls AND their tool_use content blocks
     final = []
     for msg in safe:
         if isinstance(msg, AIMessage) and msg.tool_calls:
             matched = [tc for tc in msg.tool_calls if tc["id"] not in pending_tool_calls]
             if matched:
-                final.append(AIMessage(content=msg.content, tool_calls=matched, id=msg.id))
+                matched_ids = {tc["id"] for tc in matched}
+                clean_content = _strip_tool_use_from_content(msg.content, keep_ids=matched_ids)
+                final.append(AIMessage(content=clean_content, tool_calls=matched, id=msg.id))
             else:
-                final.append(AIMessage(content=msg.content, id=msg.id))
+                clean_content = _strip_tool_use_from_content(msg.content)
+                if clean_content:
+                    final.append(AIMessage(content=clean_content, id=msg.id))
         else:
             final.append(msg)
     return final
+
+
+# ── Message Sanitization ─────────────────────────────────────────────────────
+
+def _strip_tool_use_from_content(content, keep_ids: set | None = None):
+    """Remove tool_use blocks from AIMessage content.
+
+    LangChain stores tool calls in BOTH msg.content (as tool_use blocks)
+    AND msg.tool_calls. If we strip tool_calls, we must also strip the
+    matching tool_use blocks from content, otherwise langchain_anthropic
+    will still send them to the API and create orphaned tool_uses.
+    """
+    if not isinstance(content, list):
+        return content
+    filtered = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "tool_use":
+            # Keep this tool_use only if its ID is in keep_ids
+            if keep_ids is not None and block.get("id") in keep_ids:
+                filtered.append(block)
+            # Otherwise drop it
+        else:
+            filtered.append(block)
+    # If only text blocks remain, extract plain string if single
+    if len(filtered) == 1 and isinstance(filtered[0], dict) and filtered[0].get("type") == "text":
+        return filtered[0].get("text", "")
+    return filtered or ""
+
+
+def _sanitize_tool_pairs(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Ensure every tool_use has matching tool_result(s) immediately after.
+
+    The Anthropic API requires that each AIMessage with tool_calls is followed
+    immediately by ToolMessages for ALL of those calls. This function:
+    1. Strips orphaned tool_calls (no matching result immediately after)
+    2. Strips orphaned ToolMessages (no matching call)
+    3. Also strips tool_use blocks from AIMessage.content (langchain_anthropic
+       sends both content tool_use blocks AND tool_calls to the API)
+    """
+    result = []
+    consumed = set()  # ToolMessage indices already consumed
+    i = 0
+
+    while i < len(messages):
+        msg = messages[i]
+
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            # Collect contiguous ToolMessages immediately after this AIMessage
+            contiguous_results = {}
+            j = i + 1
+            while j < len(messages) and isinstance(messages[j], ToolMessage):
+                tcid = getattr(messages[j], "tool_call_id", None)
+                if tcid:
+                    contiguous_results[tcid] = j
+                j += 1
+
+            # Keep only tool_calls whose results are in the contiguous block
+            valid_calls = [tc for tc in msg.tool_calls if tc["id"] in contiguous_results]
+            valid_ids = {tc["id"] for tc in valid_calls}
+
+            if valid_calls:
+                clean_content = _strip_tool_use_from_content(msg.content, keep_ids=valid_ids)
+                result.append(AIMessage(content=clean_content, tool_calls=valid_calls, id=msg.id))
+                for tc in valid_calls:
+                    idx = contiguous_results[tc["id"]]
+                    result.append(messages[idx])
+                    consumed.add(idx)
+            else:
+                # All tool_calls orphaned — strip everything
+                clean_content = _strip_tool_use_from_content(msg.content)
+                if clean_content:
+                    result.append(AIMessage(content=clean_content, id=msg.id))
+            # Skip to after the contiguous ToolMessage block
+            i = j
+            continue
+
+        elif isinstance(msg, ToolMessage):
+            if i not in consumed:
+                # Orphaned ToolMessage — skip it
+                i += 1
+                continue
+
+        else:
+            result.append(msg)
+
+        i += 1
+
+    return result
 
 
 # ── Graph Nodes ──────────────────────────────────────────────────────────────
@@ -217,32 +318,20 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
 
     system_msg = build_system_message(state, _MCP_SESSION_ID or "")
     trimmed = _trim_context(state["messages"])
-    all_msgs = [system_msg] + trimmed
+    sanitized = _sanitize_tool_pairs(trimmed)
+    all_msgs = [system_msg] + sanitized
 
-    # Validate tool call/result pairing
-    pending_calls = {}
-    for msg in all_msgs:
-        if isinstance(msg, AIMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
-                pending_calls[tc["id"]] = tc["name"]
-        elif isinstance(msg, ToolMessage):
-            tool_call_id = getattr(msg, "tool_call_id", None)
-            if tool_call_id and tool_call_id in pending_calls:
-                del pending_calls[tool_call_id]
-
-    if pending_calls:
-        logger.error("Unmatched tool calls detected — emergency cleanup")
-        cleaned = []
-        for msg in all_msgs:
-            if isinstance(msg, AIMessage) and msg.tool_calls:
-                safe_calls = [tc for tc in msg.tool_calls if tc["id"] not in pending_calls]
-                if safe_calls:
-                    cleaned.append(AIMessage(content=msg.content, tool_calls=safe_calls, id=msg.id))
-                else:
-                    cleaned.append(AIMessage(content=msg.content, id=msg.id))
-            else:
-                cleaned.append(msg)
-        all_msgs = cleaned
+    # Debug: verify no orphaned tool_use remains
+    for idx, m in enumerate(sanitized):
+        if isinstance(m, AIMessage):
+            if m.tool_calls:
+                tc_ids = [tc["id"] for tc in m.tool_calls]
+                logger.debug("msg[%d] AIMessage tool_calls=%s", idx, tc_ids)
+            if isinstance(m.content, list):
+                tu_ids = [b.get("id") for b in m.content
+                          if isinstance(b, dict) and b.get("type") == "tool_use"]
+                if tu_ids:
+                    logger.warning("msg[%d] AIMessage has tool_use in content: %s", idx, tu_ids)
 
     try:
         response = _llm_invoke_with_retry(_llm_with_tools, all_msgs, config)
@@ -344,6 +433,12 @@ def state_sync_node(state: ShoppingState) -> dict:
             updates["stripe_payment_url"] = result["payment_url"]
         if result.get("checkout_status"):
             updates["checkout_status"] = result["checkout_status"]
+        # Sync saved cards from list_saved_cards tool
+        if "cards" in result and isinstance(result["cards"], list):
+            updates["saved_payment_methods"] = result["cards"]
+        # Capture product search results for structured API response
+        if "products" in result and isinstance(result["products"], list):
+            updates["last_search_results"] = result["products"]
 
     return updates
 
@@ -384,7 +479,19 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
 
     patched_msg = AIMessage(content=last.content, tool_calls=patched_calls, id=last.id)
     patched_state = {**state, "messages": state["messages"][:-1] + [patched_msg]}
-    result = _raw_tool_node.invoke(patched_state)
+
+    try:
+        result = _raw_tool_node.invoke(patched_state)
+    except Exception as e:
+        logger.exception("tool_node_with_injection | ToolNode.invoke failed")
+        # Produce error ToolMessages so tool_use/tool_result pairing is preserved
+        error_msgs = []
+        for tc in patched_calls:
+            error_msgs.append(ToolMessage(
+                content=json.dumps({"success": False, "error": f"Tool execution failed: {e}"}),
+                tool_call_id=tc["id"],
+            ))
+        result = {"messages": error_msgs}
 
     if tool_results:
         result["messages"] = tool_results + result.get("messages", [])

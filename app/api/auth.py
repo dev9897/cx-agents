@@ -6,9 +6,10 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.integrations.mcp_client import call_mcp_tool_sync
 from app.integrations.sap_client import server_account_login
 from app.middleware.audit import audit
-from app.services.agent_service import new_session
+from app.services.agent_service import new_session, update_session_auth
 
 logger = logging.getLogger("sap_agent.api.auth")
 
@@ -34,6 +35,9 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     session_id: str
     username: str
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     authenticated: bool
     message: str
 
@@ -56,11 +60,51 @@ def login(req: LoginRequest):
     state["access_token"] = result["access_token"]
     state["username"] = result["username"]
     state["user_id"] = "current"
+    state["user_email"] = result.get("email", "")
+
+    # Register token in MCP vault so agent tools can resolve it
+    mcp_session_id = None
+    mcp_result = call_mcp_tool_sync("account_login", {
+        "username": req.username,
+        "password": req.password,
+    })
+    if mcp_result.get("success"):
+        mcp_session_id = mcp_result["session_id"]
+        state["mcp_session_id"] = mcp_session_id
+        logger.info("MCP vault session created | thread=%s | mcp_session=%s", thread_id, mcp_session_id)
+    else:
+        logger.warning("MCP vault login failed: %s | thread=%s", mcp_result.get("error"), thread_id)
+
+    # Pre-load saved cards so agent knows about them immediately
+    saved_cards = []
+    user_email = result.get("email", "")
+    if user_email:
+        try:
+            from app.services import payment_service
+            saved_cards = payment_service.list_saved_cards(user_email)
+            state["saved_payment_methods"] = saved_cards
+            logger.info("Loaded %d saved cards for %s", len(saved_cards), user_email)
+        except Exception as e:
+            logger.warning("Failed to load saved cards: %s", e)
+
     _sessions[thread_id] = state
+
+    # Update LangGraph checkpoint so graph nodes see the new token + MCP session + cards
+    update_session_auth(
+        thread_id,
+        access_token=result["access_token"],
+        username=result["username"],
+        email=user_email,
+        mcp_session_id=mcp_session_id,
+        saved_payment_methods=saved_cards or None,
+    )
 
     audit("LOGIN_SUCCESS", thread_id, {"username": req.username})
     return LoginResponse(
         session_id=thread_id, username=req.username,
+        email=result.get("email"),
+        first_name=result.get("first_name"),
+        last_name=result.get("last_name"),
         authenticated=True, message=f"Welcome, {req.username}!",
     )
 

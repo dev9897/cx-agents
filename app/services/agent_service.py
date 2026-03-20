@@ -45,10 +45,13 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         cart_id=None,
         order_code=None,
         username=resolved_username,
+        user_email=None,
         mcp_session_id=_MCP_SESSION_ID,
         stripe_checkout_session_id=None,
         stripe_payment_url=None,
         checkout_status=None,
+        saved_payment_methods=None,
+        last_search_results=None,
         session_id=thread_id,
         total_input_tokens=0,
         total_output_tokens=0,
@@ -62,6 +65,31 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         "token_ok": bool(access_token and len(access_token) > 20),
     })
     return init_state, thread_id
+
+
+def update_session_auth(thread_id: str, access_token: str, username: str,
+                        user_id: str = "current", email: str = "",
+                        mcp_session_id: Optional[str] = None,
+                        saved_payment_methods: Optional[list] = None) -> None:
+    """Update the LangGraph checkpoint with auth credentials after login."""
+    lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    update = {
+        "access_token": access_token,
+        "username": username,
+        "user_id": user_id,
+        "user_email": email,
+    }
+    if mcp_session_id:
+        update["mcp_session_id"] = mcp_session_id
+    if saved_payment_methods is not None:
+        update["saved_payment_methods"] = saved_payment_methods
+    try:
+        production_graph.update_state(lg_config, update)
+        logger.info("Checkpoint updated with auth | thread=%s | user=%s | mcp_session=%s | cards=%d",
+                    thread_id, username, mcp_session_id, len(saved_payment_methods or []))
+    except Exception:
+        # No checkpoint yet — that's fine, next invoke will create it with the token
+        logger.debug("No checkpoint to update yet | thread=%s", thread_id)
 
 
 def run_turn(user_message: str, thread_id: str, state: ShoppingState,

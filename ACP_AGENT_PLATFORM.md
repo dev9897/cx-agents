@@ -114,19 +114,19 @@ Stripe.js handles all card input client-side. Your server only sees `pm_xxx` IDs
 ### Phase 4: Frontend — Settings Panel & Stripe Elements
 
 #### Task 4.1 — Settings panel with card management
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-19)
 - Settings modal (gear icon in header)
 - List saved cards (brand, last4, expiry, remove button)
 - "Add New Card" with Stripe Elements CardElement
 - Load Stripe.js, mount CardElement, confirmCardSetup
 
 #### Task 4.2 — Address management UI
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-19)
 - List saved addresses in settings panel
 - Add/remove addresses
 
 #### Task 4.3 — Updated checkout flow in chat
-**Status**: [ ] TODO
+**Status**: [x] DONE (2026-03-20)
 - One-click confirm card in chat (no redirect)
 - Order confirmation card after successful purchase
 

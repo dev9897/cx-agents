@@ -16,6 +16,7 @@ class ShoppingState(TypedDict):
     cart_id: Optional[str]
     order_code: Optional[str]
     username: Optional[str]
+    user_email: Optional[str]
     mcp_session_id: Optional[str]
 
     # Stripe checkout
@@ -32,6 +33,9 @@ class ShoppingState(TypedDict):
     total_input_tokens: int
     total_output_tokens: int
     turn_count: int
+
+    # Last search results (structured product data from tools)
+    last_search_results: Optional[list[dict]]
 
     # Error handling
     last_error: Optional[str]

@@ -47,13 +47,14 @@ class TokenVault:
               access_token: str,
               refresh_token: Optional[str] = None,
               username: Optional[str] = None,
+              user_id: str = "current",
               expires_in: int = 3600) -> str:
         session_id = "sess_" + secrets.token_urlsafe(16)
         self._store[session_id] = TokenEntry(
             access_token=access_token,
             refresh_token=refresh_token,
             username=username,
-            user_id="current",  # ← always "current" for logged-in users
+            user_id=user_id,
             expires_in=expires_in,
         )
         return session_id

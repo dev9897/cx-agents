@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAP Commerce Shopping Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/styles.css">
+<script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">S</div>
+    <span><span class="brand-sap">SAP</span> Commerce Assistant</span>
+  </div>
+  <div class="header-right">
+    <div class="token-badge" id="tokenBadge">0 tokens</div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot"></div>
+      <span>connecting</span>
+    </div>
+    <button class="header-btn settings-btn" onclick="openSettings()" title="Settings">
+      &#9881;
+    </button>
+    <button class="header-btn" id="authBtn" onclick="openLogin()">
+      <span class="auth-icon">&#128100;</span>
+      <span id="authBtnLabel">Sign In</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <aside class="sidebar">
+    <div id="userPill" class="user-pill" style="display:none">
+      <span>&#10003;</span>
+      <span class="uname" id="userPillName"></span>
+      <span class="logout-link" onclick="doLogout()">logout</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Session</div>
+      <div class="session-card">
+        <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
+        <div class="row"><span>User</span><span id="sideUser">guest</span></div>
+        <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Shopping Cart</div>
+      <div class="cart-panel">
+        <div class="cart-header">
+          <span>Cart</span>
+          <span class="cart-count" id="cartCount">0</span>
+        </div>
+        <div class="cart-items" id="cartItems">
+          <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
+        </div>
+        <div class="cart-total" id="cartTotal" style="display:none">
+          <span>Total</span>
+          <span class="price" id="cartTotalPrice">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Actions</div>
+      <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
+      <button class="quick-btn" onclick="sendQuick('Show me what products you have')"><span class="icon">&#128269;</span> Browse catalog</button>
+      <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
+      <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+    </div>
+
+    <div class="flow-steps">
+      <div class="sidebar-label">Checkout Progress</div>
+      <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
+      <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
+      <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
+      <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
+      <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
+    </div>
+  </aside>
+
+  <div class="chat-wrap">
+    <div id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">&#128247;</div>
+        <h2>SAP Commerce Electronics Store</h2>
+        <p>Your AI-powered shopping assistant. Search the electronics catalog, manage your cart, and check out &mdash; all through natural conversation.</p>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">&#128269;</div>
+            <div class="feature-title">Smart Product Search</div>
+            <div class="feature-desc">Find cameras, lenses, memory cards and accessories by name, spec, or price range.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128722;</div>
+            <div class="feature-title">Cart &amp; Checkout</div>
+            <div class="feature-desc">Add items, view your cart, set delivery address and payment, then place your order.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128100;</div>
+            <div class="feature-title">Account Orders</div>
+            <div class="feature-desc">Sign in to access your order history and get personalised product recommendations.</div>
+          </div>
+        </div>
+        <div class="chips">
+          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon EOS Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
+          <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">&#128248;</span> Camera Lenses</div>
+          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods &amp; Accessories</div>
+          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries &amp; Chargers</div>
+          <div class="chip" onclick="sendQuick('Show me camera flashes and lighting')"><span class="chip-icon">&#9889;</span> Flashes &amp; Lighting</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart..."></textarea>
+        <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
+      </div>
+      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Login Modal ── -->
+<div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeLogin()">&#10005;</button>
+    <div class="modal-icon">&#128100;</div>
+    <h2>Sign In</h2>
+    <p class="modal-sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
+    <div class="modal-error" id="loginError"></div>
+    <div class="field">
+      <label>Username / Email</label>
+      <input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"/>
+    </div>
+    <button id="loginBtn" onclick="doLogin()">
+      <div class="login-spinner" id="loginSpinner"></div>
+      <span id="loginBtnLabel">Sign In</span>
+    </button>
+    <div class="modal-divider">or</div>
+    <button id="guestBtn" onclick="closeLogin()">Continue as Guest</button>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div class="modal-overlay settings-modal" id="settingsModal" onclick="handleSettingsOverlayClick(event)">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeSettings()">&#10005;</button>
+    <div class="modal-icon">&#9881;</div>
+    <h2>Settings</h2>
+    <p class="modal-sub">Manage your payment methods and delivery addresses.</p>
+
+    <!-- Tabs -->
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="cards" onclick="switchSettingsTab('cards')">
+        &#128179; Payment Cards
+      </button>
+      <button class="settings-tab" data-tab="addresses" onclick="switchSettingsTab('addresses')">
+        &#127968; Addresses
+      </button>
+    </div>
+
+    <!-- Cards Panel -->
+    <div class="settings-panel active" id="panel-cards">
+      <div id="cardsList"></div>
+      <div id="addCardSection">
+        <button class="btn-primary" id="addCardBtn" onclick="initStripeElements()" style="margin-top:12px">+ Add New Card</button>
+        <div id="cardFormWrap" style="display:none;margin-top:12px">
+          <div class="stripe-element-wrap">
+            <div id="stripeCardElement"></div>
+          </div>
+          <div class="card-form-error" id="cardFormError"></div>
+          <button class="btn-primary" id="saveCardBtn" onclick="saveCard()" style="margin-top:10px">Save Card</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Addresses Panel -->
+    <div class="settings-panel" id="panel-addresses">
+      <div id="addressesList"></div>
+      <div id="addAddressSection">
+        <button class="btn-primary" id="addAddressBtn" onclick="toggleAddressForm()" style="margin-top:12px">+ Add New Address</button>
+        <div id="addressFormWrap" style="display:none;margin-top:12px">
+          <div class="field"><label>Full Name *</label><input type="text" id="addrName" placeholder="John Doe"/></div>
+          <div class="field"><label>Address Line 1 *</label><input type="text" id="addrLine1" placeholder="123 Main Street"/></div>
+          <div class="field"><label>Address Line 2</label><input type="text" id="addrLine2" placeholder="Apt 4B (optional)"/></div>
+          <div style="display:flex;gap:10px">
+            <div class="field" style="flex:1"><label>City *</label><input type="text" id="addrCity" placeholder="New York"/></div>
+            <div class="field" style="flex:1"><label>State</label><input type="text" id="addrState" placeholder="NY"/></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div class="field" style="flex:1"><label>Postal Code *</label><input type="text" id="addrPostal" placeholder="10001"/></div>
+            <div class="field" style="flex:1"><label>Country *</label><input type="text" id="addrCountry" placeholder="US" value="US"/></div>
+          </div>
+          <button class="btn-primary" id="saveAddressBtn" onclick="saveAddress()" style="margin-top:4px">Save Address</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts (order matters: app first, then modules that depend on it) ── -->
+<script src="/static/js/app.js?v=5"></script>
+<script src="/static/js/renderers.js?v=5"></script>
+<script src="/static/js/auth.js?v=5"></script>
+<script src="/static/js/chat.js?v=5"></script>
+<script src="/static/js/settings.js?v=5"></script>
+
+</body>
+</html>

@@ -86,6 +86,15 @@ def get_tools_sync() -> list[Any]:
         return get_direct_sap_tools()
 
 
+def call_mcp_tool_sync(name: str, kwargs: dict) -> dict:
+    """Call an MCP tool synchronously. Used to bridge UI auth with MCP vault."""
+    try:
+        return asyncio.run(_call_tool_async(name, kwargs))
+    except Exception as e:
+        logger.warning("call_mcp_tool_sync(%s) failed: %s", name, e)
+        return {"success": False, "error": str(e)}
+
+
 def get_mcp_session_id() -> Optional[str]:
     try:
         result = asyncio.run(_call_tool_async("get_static_session", {}))

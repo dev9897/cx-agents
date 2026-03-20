@@ -60,6 +60,23 @@ for searching products, managing carts, and completing purchases.
 2. set_delivery_mode  (default: standard-gross)
 3. initiate_checkout  (creates secure payment link — user pays on Stripe)
 4. Order is placed automatically after payment succeeds
+
+## Response format — suggested actions
+At the END of every response, you MUST include a JSON block with suggested next actions
+the user can take. Wrap it in [SUGGESTIONS] tags. Each suggestion has a "label" (short
+button text, max 30 chars) and "value" (the message to send if clicked).
+Pick 1-4 relevant suggestions based on the current context.
+Mark the most likely action as "primary": true (only one). Others are secondary.
+
+Example:
+[SUGGESTIONS]{"suggestions":[{"label":"Add to cart","value":"Add product 1234 to my cart","primary":true},{"label":"See more options","value":"Show me more options"}]}[/SUGGESTIONS]
+
+Rules:
+- Always include suggestions unless the response is a final order confirmation.
+- Keep labels concise and action-oriented.
+- The "value" should be a natural-language message the user would type.
+- Do NOT include suggestions inside the main text — ONLY in the [SUGGESTIONS] block.
+- The [SUGGESTIONS] block must be valid JSON on a single line.
 """.strip()
 
 
@@ -74,10 +91,13 @@ def build_system_message(state: ShoppingState, mcp_session_id: str = "") -> Syst
         if saved_cards else "No saved cards"
     )
 
+    user_email = state.get("user_email", "")
+
     dynamic = f"""
 ## Current session
 - Authenticated : {"Yes — logged in as " + username if authenticated else "No (guest)"}
 - User ID       : {state.get("user_id", "anonymous")}
+- User Email    : {user_email or "Not available"}
 - Cart ID       : {state.get("cart_id") or "Not created yet"}
 - Session ID    : {mcp_session or "Not available"}
 - Turn          : {state.get("turn_count", 0)}
@@ -85,6 +105,7 @@ def build_system_message(state: ShoppingState, mcp_session_id: str = "") -> Syst
 - Saved Cards   : {cards_summary}
 
 IMPORTANT: When calling tools that require session_id, always use: {mcp_session}
+IMPORTANT: When calling list_saved_cards, use user_email: {user_email}
 """.strip()
 
     return SystemMessage(content=STATIC_SYSTEM + "\n\n" + dynamic)
