@@ -52,6 +52,9 @@ async def _call_tool_async(name: str, kwargs: dict) -> Any:
             return {"success": False, "error": "No response"}
 
 
+MCP_CONNECT_TIMEOUT = float(os.getenv("MCP_CONNECT_TIMEOUT", "5"))
+
+
 async def _fetch_tools_async() -> list[Any]:
     tools = []
     async with sse_client(MCP_URL) as (read, write):
@@ -77,11 +80,13 @@ async def _fetch_tools_async() -> list[Any]:
 def get_tools_sync() -> list[Any]:
     """Sync entry point — called at agent startup."""
     try:
-        tools = asyncio.run(_fetch_tools_async())
+        tools = asyncio.run(asyncio.wait_for(
+            _fetch_tools_async(), timeout=MCP_CONNECT_TIMEOUT,
+        ))
         logger.info("Loaded %d tools from MCP server at %s", len(tools), MCP_URL)
         return tools
     except Exception as e:
-        logger.warning("MCP connection failed: %s — falling back to direct SAP tools", e)
+        logger.warning("MCP connection failed (%s) — falling back to direct SAP tools", e)
         from app.agent.tools import get_direct_sap_tools
         return get_direct_sap_tools()
 
@@ -97,7 +102,10 @@ def call_mcp_tool_sync(name: str, kwargs: dict) -> dict:
 
 def get_mcp_session_id() -> Optional[str]:
     try:
-        result = asyncio.run(_call_tool_async("get_static_session", {}))
+        result = asyncio.run(asyncio.wait_for(
+            _call_tool_async("get_static_session", {}),
+            timeout=MCP_CONNECT_TIMEOUT,
+        ))
         if result.get("success"):
             return result["session_id"]
     except Exception as e:
