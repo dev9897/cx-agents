@@ -14,6 +14,7 @@ const App = {
   cartData:    { items: [], total: null, id: null, orderCode: null },
   savedAddresses: [],
   sapPaymentDetails: [],
+  stripeCards: [],
 };
 
 // ── Utilities ────────────────────────────────────────────────────────────────

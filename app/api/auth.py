@@ -44,6 +44,7 @@ class LoginResponse(BaseModel):
     message: str
     saved_addresses: list[dict] = []
     sap_payment_details: list[dict] = []
+    stripe_cards: list[dict] = []
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ def login(req: LoginRequest):
         authenticated=True, message=f"Welcome, {req.username}!",
         saved_addresses=saved_addresses,
         sap_payment_details=sap_payments,
+        stripe_cards=saved_cards,
     )
 
 

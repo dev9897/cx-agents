@@ -86,14 +86,28 @@ async function quickCheckout(btn) {
   const addrSelect = document.getElementById('checkoutAddr');
   const paySelect = document.getElementById('checkoutPay');
   const addrIdx = addrSelect ? parseInt(addrSelect.value, 10) : 0;
-  const payIdx = paySelect ? parseInt(paySelect.value, 10) : 0;
+
+  // Read payment type and original index from selected option
+  let payType = 'sap';
+  let payIdx = 0;
+  let stripePaymentMethodId = null;
+  if (paySelect) {
+    const opt = paySelect.options[paySelect.selectedIndex];
+    payType = opt ? (opt.dataset.type || 'sap') : 'sap';
+    payIdx = opt ? parseInt(opt.dataset.index || '0', 10) : 0;
+    if (payType === 'stripe') {
+      const stripePays = App.stripeCards || [];
+      const card = stripePays[payIdx];
+      stripePaymentMethodId = card ? card.id : null;
+    }
+  }
 
   // Disable cart buttons while preparing
   const cartCard = btn.closest('.cart-card');
   if (cartCard) cartCard.querySelectorAll('button').forEach(b => b.disabled = true);
 
   try {
-    // Step 1: Prepare checkout (set address + delivery mode)
+    // Step 1: Prepare checkout (set address + delivery mode + payment)
     const r = await fetch(`${API}/checkout/prepare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -101,6 +115,7 @@ async function quickCheckout(btn) {
         session_id: App.sessionId,
         address_index: addrIdx,
         payment_index: payIdx,
+        payment_type: payType,
       }),
     });
     const d = await r.json();
@@ -110,6 +125,10 @@ async function quickCheckout(btn) {
       if (cartCard) cartCard.querySelectorAll('button').forEach(b => b.disabled = false);
       return;
     }
+
+    // Store payment context for the place step
+    d._paymentType = payType;
+    d._stripePaymentMethodId = stripePaymentMethodId;
 
     // Step 2: Show confirmation popup
     showQuickCheckoutConfirm(d);
@@ -136,9 +155,12 @@ function showQuickCheckoutConfirm(data) {
   const addrLine = addr.line1
     ? `${addr.firstName || ''} ${addr.lastName || ''}, ${addr.line1}, ${addr.town || ''} ${addr.postalCode || ''}`
     : 'No address';
-  const payLine = pay.cardType
-    ? `${pay.cardType} ****${(pay.cardNumber || '').slice(-4)}`
-    : 'Default payment';
+  let payLine;
+  if (pay.type === 'stripe') {
+    payLine = pay.brand ? `${pay.brand.toUpperCase()} ****${pay.last4 || ''}` : 'Stripe card';
+  } else {
+    payLine = pay.cardType ? `${pay.cardType} ****${(pay.cardNumber || '').slice(-4)}` : 'SAP payment';
+  }
 
   let itemsHTML = '';
   if (cart.entries && cart.entries.length > 0) {
@@ -185,6 +207,10 @@ function showQuickCheckoutConfirm(data) {
     </div>
   </div>`;
 
+  // Store payment context for the place step
+  overlay.dataset.paymentType = data._paymentType || 'sap';
+  overlay.dataset.stripePaymentMethodId = data._stripePaymentMethodId || '';
+
   document.body.appendChild(overlay);
   // Close on overlay click
   overlay.addEventListener('click', e => {
@@ -202,10 +228,21 @@ async function confirmQuickCheckout() {
   if (confirmBtn) confirmBtn.textContent = 'Placing order...';
 
   try {
+    const paymentType = overlay.dataset.paymentType || 'sap';
+    const stripePaymentMethodId = overlay.dataset.stripePaymentMethodId || '';
+
+    const placeBody = {
+      session_id: App.sessionId,
+      payment_type: paymentType,
+    };
+    if (paymentType === 'stripe' && stripePaymentMethodId) {
+      placeBody.stripe_payment_method_id = stripePaymentMethodId;
+    }
+
     const r = await fetch(`${API}/checkout/place`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: App.sessionId }),
+      body: JSON.stringify(placeBody),
     });
     const d = await r.json();
     overlay.remove();

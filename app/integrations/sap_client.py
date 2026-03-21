@@ -368,6 +368,51 @@ def set_delivery_address(cart_id: str, address: dict,
         return _handle_http_error(e, "set_delivery_address", url)
 
 
+def set_payment_on_cart(cart_id: str, payment: dict, address: dict,
+                       access_token: str = "", user_id: str = "current") -> dict:
+    """Set saved SAP payment details on the cart.
+
+    Uses the saved payment info to create payment details on the cart.
+    Requires billing address (uses the delivery address as fallback).
+    """
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/paymentdetails"
+    payload = {
+        "accountHolderName": payment.get("accountHolderName", ""),
+        "cardNumber": payment.get("cardNumber", "4111111111111111"),
+        "cardType": {"code": _map_card_type(payment.get("cardType", "visa"))},
+        "expiryMonth": payment.get("expiryMonth", "12"),
+        "expiryYear": payment.get("expiryYear", "2030"),
+        "cvn": "123",
+        "billingAddress": {
+            "firstName": address.get("firstName", ""),
+            "lastName": address.get("lastName", ""),
+            "line1": address.get("line1", ""),
+            "town": address.get("town", ""),
+            "postalCode": address.get("postalCode", ""),
+            "country": {"isocode": address.get("country", "US")},
+        },
+    }
+    try:
+        resp = _safe_request("POST", url, "set_payment_on_cart",
+                             headers=_headers(access_token), json=payload)
+        if resp.status_code in (200, 201):
+            return {"success": True, "payment_set": True}
+        return {"success": False, "error": resp.text}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "set_payment_on_cart", url)
+
+
+def _map_card_type(card_type: str) -> str:
+    """Map card type display name to SAP code."""
+    mapping = {
+        "visa": "visa", "mastercard": "master", "master": "master",
+        "amex": "amex", "american express": "amex",
+        "discover": "discover", "diners": "diners",
+    }
+    return mapping.get(card_type.lower(), "visa") if card_type else "visa"
+
+
 def set_delivery_mode(cart_id: str, delivery_mode_code: str = "standard-gross",
                       access_token: str = "", user_id: str = "current") -> dict:
     resolved_user = _resolve_user(user_id)

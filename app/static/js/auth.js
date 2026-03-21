@@ -83,6 +83,7 @@ async function doLogin() {
     App.currentUserLastName = d.last_name || '';
     App.savedAddresses = d.saved_addresses || [];
     App.sapPaymentDetails = d.sap_payment_details || [];
+    App.stripeCards = d.stripe_cards || [];
     closeLogin();
     updateAuthUI(d.username);
     appendMsg(

@@ -124,16 +124,19 @@ class QuickCheckoutPrepareRequest(BaseModel):
     session_id: str
     address_index: int = 0
     payment_index: int = 0
+    payment_type: str = "sap"  # "sap" or "stripe"
 
 
 class QuickCheckoutPlaceRequest(BaseModel):
     session_id: str
+    payment_type: str = "sap"  # "sap" or "stripe"
+    stripe_payment_method_id: Optional[str] = None
     security_code: str = ""
 
 
 @router.post("/prepare")
 def quick_checkout_prepare(req: QuickCheckoutPrepareRequest):
-    """Set delivery address + delivery mode on cart. Returns order summary for confirmation."""
+    """Set delivery address, delivery mode, and payment on cart. Returns order summary."""
     if req.session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -149,42 +152,66 @@ def quick_checkout_prepare(req: QuickCheckoutPrepareRequest):
     # Resolve selected address
     addresses = state.get("saved_addresses") or []
     address = addresses[req.address_index] if req.address_index < len(addresses) else None
-
-    # Set delivery address
-    if address:
-        addr_result = sap_client.set_delivery_address(cart_id, address, access_token)
-        if not addr_result.get("success"):
-            return {"success": False, "step": "address", "error": addr_result.get("error", "Failed to set address")}
-    else:
+    if not address:
         return {"success": False, "step": "address", "error": "No delivery address selected"}
 
-    # Set delivery mode
+    # Step 1: Set delivery address
+    addr_result = sap_client.set_delivery_address(cart_id, address, access_token)
+    if not addr_result.get("success"):
+        return {"success": False, "step": "address", "error": addr_result.get("error", "Failed to set address")}
+
+    # Step 2: Set delivery mode
     mode_result = sap_client.set_delivery_mode(cart_id, "standard-gross", access_token)
     if not mode_result.get("success"):
         return {"success": False, "step": "delivery_mode", "error": mode_result.get("error", "Failed to set delivery mode")}
 
-    # Fetch updated cart with totals
+    # Step 3: Set payment on cart
+    if req.payment_type == "stripe":
+        # Stripe flow: set placeholder payment on SAP cart (actual charge happens at /place)
+        stripe_cards = state.get("saved_payment_methods") or []
+        stripe_card = stripe_cards[req.payment_index] if req.payment_index < len(stripe_cards) else None
+        pay_result = sap_client.set_payment_on_cart(cart_id, {}, address, access_token)
+        if not pay_result.get("success"):
+            return {"success": False, "step": "payment", "error": pay_result.get("error", "Failed to set payment")}
+        payment_display = {
+            "type": "stripe",
+            "brand": stripe_card.get("brand", "") if stripe_card else "",
+            "last4": stripe_card.get("last4", "") if stripe_card else "",
+            "id": stripe_card.get("id", "") if stripe_card else "",
+        }
+    else:
+        # SAP flow: set saved SAP payment details on cart
+        sap_payments = state.get("sap_payment_details") or []
+        sap_payment = sap_payments[req.payment_index] if req.payment_index < len(sap_payments) else None
+        pay_result = sap_client.set_payment_on_cart(
+            cart_id, sap_payment or {}, address, access_token)
+        if not pay_result.get("success"):
+            return {"success": False, "step": "payment", "error": pay_result.get("error", "Failed to set payment")}
+        payment_display = {
+            "type": "sap",
+            "cardType": sap_payment.get("cardType", "") if sap_payment else "",
+            "cardNumber": sap_payment.get("cardNumber", "") if sap_payment else "",
+        }
+
+    # Fetch updated cart with totals (now includes delivery cost)
     cart_result = sap_client.get_cart(cart_id, access_token)
     if not cart_result.get("success"):
         return {"success": False, "step": "cart", "error": "Failed to fetch cart summary"}
 
-    # Resolve selected payment for display
-    payments = state.get("sap_payment_details") or []
-    payment = payments[req.payment_index] if req.payment_index < len(payments) else None
-
-    audit("CHECKOUT_PREPARED", req.session_id, {"cart_id": cart_id})
+    audit("CHECKOUT_PREPARED", req.session_id, {"cart_id": cart_id, "payment_type": req.payment_type})
 
     return {
         "success": True,
         "cart": cart_result,
         "address": address,
-        "payment": payment,
+        "payment": payment_display,
+        "payment_type": req.payment_type,
     }
 
 
 @router.post("/place")
 def quick_checkout_place(req: QuickCheckoutPlaceRequest):
-    """Place the order directly via SAP Commerce."""
+    """Place the order. For Stripe: charge card first, then place SAP order."""
     if req.session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -197,6 +224,39 @@ def quick_checkout_place(req: QuickCheckoutPlaceRequest):
     if not access_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    # Stripe flow: charge the saved card before placing SAP order
+    if req.payment_type == "stripe" and req.stripe_payment_method_id:
+        from app.services import payment_service
+
+        user_email = state.get("user_email", "")
+        stripe_customer_id = payment_service.get_stripe_customer_id(user_email) if user_email else None
+
+        if not stripe_customer_id:
+            return {"success": False, "error": "Stripe customer not found. Please add a card in Settings."}
+
+        # Get cart total for charge amount
+        cart_data = sap_client.get_cart(cart_id, access_token)
+        total_value = cart_data.get("totalValue", 0) if cart_data.get("success") else 0
+        if not total_value:
+            return {"success": False, "error": "Cannot determine cart total for payment"}
+
+        # Stripe amounts are in cents
+        charge_amount = int(round(total_value * 100))
+        charge_result = payment_service.charge_saved_card(
+            customer_id=stripe_customer_id,
+            payment_method_id=req.stripe_payment_method_id,
+            amount=charge_amount,
+            currency=cart_data.get("currency", "USD").lower(),
+            metadata={"session_id": req.session_id, "cart_id": cart_id},
+        )
+        if not charge_result.get("success"):
+            error_msg = charge_result.get("error", "Payment failed")
+            return {"success": False, "error": f"Payment declined: {error_msg}"}
+
+        logger.info("Stripe charge succeeded | PI=%s | session=%s",
+                     charge_result.get("payment_intent_id"), req.session_id)
+
+    # Place SAP order
     result = sap_client.place_order(cart_id, access_token, security_code=req.security_code)
 
     if result.get("success"):
@@ -206,6 +266,7 @@ def quick_checkout_place(req: QuickCheckoutPlaceRequest):
         audit("ORDER_PLACED", req.session_id, {
             "order_code": result.get("order_code"),
             "total": result.get("total"),
+            "payment_type": req.payment_type,
         })
 
     return result

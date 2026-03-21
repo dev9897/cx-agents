@@ -175,8 +175,10 @@ function buildCartCardHTML(cart) {
 
   // 2-click checkout section (when user is logged in with saved data)
   const addrs = App.savedAddresses || [];
-  const pays = App.sapPaymentDetails || [];
-  const hasCheckoutData = App.currentUser && (addrs.length > 0 || pays.length > 0);
+  const sapPays = App.sapPaymentDetails || [];
+  const stripePays = (App.cartData && App.cartData.stripeCards) || App.stripeCards || [];
+  const allPays = _buildPaymentOptions(sapPays, stripePays);
+  const hasCheckoutData = App.currentUser && (addrs.length > 0 || allPays.length > 0);
 
   if (hasCheckoutData) {
     html += '<div class="cart-checkout-section">';
@@ -196,16 +198,14 @@ function buildCartCardHTML(cart) {
       html += '</select></div></div>';
     }
 
-    if (pays.length > 0) {
+    if (allPays.length > 0) {
       html += '<div class="cart-checkout-row">';
       html += '<div class="cart-checkout-row-icon">&#128179;</div>';
       html += '<div class="cart-checkout-row-body">';
       html += '<div class="cart-checkout-row-title">Payment Method</div>';
       html += `<select class="cart-checkout-select" id="checkoutPay">`;
-      pays.forEach((p, i) => {
-        const label = `${p.cardType} ****${(p.cardNumber || '').slice(-4)} (${p.expiryMonth}/${p.expiryYear})`;
-        const def = p.defaultPayment ? ' (default)' : '';
-        html += `<option value="${i}"${p.defaultPayment ? ' selected' : ''}>${esc(label)}${def}</option>`;
+      allPays.forEach((p, i) => {
+        html += `<option value="${i}" data-type="${esc(p.type)}" data-index="${p.originalIndex}"${p.isDefault ? ' selected' : ''}>${esc(p.label)}</option>`;
       });
       html += '</select></div></div>';
     }
@@ -387,6 +387,29 @@ function buildRatingStars(rating) {
   for (let i = 0; i < half; i++) stars += '&#9733;';
   for (let i = 0; i < empty; i++) stars += '&#9734;';
   return `<div class="product-card-rating"><span class="stars">${stars}</span><span class="val">${rating.toFixed(1)}</span></div>`;
+}
+
+function _buildPaymentOptions(sapPays, stripePays) {
+  const options = [];
+  sapPays.forEach((p, i) => {
+    options.push({
+      type: 'sap',
+      originalIndex: i,
+      label: `${p.cardType || 'Card'} ****${(p.cardNumber || '').slice(-4)} (${p.expiryMonth}/${p.expiryYear})`,
+      isDefault: p.defaultPayment,
+      id: p.id || '',
+    });
+  });
+  stripePays.forEach((p, i) => {
+    options.push({
+      type: 'stripe',
+      originalIndex: i,
+      label: `${(p.brand || 'Card').toUpperCase()} ****${p.last4 || '????'} (Stripe)`,
+      isDefault: false,
+      id: p.id || '',
+    });
+  });
+  return options;
 }
 
 function getBrandIcon(brand) {
