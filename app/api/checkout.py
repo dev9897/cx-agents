@@ -166,11 +166,13 @@ def quick_checkout_prepare(req: QuickCheckoutPrepareRequest):
         return {"success": False, "step": "delivery_mode", "error": mode_result.get("error", "Failed to set delivery mode")}
 
     # Step 3: Set payment on cart
+    username = state.get("username", "")
     if req.payment_type == "stripe":
         # Stripe flow: set placeholder payment on SAP cart (actual charge happens at /place)
         stripe_cards = state.get("saved_payment_methods") or []
         stripe_card = stripe_cards[req.payment_index] if req.payment_index < len(stripe_cards) else None
-        pay_result = sap_client.set_payment_on_cart(cart_id, {}, address, access_token)
+        placeholder_payment = {"accountHolderName": username or f"{address.get('firstName', '')} {address.get('lastName', '')}".strip()}
+        pay_result = sap_client.set_payment_on_cart(cart_id, placeholder_payment, address, access_token)
         if not pay_result.get("success"):
             return {"success": False, "step": "payment", "error": pay_result.get("error", "Failed to set payment")}
         payment_display = {

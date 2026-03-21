@@ -244,33 +244,54 @@ async function confirmQuickCheckout() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(placeBody),
     });
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: `HTTP ${r.status}` }));
+      overlay.remove();
+      appendError(`Order failed: ${err.detail || err.error || JSON.stringify(err)}`);
+      document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
+      return;
+    }
+
     const d = await r.json();
     overlay.remove();
 
     if (d.success) {
-      // Clear cart state
-      App.cartData = { items: [], total: null, id: null, orderCode: d.order_code };
-      updateCartUI();
-      markStep('step-order', 'done');
-
-      // Remove existing cart cards
-      document.querySelectorAll('.bubble .cart-card').forEach(el => {
-        const msgEl = el.closest('.msg');
-        if (msgEl) msgEl.remove();
-      });
-
-      // Show order success card
-      const orderText = `Total: ${d.total || 'N/A'}. Status: ${d.status || 'processing'}.`;
-      appendMsg('agent', orderText, { order_code: d.order_code });
+      // Show success — wrapped separately so a rendering glitch can't mask order success
+      handleOrderSuccess(d);
     } else {
       appendError(`Order failed: ${d.error || 'Unknown error'}`);
-      // Re-enable cart buttons
       document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
     }
   } catch (e) {
-    overlay.remove();
+    console.error('confirmQuickCheckout error:', e);
+    const ov = document.getElementById('quickCheckoutOverlay');
+    if (ov) ov.remove();
     appendError('Failed to place order. Please try again.');
     document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
+  }
+}
+
+function handleOrderSuccess(d) {
+  try {
+    // Clear cart state
+    App.cartData = { items: [], total: null, id: null, orderCode: d.order_code };
+    updateCartUI();
+    markStep('step-order', 'done');
+
+    // Remove existing cart cards
+    document.querySelectorAll('.bubble .cart-card').forEach(el => {
+      const msgEl = el.closest('.msg');
+      if (msgEl) msgEl.remove();
+    });
+
+    // Show order success card
+    const orderText = `Total: ${d.total || 'N/A'}. Status: ${d.status || 'processing'}.`;
+    appendMsg('agent', orderText, { order_code: d.order_code });
+  } catch (e) {
+    console.error('handleOrderSuccess rendering error:', e);
+    // Order was placed even if rendering fails — show basic success
+    appendMsg('agent', `Order placed successfully! Order code: ${d.order_code || 'unknown'}`);
   }
 }
 

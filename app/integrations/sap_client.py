@@ -377,8 +377,13 @@ def set_payment_on_cart(cart_id: str, payment: dict, address: dict,
     """
     resolved_user = _resolve_user(user_id)
     url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/paymentdetails"
+    holder_name = (
+        payment.get("accountHolderName")
+        or f"{address.get('firstName', '')} {address.get('lastName', '')}".strip()
+        or "Card Holder"
+    )
     payload = {
-        "accountHolderName": payment.get("accountHolderName", ""),
+        "accountHolderName": holder_name,
         "cardNumber": payment.get("cardNumber", "4111111111111111"),
         "cardType": {"code": _map_card_type(payment.get("cardType", "visa"))},
         "expiryMonth": payment.get("expiryMonth", "12"),
