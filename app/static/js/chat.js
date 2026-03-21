@@ -82,34 +82,171 @@ async function doSend(text) {
 
 // ── Quick checkout (2-click) ────────────────────────────────────────────────
 
-function quickCheckout(btn) {
-  const addrs = App.savedAddresses || [];
-  const pays = App.sapPaymentDetails || [];
-
+async function quickCheckout(btn) {
   const addrSelect = document.getElementById('checkoutAddr');
   const paySelect = document.getElementById('checkoutPay');
+  const addrIdx = addrSelect ? parseInt(addrSelect.value, 10) : 0;
+  const payIdx = paySelect ? parseInt(paySelect.value, 10) : 0;
 
-  let addrIdx = addrSelect ? parseInt(addrSelect.value, 10) : 0;
-  let payIdx = paySelect ? parseInt(paySelect.value, 10) : 0;
+  // Disable cart buttons while preparing
+  const cartCard = btn.closest('.cart-card');
+  if (cartCard) cartCard.querySelectorAll('button').forEach(b => b.disabled = true);
 
-  const addr = addrs[addrIdx] || addrs[0];
-  const pay = pays[payIdx] || pays[0];
+  try {
+    // Step 1: Prepare checkout (set address + delivery mode)
+    const r = await fetch(`${API}/checkout/prepare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: App.sessionId,
+        address_index: addrIdx,
+        payment_index: payIdx,
+      }),
+    });
+    const d = await r.json();
 
-  // Build a natural language checkout command
-  let msg = 'Checkout my cart';
-  if (addr) {
-    msg += ` with delivery to ${addr.firstName || ''} ${addr.lastName || ''}, ${addr.line1 || ''}, ${addr.town || ''} ${addr.postalCode || ''}, ${addr.country || ''}`;
+    if (!d.success) {
+      appendError(`Checkout failed: ${d.error || 'Unknown error'}`);
+      if (cartCard) cartCard.querySelectorAll('button').forEach(b => b.disabled = false);
+      return;
+    }
+
+    // Step 2: Show confirmation popup
+    showQuickCheckoutConfirm(d);
+
+  } catch (e) {
+    appendError('Could not prepare checkout. Is the server running?');
+    if (cartCard) cartCard.querySelectorAll('button').forEach(b => b.disabled = false);
   }
-  if (pay) {
-    msg += ` using ${pay.cardType || 'card'} ending ${(pay.cardNumber || '').slice(-4)}`;
-  }
-
-  // Disable buttons
-  const card = btn.closest('.cart-card');
-  if (card) card.querySelectorAll('button').forEach(b => b.disabled = true);
-
-  sendQuick(msg.trim());
 }
+
+function showQuickCheckoutConfirm(data) {
+  // Remove any existing confirmation overlay
+  const existing = document.getElementById('quickCheckoutOverlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'quickCheckoutOverlay';
+  overlay.className = 'qc-overlay';
+
+  const cart = data.cart || {};
+  const addr = data.address || {};
+  const pay = data.payment || {};
+
+  const addrLine = addr.line1
+    ? `${addr.firstName || ''} ${addr.lastName || ''}, ${addr.line1}, ${addr.town || ''} ${addr.postalCode || ''}`
+    : 'No address';
+  const payLine = pay.cardType
+    ? `${pay.cardType} ****${(pay.cardNumber || '').slice(-4)}`
+    : 'Default payment';
+
+  let itemsHTML = '';
+  if (cart.entries && cart.entries.length > 0) {
+    cart.entries.forEach(e => {
+      itemsHTML += `<div class="qc-item">
+        <span class="qc-item-name">${esc(e.product_name)}</span>
+        <span class="qc-item-qty">x${e.quantity}</span>
+        <span class="qc-item-price">${esc(e.total || '')}</span>
+      </div>`;
+    });
+  }
+
+  overlay.innerHTML = `<div class="qc-card">
+    <div class="qc-header">
+      <span class="qc-header-icon">&#9889;</span>
+      <span class="qc-header-title">Confirm Order</span>
+    </div>
+    <div class="qc-body">
+      ${itemsHTML ? `<div class="qc-items">${itemsHTML}</div>` : ''}
+      <div class="qc-detail-row">
+        <div class="qc-detail-icon">&#127968;</div>
+        <div>
+          <div class="qc-detail-label">Delivery</div>
+          <div class="qc-detail-value">${esc(addrLine)}</div>
+        </div>
+      </div>
+      <div class="qc-detail-row">
+        <div class="qc-detail-icon">&#128179;</div>
+        <div>
+          <div class="qc-detail-label">Payment</div>
+          <div class="qc-detail-value">${esc(payLine)}</div>
+        </div>
+      </div>
+      ${cart.total ? `<div class="qc-total">
+        <span>Total</span>
+        <span class="qc-total-value">${esc(cart.total)}</span>
+      </div>` : ''}
+    </div>
+    <div class="qc-actions">
+      <button class="qc-btn-confirm" onclick="confirmQuickCheckout()">
+        <span>&#128274;</span> Confirm &amp; Pay${cart.total ? ' ' + esc(cart.total) : ''}
+      </button>
+      <button class="qc-btn-cancel" onclick="cancelQuickCheckout()">Cancel</button>
+    </div>
+  </div>`;
+
+  document.body.appendChild(overlay);
+  // Close on overlay click
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) cancelQuickCheckout();
+  });
+}
+
+async function confirmQuickCheckout() {
+  const overlay = document.getElementById('quickCheckoutOverlay');
+  if (!overlay) return;
+
+  // Disable buttons and show processing
+  overlay.querySelectorAll('button').forEach(b => b.disabled = true);
+  const confirmBtn = overlay.querySelector('.qc-btn-confirm');
+  if (confirmBtn) confirmBtn.textContent = 'Placing order...';
+
+  try {
+    const r = await fetch(`${API}/checkout/place`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: App.sessionId }),
+    });
+    const d = await r.json();
+    overlay.remove();
+
+    if (d.success) {
+      // Clear cart state
+      App.cartData = { items: [], total: null, id: null, orderCode: d.order_code };
+      updateCartUI();
+      markStep('step-order', 'done');
+
+      // Remove existing cart cards
+      document.querySelectorAll('.bubble .cart-card').forEach(el => {
+        const msgEl = el.closest('.msg');
+        if (msgEl) msgEl.remove();
+      });
+
+      // Show order success card
+      const orderText = `Total: ${d.total || 'N/A'}. Status: ${d.status || 'processing'}.`;
+      appendMsg('agent', orderText, { order_code: d.order_code });
+    } else {
+      appendError(`Order failed: ${d.error || 'Unknown error'}`);
+      // Re-enable cart buttons
+      document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
+    }
+  } catch (e) {
+    overlay.remove();
+    appendError('Failed to place order. Please try again.');
+    document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
+  }
+}
+
+function cancelQuickCheckout() {
+  const overlay = document.getElementById('quickCheckoutOverlay');
+  if (overlay) overlay.remove();
+  // Re-enable cart buttons
+  document.querySelectorAll('.cart-card button').forEach(b => b.disabled = false);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('quickCheckoutOverlay')) cancelQuickCheckout();
+});
 
 // ── Cart sync from response ─────────────────────────────────────────────────
 
