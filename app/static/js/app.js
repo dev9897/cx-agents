@@ -12,6 +12,8 @@ const App = {
   currentUser: null,
   currentUserEmail: null,
   cartData:    { items: [], total: null, id: null, orderCode: null },
+  savedAddresses: [],
+  sapPaymentDetails: [],
 };
 
 // ── Utilities ────────────────────────────────────────────────────────────────

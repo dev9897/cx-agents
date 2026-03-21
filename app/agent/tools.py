@@ -61,6 +61,14 @@ def set_delivery_mode(cart_id: str, delivery_mode_code: str = "standard-gross",
 
 
 @tool
+def update_cart_entry(cart_id: str, entry_number: int, quantity: int,
+                      access_token: str = "", user_id: str = "current") -> dict:
+    """Update the quantity of a cart item. Set quantity to 0 to remove it.
+    After updating, show the updated cart to the user."""
+    return sap_client.update_cart_entry(cart_id, entry_number, quantity, access_token, user_id)
+
+
+@tool
 def initiate_checkout(cart_id: str, access_token: str = "",
                       user_id: str = "current") -> dict:
     """
@@ -237,7 +245,7 @@ def get_direct_sap_tools() -> list:
     """Return all LangChain tools (used as MCP fallback)."""
     return [
         search_products, get_product_details,
-        create_cart, add_to_cart, get_cart,
+        create_cart, add_to_cart, get_cart, update_cart_entry,
         set_delivery_address, set_delivery_mode,
         initiate_checkout, place_order, get_order,
         list_saved_cards, acp_checkout,

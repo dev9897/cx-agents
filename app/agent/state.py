@@ -28,14 +28,20 @@ class ShoppingState(TypedDict):
     stripe_customer_id: Optional[str]
     saved_payment_methods: Optional[list[dict]]
 
+    # SAP user profile (fetched at login)
+    saved_addresses: Optional[list[dict]]
+    sap_payment_details: Optional[list[dict]]
+
     # Observability / cost
     session_id: str
     total_input_tokens: int
     total_output_tokens: int
     turn_count: int
 
-    # Last search results (structured product data from tools)
+    # Structured data from tools for frontend rendering
     last_search_results: Optional[list[dict]]
+    last_cart_data: Optional[dict]
+    last_product_detail: Optional[dict]
 
     # Error handling
     last_error: Optional[str]

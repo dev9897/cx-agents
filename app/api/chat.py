@@ -47,6 +47,43 @@ class Product(BaseModel):
     rating: Optional[float] = None
     summary: Optional[str] = None
     category: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class CartEntry(BaseModel):
+    entry_number: int = 0
+    product_code: str = ""
+    product_name: str = ""
+    quantity: int = 1
+    base_price: Optional[str] = None
+    base_price_value: Optional[float] = None
+    total: Optional[str] = None
+    total_value: Optional[float] = None
+    image_url: Optional[str] = None
+
+
+class Cart(BaseModel):
+    cart_id: str = ""
+    entries: list[CartEntry] = []
+    item_count: int = 0
+    sub_total: Optional[str] = None
+    delivery_cost: Optional[str] = None
+    total_tax: Optional[str] = None
+    total: Optional[str] = None
+    total_value: Optional[float] = None
+    currency: str = "USD"
+
+
+class ProductDetail(BaseModel):
+    code: str = ""
+    name: str = ""
+    description: Optional[str] = None
+    price: Optional[str] = None
+    price_value: Optional[float] = None
+    stock: Optional[str] = None
+    rating: Optional[float] = None
+    image_url: Optional[str] = None
+    categories: list[str] = []
 
 
 class ChatResponse(BaseModel):
@@ -63,6 +100,10 @@ class ChatResponse(BaseModel):
     checkout_status: Optional[str] = None
     suggestions: list[Suggestion] = []
     products: list[Product] = []
+    cart: Optional[Cart] = None
+    product_detail: Optional[ProductDetail] = None
+    saved_addresses: list[dict] = []
+    sap_payment_details: list[dict] = []
 
 
 class ApprovalRequest(BaseModel):
@@ -120,8 +161,60 @@ def _extract_products(state: dict) -> list[Product]:
             stock=p.get("stock"),
             rating=p.get("rating"),
             summary=p.get("summary"),
+            image_url=p.get("image_url"),
         ))
     return products
+
+
+def _extract_product_detail(state: dict) -> Optional[ProductDetail]:
+    """Extract structured product detail from the last get_product_details tool result."""
+    raw = state.get("last_product_detail")
+    if not raw or not isinstance(raw, dict) or not raw.get("code"):
+        return None
+    return ProductDetail(
+        code=raw.get("code", ""),
+        name=raw.get("name", ""),
+        description=raw.get("description"),
+        price=raw.get("price"),
+        price_value=raw.get("priceValue"),
+        stock=raw.get("stock"),
+        rating=raw.get("rating"),
+        image_url=raw.get("image_url"),
+        categories=raw.get("categories", []),
+    )
+
+
+def _extract_cart(state: dict) -> Optional[Cart]:
+    """Extract structured cart data from last get_cart tool result."""
+    raw = state.get("last_cart_data")
+    if not raw or not isinstance(raw, dict) or not raw.get("cart_id"):
+        return None
+    entries = []
+    for e in raw.get("entries", []):
+        if not isinstance(e, dict):
+            continue
+        entries.append(CartEntry(
+            entry_number=e.get("entry_number", 0),
+            product_code=e.get("product_code", ""),
+            product_name=e.get("product_name", ""),
+            quantity=e.get("quantity", 1),
+            base_price=e.get("base_price"),
+            base_price_value=e.get("base_price_value"),
+            total=e.get("total"),
+            total_value=e.get("total_value"),
+            image_url=e.get("image_url"),
+        ))
+    return Cart(
+        cart_id=raw.get("cart_id", ""),
+        entries=entries,
+        item_count=raw.get("item_count", len(entries)),
+        sub_total=raw.get("subTotal"),
+        delivery_cost=raw.get("deliveryCost"),
+        total_tax=raw.get("totalTax"),
+        total=raw.get("total"),
+        total_value=raw.get("totalValue"),
+        currency=raw.get("currency", "USD"),
+    )
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -146,11 +239,15 @@ def chat(req: ChatRequest):
     raw_reply = get_last_ai_message(new_state) or "I'm working on that, one moment..."
     reply, suggestions = _extract_suggestions(raw_reply)
     products = _extract_products(new_state)
+    cart = _extract_cart(new_state)
+    product_detail = _extract_product_detail(new_state)
     awaiting = bool(new_state.get("__interrupt__"))
     is_auth = bool(new_state.get("access_token")) and new_state.get("user_id") == "current"
 
-    # Clear search results after consuming so they don't repeat on next turn
+    # Clear structured data after consuming so they don't repeat on next turn
     new_state["last_search_results"] = None
+    new_state["last_cart_data"] = None
+    new_state["last_product_detail"] = None
 
     return ChatResponse(
         session_id=thread_id,
@@ -166,6 +263,10 @@ def chat(req: ChatRequest):
         checkout_status=new_state.get("checkout_status"),
         suggestions=suggestions,
         products=products,
+        cart=cart,
+        product_detail=product_detail,
+        saved_addresses=new_state.get("saved_addresses") or [],
+        sap_payment_details=new_state.get("sap_payment_details") or [],
     )
 
 

@@ -81,6 +81,8 @@ async function doLogin() {
     App.currentUserEmail = d.email || (username.includes('@') ? username : `${username}@store.local`);
     App.currentUserFirstName = d.first_name || '';
     App.currentUserLastName = d.last_name || '';
+    App.savedAddresses = d.saved_addresses || [];
+    App.sapPaymentDetails = d.sap_payment_details || [];
     closeLogin();
     updateAuthUI(d.username);
     appendMsg(

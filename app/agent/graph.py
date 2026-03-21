@@ -439,6 +439,12 @@ def state_sync_node(state: ShoppingState) -> dict:
         # Capture product search results for structured API response
         if "products" in result and isinstance(result["products"], list):
             updates["last_search_results"] = result["products"]
+        # Capture full cart data for structured cart card rendering
+        if "entries" in result and isinstance(result["entries"], list):
+            updates["last_cart_data"] = result
+        # Capture product detail for structured detail card
+        if "description" in result and "code" in result and "products" not in result and "entries" not in result:
+            updates["last_product_detail"] = result
 
     return updates
 

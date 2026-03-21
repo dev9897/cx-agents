@@ -51,7 +51,11 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         stripe_payment_url=None,
         checkout_status=None,
         saved_payment_methods=None,
+        saved_addresses=None,
+        sap_payment_details=None,
         last_search_results=None,
+        last_cart_data=None,
+        last_product_detail=None,
         session_id=thread_id,
         total_input_tokens=0,
         total_output_tokens=0,
@@ -70,7 +74,9 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
 def update_session_auth(thread_id: str, access_token: str, username: str,
                         user_id: str = "current", email: str = "",
                         mcp_session_id: Optional[str] = None,
-                        saved_payment_methods: Optional[list] = None) -> None:
+                        saved_payment_methods: Optional[list] = None,
+                        saved_addresses: Optional[list] = None,
+                        sap_payment_details: Optional[list] = None) -> None:
     """Update the LangGraph checkpoint with auth credentials after login."""
     lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     update = {
@@ -83,6 +89,10 @@ def update_session_auth(thread_id: str, access_token: str, username: str,
         update["mcp_session_id"] = mcp_session_id
     if saved_payment_methods is not None:
         update["saved_payment_methods"] = saved_payment_methods
+    if saved_addresses is not None:
+        update["saved_addresses"] = saved_addresses
+    if sap_payment_details is not None:
+        update["sap_payment_details"] = sap_payment_details
     try:
         production_graph.update_state(lg_config, update)
         logger.info("Checkpoint updated with auth | thread=%s | user=%s | mcp_session=%s | cards=%d",

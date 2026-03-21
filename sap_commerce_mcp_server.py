@@ -5,6 +5,9 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from token_vault import vault   # ← server-side token store
+from app.models.sap_commerce import (
+    CartCard, ProductCard, extract_image_url, get_base_media_url, strip_html,
+)
 
 load_dotenv()
 
@@ -16,6 +19,7 @@ CLIENT_SECRET = os.getenv("SAP_CLIENT_SECRET", "secret")
 MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio")
 MCP_PORT      = int(os.getenv("MCP_PORT", "8005"))
 MCP_HOST      = os.getenv("MCP_HOST", "127.0.0.1")
+_BASE_MEDIA   = get_base_media_url(BASE_URL)
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s [MCP] %(message)s")
@@ -167,25 +171,19 @@ def search_products(
         "pageSize":    page_size,
         "currentPage": current_page,
         "sort":        sort,
-        "fields":      "products(code,name,summary,price(FULL),stock(FULL),averageRating)",
+        "fields":      "products(code,name,summary,price(FULL),stock(FULL),averageRating,images(DEFAULT))",
     }
     resp = _http.get(url, params=params, headers=headers)
     if resp.status_code == 200:
         d = resp.json()
+        products = [
+            ProductCard.from_sap_product(p, _BASE_MEDIA)
+            for p in d.get("products", [])
+        ]
         return {
             "success":  True,
             "total":    d.get("pagination", {}).get("totalResults", 0),
-            "products": [
-                {
-                    "code":       p.get("code"),
-                    "name":       p.get("name"),
-                    "price":      p.get("price", {}).get("formattedValue", "N/A"),
-                    "priceValue": p.get("price", {}).get("value"),
-                    "stock":      p.get("stock", {}).get("stockLevelStatus", "unknown"),
-                    "rating":     p.get("averageRating"),
-                }
-                for p in d.get("products", [])
-            ],
+            "products": [p.to_tool_dict() for p in products],
         }
     return {"success": False, "error": resp.text, "status_code": resp.status_code}
 
@@ -202,10 +200,13 @@ def get_product_details(product_code: str, session_id: str = "") -> dict:
         return {
             "success":     True,
             "code":        p.get("code"),
-            "name":        p.get("name"),
-            "description": p.get("description", ""),
+            "name":        strip_html(p.get("name", "")),
+            "description": strip_html(p.get("description", "")),
             "price":       p.get("price", {}).get("formattedValue"),
-            "stock":       p.get("stock", {}),
+            "priceValue":  p.get("price", {}).get("value"),
+            "stock":       p.get("stock", {}).get("stockLevelStatus", "unknown"),
+            "rating":      p.get("averageRating"),
+            "image_url":   extract_image_url(p.get("images", []), _BASE_MEDIA),
             "categories":  [c.get("name") for c in p.get("categories", [])],
         }
     return {"success": False, "error": resp.text}
@@ -278,7 +279,7 @@ def add_to_cart(
 
 @mcp.tool()
 def get_cart(session_id: str, cart_id: str) -> dict:
-    """Get current cart contents and totals."""
+    """Get current cart contents with item images, quantities, and price breakdown."""
     try:
         token, user_id = _resolve(session_id)
     except ValueError as e:
@@ -289,23 +290,8 @@ def get_cart(session_id: str, cart_id: str) -> dict:
         params={"fields": "FULL"}, headers=_h(token),
     )
     if resp.status_code == 200:
-        d = resp.json()
-        return {
-            "success":    True,
-            "cart_id":    d.get("code"),
-            "total":      d.get("totalPrice", {}).get("formattedValue"),
-            "item_count": d.get("totalItems", 0),
-            "entries": [
-                {
-                    "entry_number": e.get("entryNumber"),
-                    "product_code": e.get("product", {}).get("code"),
-                    "product_name": e.get("product", {}).get("name"),
-                    "quantity":     e.get("quantity"),
-                    "total":        e.get("totalPrice", {}).get("formattedValue"),
-                }
-                for e in d.get("entries", [])
-            ],
-        }
+        cart = CartCard.from_sap_cart(resp.json(), _BASE_MEDIA)
+        return cart.to_tool_dict()
     return {"success": False, "error": resp.text}
 
 
@@ -327,6 +313,50 @@ def remove_cart_entry(session_id: str, cart_id: str, entry_number: int) -> dict:
 
 
 @mcp.tool()
+def update_cart_entry(
+    session_id: str,
+    cart_id: str,
+    entry_number: int,
+    quantity: int,
+) -> dict:
+    """
+    Update the quantity of a cart entry.
+    Set quantity to 0 to remove the item.
+    After updating, call get_cart to show the updated cart to the user.
+    """
+    try:
+        token, user_id = _resolve(session_id)
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    if quantity <= 0:
+        resp = _http.delete(
+            f"{BASE_URL}/{SITE_ID}/users/{user_id}/carts/{cart_id}/entries/{entry_number}",
+            headers=_h(token),
+        )
+        if resp.status_code in (200, 204):
+            logger.info("update_cart_entry | removed entry %d from cart %s",
+                        entry_number, cart_id)
+            return {"success": True, "removed": True, "entry_number": entry_number}
+        return {"success": False, "error": resp.text}
+
+    resp = _http.patch(
+        f"{BASE_URL}/{SITE_ID}/users/{user_id}/carts/{cart_id}/entries/{entry_number}",
+        headers=_h(token),
+        json={"quantity": quantity},
+    )
+    if resp.status_code in (200, 204):
+        logger.info("update_cart_entry | cart=%s entry=%d qty=%d",
+                    cart_id, entry_number, quantity)
+        return {
+            "success": True,
+            "entry_number": entry_number,
+            "quantity": quantity,
+        }
+    return {"success": False, "error": resp.text}
+
+
+@mcp.tool()
 def apply_voucher(session_id: str, cart_id: str, voucher_code: str) -> dict:
     """Apply a promotional voucher/coupon code to the cart."""
     try:
@@ -340,6 +370,72 @@ def apply_voucher(session_id: str, cart_id: str, voucher_code: str) -> dict:
     )
     if resp.status_code in (200, 201):
         return {"success": True, "voucher_applied": voucher_code}
+    return {"success": False, "error": resp.text}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# GROUP 3b — User Profile  (session_id required)
+# ═════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+def get_user_addresses(session_id: str) -> dict:
+    """Get saved delivery addresses for the logged-in user."""
+    try:
+        token, user_id = _resolve(session_id)
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    resp = _http.get(
+        f"{BASE_URL}/{SITE_ID}/users/{user_id}/addresses",
+        params={"fields": "FULL"}, headers=_h(token),
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        addresses = []
+        for a in data.get("addresses", []):
+            addresses.append({
+                "id": a.get("id"),
+                "firstName": a.get("firstName", ""),
+                "lastName": a.get("lastName", ""),
+                "line1": a.get("line1", ""),
+                "line2": a.get("line2", ""),
+                "town": a.get("town", ""),
+                "postalCode": a.get("postalCode", ""),
+                "country": a.get("country", {}).get("isocode", ""),
+                "region": a.get("region", {}).get("isocode", "") if a.get("region") else "",
+                "defaultAddress": a.get("defaultAddress", False),
+                "formattedAddress": a.get("formattedAddress", ""),
+            })
+        return {"success": True, "addresses": addresses}
+    return {"success": False, "error": resp.text}
+
+
+@mcp.tool()
+def get_user_payment_details(session_id: str) -> dict:
+    """Get saved payment methods for the logged-in user."""
+    try:
+        token, user_id = _resolve(session_id)
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    resp = _http.get(
+        f"{BASE_URL}/{SITE_ID}/users/{user_id}/paymentdetails",
+        params={"fields": "FULL"}, headers=_h(token),
+    )
+    if resp.status_code == 200:
+        data = resp.json()
+        payments = []
+        for p in data.get("payments", []):
+            payments.append({
+                "id": p.get("id"),
+                "cardType": p.get("cardType", {}).get("name", ""),
+                "cardNumber": p.get("cardNumber", ""),
+                "expiryMonth": p.get("expiryMonth", ""),
+                "expiryYear": p.get("expiryYear", ""),
+                "defaultPayment": p.get("defaultPaymentInfo", False),
+                "accountHolderName": p.get("accountHolderName", ""),
+            })
+        return {"success": True, "payments": payments}
     return {"success": False, "error": resp.text}
 
 
@@ -655,11 +751,8 @@ if __name__ == "__main__":
     logger.info("  Transport : %s", MCP_TRANSPORT)
     logger.info("  Security  : Token Vault enabled — tokens never sent to LLM")
 
-    if MCP_TRANSPORT == "sse":
-        logger.info("  Listening : %s:%d/sse", MCP_HOST, MCP_PORT)
-        uvicorn.run(mcp.sse_app(), host=MCP_HOST, port=MCP_PORT, log_level="info")
-    elif MCP_TRANSPORT in ("http", "streamable_http"):
-        logger.info("  Listening : %s:%d/mcp", MCP_HOST, MCP_PORT)
-        uvicorn.run(mcp.streamable_http_app(), host=MCP_HOST, port=MCP_PORT, log_level="info")
+    if MCP_TRANSPORT in ("sse", "http", "streamable_http"):
+        logger.info("  Listening : %s:%d", MCP_HOST, MCP_PORT)
+        mcp.run(transport=MCP_TRANSPORT, host=MCP_HOST, port=MCP_PORT)
     else:
         mcp.run()

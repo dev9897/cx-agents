@@ -7,7 +7,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.integrations.mcp_client import call_mcp_tool_sync
-from app.integrations.sap_client import server_account_login
+from app.integrations.sap_client import (
+    server_account_login, get_user_addresses, get_user_payment_details,
+)
 from app.middleware.audit import audit
 from app.services.agent_service import new_session, update_session_auth
 
@@ -40,6 +42,8 @@ class LoginResponse(BaseModel):
     last_name: Optional[str] = None
     authenticated: bool
     message: str
+    saved_addresses: list[dict] = []
+    sap_payment_details: list[dict] = []
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -87,16 +91,40 @@ def login(req: LoginRequest):
         except Exception as e:
             logger.warning("Failed to load saved cards: %s", e)
 
+    # Pre-load SAP addresses and payment details for 2-click checkout
+    saved_addresses = []
+    sap_payments = []
+    access_token = result["access_token"]
+    try:
+        addr_result = get_user_addresses(access_token)
+        if addr_result.get("success"):
+            saved_addresses = addr_result.get("addresses", [])
+            state["saved_addresses"] = saved_addresses
+            logger.info("Loaded %d SAP addresses for %s", len(saved_addresses), user_email)
+    except Exception as e:
+        logger.warning("Failed to load SAP addresses: %s", e)
+
+    try:
+        pay_result = get_user_payment_details(access_token)
+        if pay_result.get("success"):
+            sap_payments = pay_result.get("payments", [])
+            state["sap_payment_details"] = sap_payments
+            logger.info("Loaded %d SAP payment methods for %s", len(sap_payments), user_email)
+    except Exception as e:
+        logger.warning("Failed to load SAP payment details: %s", e)
+
     _sessions[thread_id] = state
 
     # Update LangGraph checkpoint so graph nodes see the new token + MCP session + cards
     update_session_auth(
         thread_id,
-        access_token=result["access_token"],
+        access_token=access_token,
         username=result["username"],
         email=user_email,
         mcp_session_id=mcp_session_id,
         saved_payment_methods=saved_cards or None,
+        saved_addresses=saved_addresses or None,
+        sap_payment_details=sap_payments or None,
     )
 
     audit("LOGIN_SUCCESS", thread_id, {"username": req.username})
@@ -106,6 +134,8 @@ def login(req: LoginRequest):
         first_name=result.get("first_name"),
         last_name=result.get("last_name"),
         authenticated=True, message=f"Welcome, {req.username}!",
+        saved_addresses=saved_addresses,
+        sap_payment_details=sap_payments,
     )
 
 

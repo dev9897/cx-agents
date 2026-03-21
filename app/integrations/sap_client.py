@@ -13,6 +13,10 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 
+from app.models.sap_commerce import (
+    CartCard, ProductCard, extract_image_url, get_base_media_url, strip_html,
+)
+
 load_dotenv()
 
 logger = logging.getLogger("sap_agent.sap_client")
@@ -24,6 +28,7 @@ SITE_ID = os.getenv("SAP_SITE_ID", "electronics")
 CLIENT_ID = os.getenv("SAP_CLIENT_ID", "mobile_android")
 CLIENT_SECRET = os.getenv("SAP_CLIENT_SECRET", "secret")
 SSL_VERIFY = os.getenv("SAP_SSL_VERIFY", "true").lower() != "false"
+_BASE_MEDIA = get_base_media_url(BASE_URL)
 
 if not SSL_VERIFY:
     logger.warning("SAP_SSL_VERIFY=false — SSL verification DISABLED (dev only)")
@@ -89,30 +94,6 @@ def _resolve_user(user_id: str) -> str:
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
-def account_login(username: str, password: str) -> dict:
-    url = _auth_url()
-    logger.info("account_login | user=%s", username)
-    try:
-        resp = _safe_request("POST", url, "account_login", data={
-            "grant_type": "password",
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
-            "username": username,
-            "password": password,
-        })
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "success": True,
-                "access_token": data["access_token"],
-                "refresh_token": data.get("refresh_token"),
-                "username": username,
-            }
-        return {"success": False, "error": resp.text}
-    except httpx.HTTPError as e:
-        return _handle_http_error(e, "account_login", url)
-
-
 def get_user_profile(access_token: str) -> dict:
     """Fetch current user's profile from SAP Commerce (includes email)."""
     url = f"{BASE_URL}/{SITE_ID}/users/current"
@@ -166,6 +147,64 @@ def server_account_login(username: str, password: str) -> dict:
         return _handle_http_error(e, "server_account_login", url)
 
 
+# ── User Profile Data ────────────────────────────────────────────────────────
+
+def get_user_addresses(access_token: str, user_id: str = "current") -> dict:
+    """Fetch saved delivery addresses for the logged-in user."""
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/addresses"
+    try:
+        resp = _safe_request("GET", url, "get_user_addresses",
+                             params={"fields": "FULL"}, headers=_headers(access_token))
+        if resp.status_code == 200:
+            data = resp.json()
+            addresses = []
+            for a in data.get("addresses", []):
+                addresses.append({
+                    "id": a.get("id"),
+                    "firstName": a.get("firstName", ""),
+                    "lastName": a.get("lastName", ""),
+                    "line1": a.get("line1", ""),
+                    "line2": a.get("line2", ""),
+                    "town": a.get("town", ""),
+                    "postalCode": a.get("postalCode", ""),
+                    "country": a.get("country", {}).get("isocode", ""),
+                    "region": a.get("region", {}).get("isocode", "") if a.get("region") else "",
+                    "defaultAddress": a.get("defaultAddress", False),
+                    "formattedAddress": a.get("formattedAddress", ""),
+                })
+            return {"success": True, "addresses": addresses}
+        return {"success": False, "error": resp.text}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "get_user_addresses", url)
+
+
+def get_user_payment_details(access_token: str, user_id: str = "current") -> dict:
+    """Fetch saved payment methods for the logged-in user from SAP Commerce."""
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/paymentdetails"
+    try:
+        resp = _safe_request("GET", url, "get_user_payment_details",
+                             params={"fields": "FULL"}, headers=_headers(access_token))
+        if resp.status_code == 200:
+            data = resp.json()
+            payments = []
+            for p in data.get("payments", []):
+                payments.append({
+                    "id": p.get("id"),
+                    "cardType": p.get("cardType", {}).get("name", ""),
+                    "cardNumber": p.get("cardNumber", ""),
+                    "expiryMonth": p.get("expiryMonth", ""),
+                    "expiryYear": p.get("expiryYear", ""),
+                    "defaultPayment": p.get("defaultPaymentInfo", False),
+                    "accountHolderName": p.get("accountHolderName", ""),
+                })
+            return {"success": True, "payments": payments}
+        return {"success": False, "error": resp.text}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "get_user_payment_details", url)
+
+
 # ── Products ─────────────────────────────────────────────────────────────────
 
 def search_products(query: str, page_size: int = 5, current_page: int = 0,
@@ -181,22 +220,14 @@ def search_products(query: str, page_size: int = 5, current_page: int = 0,
                              params=params, headers=_headers(access_token))
         if resp.status_code == 200:
             data = resp.json()
-            products = data.get("products", [])
+            products = [
+                ProductCard.from_sap_product(p, _BASE_MEDIA)
+                for p in data.get("products", [])
+            ]
             return {
                 "success": True,
                 "total": data.get("pagination", {}).get("totalResults", 0),
-                "products": [
-                    {
-                        "code": p.get("code"),
-                        "name": p.get("name"),
-                        "summary": p.get("summary", ""),
-                        "price": p.get("price", {}).get("formattedValue", "N/A"),
-                        "priceValue": p.get("price", {}).get("value"),
-                        "stock": p.get("stock", {}).get("stockLevelStatus", "unknown"),
-                        "rating": p.get("averageRating"),
-                    }
-                    for p in products
-                ],
+                "products": [p.to_tool_dict() for p in products],
             }
         return {"success": False, "error": resp.text}
     except httpx.HTTPError as e:
@@ -213,11 +244,13 @@ def get_product_details(product_code: str, access_token: Optional[str] = None) -
             return {
                 "success": True,
                 "code": p.get("code"),
-                "name": p.get("name"),
-                "description": p.get("description", ""),
+                "name": strip_html(p.get("name", "")),
+                "description": strip_html(p.get("description", "")),
                 "price": p.get("price", {}).get("formattedValue"),
                 "priceValue": p.get("price", {}).get("value"),
-                "stock": p.get("stock", {}),
+                "stock": p.get("stock", {}).get("stockLevelStatus", "unknown"),
+                "rating": p.get("averageRating"),
+                "image_url": extract_image_url(p.get("images", []), _BASE_MEDIA),
                 "categories": [c.get("name") for c in p.get("categories", [])],
             }
         return {"success": False, "error": resp.text}
@@ -276,32 +309,38 @@ def get_cart(cart_id: str, access_token: str = "", user_id: str = "current") -> 
         resp = _safe_request("GET", url, "get_cart",
                              params={"fields": "FULL"}, headers=_headers(access_token))
         if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "success": True,
-                "cart_id": data.get("code"),
-                "total": data.get("totalPrice", {}).get("formattedValue"),
-                "totalValue": data.get("totalPrice", {}).get("value"),
-                "subTotal": data.get("subTotal", {}).get("value"),
-                "deliveryCost": data.get("deliveryCost", {}).get("value"),
-                "totalTax": data.get("totalTax", {}).get("value"),
-                "currency": data.get("totalPrice", {}).get("currencyIso", "USD"),
-                "entries": [
-                    {
-                        "entry_number": e.get("entryNumber"),
-                        "product_code": e.get("product", {}).get("code"),
-                        "product_name": e.get("product", {}).get("name"),
-                        "quantity": e.get("quantity"),
-                        "total": e.get("totalPrice", {}).get("formattedValue"),
-                        "totalValue": e.get("totalPrice", {}).get("value"),
-                        "basePrice": e.get("basePrice", {}).get("value"),
-                    }
-                    for e in data.get("entries", [])
-                ],
-            }
+            cart = CartCard.from_sap_cart(resp.json(), _BASE_MEDIA)
+            return cart.to_tool_dict()
         return {"success": False, "error": resp.text}
     except httpx.HTTPError as e:
         return _handle_http_error(e, "get_cart", url)
+
+
+def update_cart_entry(cart_id: str, entry_number: int, quantity: int,
+                      access_token: str = "", user_id: str = "current") -> dict:
+    """Update quantity of a cart entry. Set quantity to 0 to remove."""
+    resolved_user = _resolve_user(user_id)
+    if quantity <= 0:
+        url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/entries/{entry_number}"
+        try:
+            resp = _safe_request("DELETE", url, "update_cart_entry",
+                                 headers=_headers(access_token))
+            if resp.status_code in (200, 204):
+                return {"success": True, "removed": True, "entry_number": entry_number}
+            return {"success": False, "error": resp.text}
+        except httpx.HTTPError as e:
+            return _handle_http_error(e, "update_cart_entry", url)
+
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/entries/{entry_number}"
+    try:
+        resp = _safe_request("PATCH", url, "update_cart_entry",
+                             headers=_headers(access_token),
+                             json={"quantity": quantity})
+        if resp.status_code in (200, 204):
+            return {"success": True, "entry_number": entry_number, "quantity": quantity}
+        return {"success": False, "error": resp.text}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "update_cart_entry", url)
 
 
 # ── Checkout ─────────────────────────────────────────────────────────────────
@@ -342,51 +381,6 @@ def set_delivery_mode(cart_id: str, delivery_mode_code: str = "standard-gross",
         return {"success": False, "error": resp.text}
     except httpx.HTTPError as e:
         return _handle_http_error(e, "set_delivery_mode", url)
-
-
-def get_delivery_modes(cart_id: str, access_token: str = "",
-                       user_id: str = "current") -> dict:
-    resolved_user = _resolve_user(user_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/deliverymodes"
-    try:
-        resp = _safe_request("GET", url, "get_delivery_modes",
-                             headers=_headers(access_token))
-        if resp.status_code == 200:
-            return {"success": True, "modes": resp.json().get("deliveryModes", [])}
-        return {"success": False, "error": resp.text}
-    except httpx.HTTPError as e:
-        return _handle_http_error(e, "get_delivery_modes", url)
-
-
-def set_payment_details(cart_id: str, payment: dict,
-                        access_token: str = "", user_id: str = "current") -> dict:
-    resolved_user = _resolve_user(user_id)
-    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/carts/{cart_id}/paymentdetails"
-    billing = payment.get("billingAddress", {})
-    payload = {
-        "accountHolderName": payment.get("accountHolderName"),
-        "cardNumber": payment.get("cardNumber"),
-        "cardType": {"code": payment.get("cardType", "visa")},
-        "expiryMonth": payment.get("expiryMonth"),
-        "expiryYear": payment.get("expiryYear"),
-        "cvn": payment.get("cvn"),
-        "billingAddress": {
-            "firstName": billing.get("firstName"),
-            "lastName": billing.get("lastName"),
-            "line1": billing.get("line1"),
-            "town": billing.get("town"),
-            "postalCode": billing.get("postalCode"),
-            "country": {"isocode": billing.get("country", "US")},
-        },
-    }
-    try:
-        resp = _safe_request("POST", url, "set_payment_details",
-                             headers=_headers(access_token), json=payload)
-        if resp.status_code in (200, 201):
-            return {"success": True, "payment_set": True}
-        return {"success": False, "error": resp.text}
-    except httpx.HTTPError as e:
-        return _handle_http_error(e, "set_payment_details", url)
 
 
 # ── Orders ───────────────────────────────────────────────────────────────────

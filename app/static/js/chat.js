@@ -3,7 +3,7 @@
  *
  * Depends on: app.js, renderers.js
  *
- * Product data and suggestions come as structured JSON from the backend.
+ * Product data, cart data, and suggestions come as structured JSON from the backend.
  * No text parsing for products — the backend extracts them from tool results.
  */
 
@@ -62,8 +62,9 @@ async function doSend(text) {
       const msgDiv = appendMsg('agent', d.reply, d);
       appendSuggestions(msgDiv, d.suggestions);
     }
+
     updateSidebar(d);
-    parseCartFromReply(d);
+    syncCartFromResponse(d);
 
     if (d.authenticated && d.username && !App.currentUser) {
       App.currentUser = d.username;
@@ -79,11 +80,56 @@ async function doSend(text) {
   }
 }
 
-// ── Cart parsing ─────────────────────────────────────────────────────────────
+// ── Quick checkout (2-click) ────────────────────────────────────────────────
 
-function parseCartFromReply(d) {
+function quickCheckout(btn) {
+  const addrs = App.savedAddresses || [];
+  const pays = App.sapPaymentDetails || [];
+
+  const addrSelect = document.getElementById('checkoutAddr');
+  const paySelect = document.getElementById('checkoutPay');
+
+  let addrIdx = addrSelect ? parseInt(addrSelect.value, 10) : 0;
+  let payIdx = paySelect ? parseInt(paySelect.value, 10) : 0;
+
+  const addr = addrs[addrIdx] || addrs[0];
+  const pay = pays[payIdx] || pays[0];
+
+  // Build a natural language checkout command
+  let msg = 'Checkout my cart';
+  if (addr) {
+    msg += ` with delivery to ${addr.firstName || ''} ${addr.lastName || ''}, ${addr.line1 || ''}, ${addr.town || ''} ${addr.postalCode || ''}, ${addr.country || ''}`;
+  }
+  if (pay) {
+    msg += ` using ${pay.cardType || 'card'} ending ${(pay.cardNumber || '').slice(-4)}`;
+  }
+
+  // Disable buttons
+  const card = btn.closest('.cart-card');
+  if (card) card.querySelectorAll('button').forEach(b => b.disabled = true);
+
+  sendQuick(msg.trim());
+}
+
+// ── Cart sync from response ─────────────────────────────────────────────────
+
+function syncCartFromResponse(d) {
   if (d.cart_id && d.cart_id !== App.cartData.id) App.cartData.id = d.cart_id;
   if (d.order_code) App.cartData.orderCode = d.order_code;
+  if (d.saved_addresses && d.saved_addresses.length > 0) App.savedAddresses = d.saved_addresses;
+  if (d.sap_payment_details && d.sap_payment_details.length > 0) App.sapPaymentDetails = d.sap_payment_details;
+
+  // Sync sidebar cart from structured cart data
+  if (d.cart && d.cart.entries && d.cart.entries.length > 0) {
+    App.cartData.items = d.cart.entries.map(e => ({
+      name: e.product_name,
+      qty: e.quantity,
+      price: e.total || e.base_price || '',
+    }));
+    App.cartData.total = d.cart.total || null;
+    App.cartData.id = d.cart.cart_id || App.cartData.id;
+    updateCartUI();
+  }
 }
 
 // ── Order confirmation ───────────────────────────────────────────────────────
@@ -165,17 +211,41 @@ function appendMsg(role, text, data) {
   if (role === 'agent') {
     text = stripSuggestionsBlock(text);
 
+    // Remove previous structured cards (replace, not stack)
+    if (data && (data.products || data.product_detail || data.cart)) {
+      removeExistingCards(data);
+    }
+
     if (data && data.order_code) {
-      // Order success — structured from backend
+      // Order success card
       bubble.innerHTML = buildOrderSuccessHTML(text, data.order_code);
 
+    } else if (data && data.product_detail && data.product_detail.code) {
+      // Product detail card
+      const intro = extractIntro(text);
+      if (intro) bubble.innerHTML = `<div class="pd-intro-text">${formatText(intro)}</div>`;
+      bubble.innerHTML += buildProductDetailCard(data.product_detail);
+
+      // If we also have cart data, append cart card below
+      if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+        bubble.innerHTML += buildCartCardHTML(data.cart);
+      }
+
     } else if (data && data.products && data.products.length > 0) {
-      // Product cards — structured from backend, no text parsing
-      const intro = text.split('\n').filter(l => {
-        const t = l.trim();
-        return t && !/^#{1,4}\s+/.test(t) && !/^\s*[-•]\s+/.test(t) && !/^\s*\d+[.)]\s+/.test(t);
-      }).slice(0, 2).join('\n').trim();
+      // Product cards with optional intro text
+      const intro = extractIntro(text);
       bubble.innerHTML = buildProductCardsHTML(intro, data.products, '');
+
+      // If we also have cart data, append cart card below products
+      if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+        bubble.innerHTML += buildCartCardHTML(data.cart);
+      }
+
+    } else if (data && data.cart && data.cart.entries && data.cart.entries.length > 0) {
+      // Cart card with intro text
+      const intro = extractIntro(text);
+      if (intro) bubble.innerHTML = `<div class="cart-intro-text">${formatText(intro)}</div>`;
+      bubble.innerHTML += buildCartCardHTML(data.cart);
 
     } else {
       bubble.innerHTML = formatText(text);
@@ -189,6 +259,46 @@ function appendMsg(role, text, data) {
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
+}
+
+function removeExistingCards(data) {
+  const msgs = document.getElementById('messages');
+  if (!msgs) return;
+
+  // Remove previous product cards if new search or detail replaces them
+  if (data.products && data.products.length > 0) {
+    msgs.querySelectorAll('.bubble .product-cards-grid').forEach(el => {
+      const msgEl = el.closest('.msg');
+      if (msgEl) msgEl.remove();
+    });
+  }
+
+  // Remove previous detail card if new detail replaces it
+  if (data.product_detail && data.product_detail.code) {
+    msgs.querySelectorAll('.bubble .pd-card').forEach(el => {
+      const msgEl = el.closest('.msg');
+      if (msgEl) msgEl.remove();
+    });
+  }
+
+  // Remove previous cart card if new cart data replaces it
+  if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+    msgs.querySelectorAll('.bubble .cart-card').forEach(el => {
+      const msgEl = el.closest('.msg');
+      if (msgEl) msgEl.remove();
+    });
+  }
+}
+
+function extractIntro(text) {
+  return text.split('\n')
+    .filter(l => {
+      const t = l.trim();
+      return t && !/^#{1,4}\s+/.test(t) && !/^\s*[-•]\s+/.test(t) && !/^\s*\d+[.)]\s+/.test(t);
+    })
+    .slice(0, 2)
+    .join('\n')
+    .trim();
 }
 
 function appendSuggestions(msgDiv, suggestions) {

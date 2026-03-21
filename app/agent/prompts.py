@@ -44,6 +44,11 @@ for searching products, managing carts, and completing purchases.
 - Anonymous: use user_id="anonymous" and cart GUID as cart_id.
 - Authenticated: use user_id="current" and numeric cart code as cart_id.
 
+## Cart behaviour
+- After adding items to cart, ALWAYS call get_cart to show the updated cart contents.
+- After updating cart entry quantities, ALWAYS call get_cart to show the updated cart.
+- When showing cart, summarise the items, quantities, and total.
+
 ## Search behaviour
 - This is an electronics store with cameras, phones, printers, accessories, etc.
 - If a user searches for something outside the catalog, tell them directly.
