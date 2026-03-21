@@ -228,6 +228,8 @@ def chat(req: ChatRequest):
         state, thread_id = new_session(req.user_id)
         _sessions[thread_id] = state
 
+    prev_order_code = state.get("order_code")
+
     try:
         new_state = run_turn(req.message, thread_id, state)
     except Exception as exc:
@@ -255,7 +257,8 @@ def chat(req: ChatRequest):
         turn=new_state.get("turn_count", 0),
         tokens_used=new_state.get("total_input_tokens", 0),
         cart_id=new_state.get("cart_id"),
-        order_code=new_state.get("order_code"),
+        # Only send order_code when it's newly placed this turn (not stale from previous)
+        order_code=new_state.get("order_code") if new_state.get("order_code") != prev_order_code else None,
         awaiting_approval=awaiting,
         username=new_state.get("username") if is_auth else None,
         authenticated=is_auth,

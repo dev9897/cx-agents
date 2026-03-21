@@ -9,6 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from langchain_core.messages import AIMessage, HumanMessage
+
 from app.integrations import sap_client
 from app.middleware.audit import audit
 from app.services import checkout_service
@@ -262,12 +264,27 @@ def quick_checkout_place(req: QuickCheckoutPlaceRequest):
     result = sap_client.place_order(cart_id, access_token, security_code=req.security_code)
 
     if result.get("success"):
-        state["order_code"] = result.get("order_code")
+        order_code = result.get("order_code")
+        total = result.get("total", "")
+        state["order_code"] = order_code
         state["cart_id"] = None
+
+        # Inject context into agent conversation so it knows the order was placed
+        # and can offer recommendations instead of repeating checkout flow
+        order_summary = (
+            f"[System: Order {order_code} was placed successfully via quick checkout. "
+            f"Total: {total}. The cart has been cleared. "
+            f"If the user searches next, show product recommendations.]"
+        )
+        messages = state.get("messages", [])
+        messages.append(HumanMessage(content=order_summary))
+        messages.append(AIMessage(content=f"Order {order_code} placed successfully! Total: {total}. How can I help you next?"))
+        state["messages"] = messages
+
         _sessions[req.session_id] = state
         audit("ORDER_PLACED", req.session_id, {
-            "order_code": result.get("order_code"),
-            "total": result.get("total"),
+            "order_code": order_code,
+            "total": total,
             "payment_type": req.payment_type,
         })
 
