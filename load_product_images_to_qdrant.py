@@ -33,7 +33,21 @@ def fetch_products_with_images(queries=None, max_pages=5):
     import httpx
 
     if queries is None:
-        queries = ["camera", "lens", "memory card", "tripod", "battery"]
+        queries = [
+            "camera", "digital camera", "DSLR", "mirrorless", "compact camera",
+            "lens", "zoom lens", "wide angle", "telephoto",
+            "memory card", "SD card", "flash drive", "USB",
+            "tripod", "monopod", "camera bag", "camera case",
+            "battery", "charger", "power bank",
+            "flash", "lighting", "studio",
+            "webcam", "camcorder", "video camera",
+            "printer", "ink", "scanner",
+            "phone", "tablet", "laptop",
+            "headphones", "earbuds", "speaker",
+            "monitor", "display", "projector",
+            "drone", "action camera", "GoPro",
+            "cable", "adapter", "accessory",
+        ]
 
     http = httpx.Client(timeout=30, verify=False)
     all_products = []

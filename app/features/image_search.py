@@ -93,17 +93,60 @@ def ensure_clip_collection():
 
 # ── Image encoding ───────────────────────────────────────────────────────────
 
+def _bytes_to_pil(image_bytes: bytes):
+    """Open image bytes with PIL, handling edge cases from browser uploads.
+
+    Browsers may send WebP, HEIC, or other formats that need special handling.
+    Returns a PIL Image in RGB mode.
+    """
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except UnidentifiedImageError:
+        pass
+
+    # Fallback: if raw bytes fail, the browser might have sent a data-URL
+    # fragment or the bytes need re-wrapping.  Try common format hints.
+    for fmt in ("PNG", "JPEG", "WEBP"):
+        try:
+            img = Image.open(io.BytesIO(image_bytes))
+            img.load()
+            return img.convert("RGB")
+        except Exception:
+            continue
+
+    raise ValueError(
+        "Cannot decode image. Supported formats: JPEG, PNG, WebP, GIF, BMP, TIFF. "
+        "Please try a different image or convert it to JPEG/PNG first."
+    )
+
+
+def _to_tensor(features):
+    """Extract a raw tensor from CLIP output (handles different transformers versions)."""
+    import torch
+    if isinstance(features, torch.Tensor):
+        return features
+    # Newer transformers may return BaseModelOutputWithPooling
+    if hasattr(features, "pooler_output") and features.pooler_output is not None:
+        return features.pooler_output
+    if hasattr(features, "last_hidden_state"):
+        return features.last_hidden_state[:, 0, :]
+    # Last resort: first element
+    return features[0] if hasattr(features, "__getitem__") else features
+
+
 def encode_image(image_bytes: bytes) -> list[float]:
     """Encode an image into a CLIP embedding vector."""
     import torch
-    from PIL import Image
 
     model, processor, _ = _get_clip()
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image = _bytes_to_pil(image_bytes)
     inputs = processor(images=image, return_tensors="pt")
 
     with torch.no_grad():
-        image_features = model.get_image_features(**inputs)
+        raw = model.get_image_features(**inputs)
+        image_features = _to_tensor(raw)
         image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
 
     return image_features[0].cpu().numpy().tolist()
@@ -117,7 +160,8 @@ def encode_text_for_clip(text: str) -> list[float]:
     inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
 
     with torch.no_grad():
-        text_features = model.get_text_features(**inputs)
+        raw = model.get_text_features(**inputs)
+        text_features = _to_tensor(raw)
         text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
 
     return text_features[0].cpu().numpy().tolist()
@@ -141,6 +185,10 @@ def search_by_image(image_bytes: bytes, top_k: int = 6) -> dict:
     """Search for products matching an uploaded image."""
     try:
         vector = encode_image(image_bytes)
+    except ValueError as e:
+        # User-friendly error from _bytes_to_pil
+        return {"success": False, "error": str(e)}
+    try:
         client = _get_qdrant()
 
         results = client.query_points(
@@ -258,14 +306,22 @@ async def image_search_base64(payload: dict):
     if not image_data:
         raise HTTPException(status_code=400, detail="No image data provided")
 
-    # Strip data URL prefix if present
+    # Strip data URL prefix if present (e.g. "data:image/jpeg;base64,/9j/4A...")
     if "," in image_data:
         image_data = image_data.split(",", 1)[1]
+
+    # Fix base64 padding (browsers sometimes omit trailing '=')
+    padding = len(image_data) % 4
+    if padding:
+        image_data += "=" * (4 - padding)
 
     try:
         image_bytes = base64.b64decode(image_data)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 image data")
+
+    if len(image_bytes) < 100:
+        raise HTTPException(status_code=400, detail="Image data too small — upload may have failed")
 
     result = search_by_image(image_bytes)
     return ImageSearchResponse(**result)
