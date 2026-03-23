@@ -1,16 +1,19 @@
 """
-Image Search — Upload a photo and find matching products via CLIP + Qdrant.
+Image Search — Upload a photo and find matching products.
 
-Architecture:
-  1. User uploads an image (camera capture or file upload)
-  2. CLIP vision model encodes the image into an embedding vector
-  3. Product images are pre-encoded into a separate Qdrant collection (clip_product_images)
-  4. Vector similarity search returns the closest matching products
-  5. Results rendered as product cards in the UI
+Two modes:
+  **Local (primary)** — CLIP + Qdrant vector similarity
+    1. CLIP encodes the uploaded image into an embedding vector
+    2. Qdrant searches the clip_product_images collection for nearest matches
+    3. Fast, private, requires transformers + torch + Qdrant
 
-Models:
-  - CLIP (openai/clip-vit-base-patch32) via transformers — best balance of speed/quality
-  - Qdrant collection: clip_product_images (512-dim CLIP vectors)
+  **Cloud (fallback)** — OpenAI Vision → text search
+    1. GPT-4o-mini describes the product in the uploaded image
+    2. Description is used to text-search SAP Commerce
+    3. No local GPU needed, requires OPENAI_API_KEY
+
+Set IMAGE_SEARCH_PROVIDER=local|cloud|auto (default: auto)
+  auto = local CLIP if available, else cloud fallback
 """
 
 import base64
@@ -38,6 +41,9 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 CLIP_COLLECTION = "clip_product_images"
 CLIP_MODEL_NAME = os.getenv("CLIP_MODEL", "openai/clip-vit-base-patch32")
 CLIP_EMBEDDING_DIM = 512
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+IMAGE_SEARCH_PROVIDER = os.getenv("IMAGE_SEARCH_PROVIDER", "auto")  # "auto", "local", "cloud"
 
 # ── Lazy-loaded models ───────────────────────────────────────────────────────
 
@@ -179,14 +185,143 @@ def encode_product_image_from_url(image_url: str) -> Optional[list[float]]:
     return None
 
 
-# ── Search ───────────────────────────────────────────────────────────────────
+# ── Local availability check ─────────────────────────────────────────────────
+
+def _local_available() -> bool:
+    """Check if local CLIP + Qdrant is usable."""
+    if not QDRANT_URL:
+        return False
+    try:
+        import transformers  # noqa: F401
+        import torch  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _use_local() -> bool:
+    """Decide whether to use local CLIP search."""
+    if IMAGE_SEARCH_PROVIDER == "local":
+        return True
+    if IMAGE_SEARCH_PROVIDER == "cloud":
+        return False
+    # "auto": prefer local if available
+    return _local_available()
+
+
+# ── Cloud fallback: OpenAI Vision → text search ─────────────────────────────
+
+def _describe_image_cloud(image_bytes: bytes) -> Optional[str]:
+    """Use GPT-4o-mini vision to describe the product in an image."""
+    import httpx
+
+    if not OPENAI_API_KEY:
+        logger.warning("No OPENAI_API_KEY — cloud image search unavailable")
+        return None
+
+    b64 = base64.b64encode(image_bytes).decode()
+    data_url = f"data:image/jpeg;base64,{b64}"
+
+    try:
+        resp = httpx.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            json={
+                "model": "gpt-4o-mini",
+                "max_tokens": 150,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": (
+                            "You are a product identification assistant for an electronics store. "
+                            "Describe the product in this image in 1-2 short sentences. "
+                            "Focus on: product type, brand if visible, key features. "
+                            "Example: 'Canon DSLR camera with telephoto lens, black body'. "
+                            "If no product is visible, say 'no product detected'."
+                        )},
+                        {"type": "image_url", "image_url": {"url": data_url, "detail": "low"}},
+                    ],
+                }],
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        text = resp.json()["choices"][0]["message"]["content"].strip()
+        if "no product" in text.lower():
+            return None
+        logger.info("Cloud image description: %s", text)
+        return text
+    except Exception as e:
+        logger.exception("Cloud image description failed")
+        return None
+
+
+def _search_products_by_text(query: str, top_k: int = 6) -> dict:
+    """Search products using Qdrant semantic search or SAP text search."""
+    # Try Qdrant semantic search first
+    try:
+        from app.integrations.qdrant_client import is_qdrant_configured, semantic_search_products
+        if is_qdrant_configured():
+            result = semantic_search_products.invoke({"query": query, "top_k": top_k})
+            if result.get("success") and result.get("products"):
+                return result
+    except Exception:
+        pass
+
+    # Fallback to SAP text search
+    try:
+        from app.integrations import sap_client
+        return sap_client.search_products(query, page_size=top_k)
+    except Exception as e:
+        logger.exception("Text search failed for image query")
+        return {"success": False, "products": [], "error": str(e)}
+
+
+def _cloud_image_search(image_bytes: bytes, top_k: int = 6) -> dict:
+    """Cloud fallback: describe image with GPT-4o-mini, then text-search products."""
+    description = _describe_image_cloud(image_bytes)
+    if not description:
+        return {
+            "success": False,
+            "error": "Could not identify a product in this image. Try a clearer photo.",
+        }
+
+    result = _search_products_by_text(description, top_k)
+    if result.get("success"):
+        result["message"] = (
+            f"I see: \"{description}\". "
+            f"Found {result.get('total', len(result.get('products', [])))} matching products."
+        )
+    return result
+
+
+# ── Search (dispatcher) ─────────────────────────────────────────────────────
 
 def search_by_image(image_bytes: bytes, top_k: int = 6) -> dict:
-    """Search for products matching an uploaded image."""
+    """Search for products matching an uploaded image.
+
+    Uses local CLIP + Qdrant when available, falls back to cloud vision.
+    """
+    if _use_local():
+        logger.info("Image search via local CLIP + Qdrant")
+        result = _local_image_search(image_bytes, top_k)
+        if result.get("success"):
+            return result
+        # Local failed — try cloud fallback if API key available
+        if OPENAI_API_KEY:
+            logger.warning("Local image search failed, attempting cloud fallback")
+            return _cloud_image_search(image_bytes, top_k)
+        return result
+    else:
+        logger.info("Image search via cloud (GPT-4o-mini vision)")
+        return _cloud_image_search(image_bytes, top_k)
+
+
+def _local_image_search(image_bytes: bytes, top_k: int = 6) -> dict:
+    """Local CLIP + Qdrant vector similarity search."""
     try:
         vector = encode_image(image_bytes)
     except ValueError as e:
-        # User-friendly error from _bytes_to_pil
         return {"success": False, "error": str(e)}
     try:
         client = _get_qdrant()
@@ -219,7 +354,7 @@ def search_by_image(image_bytes: bytes, top_k: int = 6) -> dict:
                        if products else "No matching products found. Try a different image.",
         }
     except Exception as e:
-        logger.exception("Image search failed")
+        logger.exception("Local image search failed")
         return {"success": False, "error": f"Image search error: {e}"}
 
 
@@ -339,15 +474,15 @@ class ImageSearchFeature(BaseFeature):
         return "Visual product search — upload photos to find matching products"
 
     def is_available(self) -> bool:
-        if not QDRANT_URL:
-            return False
-        try:
-            import transformers  # noqa: F401
-            import torch  # noqa: F401
+        # Local mode: needs Qdrant + transformers + torch
+        if _local_available():
             return True
-        except ImportError:
-            logger.warning("transformers/torch not installed — image search unavailable")
-            return False
+        # Cloud mode: needs OpenAI API key
+        if OPENAI_API_KEY:
+            logger.info("Image search using cloud fallback (GPT-4o-mini vision)")
+            return True
+        logger.warning("Image search unavailable: no CLIP+Qdrant and no OPENAI_API_KEY")
+        return False
 
     def get_tools(self) -> list[BaseTool]:
         return []  # Image search is API-driven, not an agent tool
