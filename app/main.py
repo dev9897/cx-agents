@@ -1,9 +1,10 @@
 """
 FastAPI application factory.
 
-Assembles routers, middleware, and shared state.
+Assembles routers, middleware, shared state, and pluggable features.
 """
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -14,13 +15,53 @@ from fastapi.staticfiles import StaticFiles
 from app.api import auth, chat, checkout, health, payment, websocket
 from app.agent.state import ShoppingState
 
+logger = logging.getLogger("sap_agent.app")
+
 # ── Shared session store ─────────────────────────────────────────────────────
 
 _sessions: dict[str, ShoppingState] = {}
 
 
+def _register_features(app: FastAPI):
+    """Discover and register pluggable features (recommendations, image search, audio search)."""
+    from app.features.registry import FeatureRegistry
+
+    registry = FeatureRegistry.instance()
+
+    # Register each feature — they self-check availability
+    try:
+        from app.features.recommendations import RecommendationFeature, set_session_store as reco_set_sessions
+        reco_set_sessions(_sessions)
+        registry.register(RecommendationFeature())
+    except Exception as e:
+        logger.info("Recommendation feature not loaded: %s", e)
+
+    try:
+        from app.features.image_search import ImageSearchFeature
+        registry.register(ImageSearchFeature())
+    except Exception as e:
+        logger.info("Image search feature not loaded: %s", e)
+
+    try:
+        from app.features.audio_search import AudioSearchFeature
+        registry.register(AudioSearchFeature())
+    except Exception as e:
+        logger.info("Audio search feature not loaded: %s", e)
+
+    # Mount feature routers
+    for router in registry.get_all_routers():
+        app.include_router(router)
+
+    logger.info("Active features: %s", registry.active_features)
+
+    # Expose feature config to frontend
+    @app.get("/features", tags=["Features"])
+    def get_features():
+        return registry.get_ui_config()
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="SAP Commerce Shopping Agent", version="2.0.0")
+    app = FastAPI(title="SAP Commerce Shopping Agent", version="3.0.0")
 
     # CORS
     app.add_middleware(
@@ -51,6 +92,9 @@ def create_app() -> FastAPI:
         app.include_router(acp_router)
     except ImportError:
         pass
+
+    # Register pluggable features (recommendations, image search, audio search)
+    _register_features(app)
 
     # Static files / UI
     _STATIC_DIR = Path(__file__).parent / "static"

@@ -11,6 +11,8 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from pydantic import BaseModel, Field, create_model
 
+from app.integrations import tool_cache
+
 logger = logging.getLogger("sap_agent.mcp")
 
 MCP_HOST = os.getenv("MCP_HOST", "localhost")
@@ -67,7 +69,16 @@ async def _fetch_tools_async() -> list[Any]:
 
                 def make_sync_tool(t_name, t_desc, t_args_model):
                     def sync_fn(**kwargs):
-                        return asyncio.run(_call_tool_async(t_name, kwargs))
+                        # Check cache before hitting the MCP server
+                        cached = tool_cache.get(t_name, kwargs)
+                        if cached is not None:
+                            return cached
+                        result = asyncio.run(_call_tool_async(t_name, kwargs))
+                        # Cache successful results
+                        tool_cache.put(t_name, kwargs, result)
+                        # Invalidate stale entries after cart mutations
+                        tool_cache.on_tool_call(t_name)
+                        return result
                     sync_fn.__name__ = t_name
                     return StructuredTool.from_function(
                         func=sync_fn, name=t_name,

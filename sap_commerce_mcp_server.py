@@ -234,11 +234,17 @@ def create_cart(session_id: str) -> dict:
     )
     if resp.status_code in (200, 201):
         d = resp.json()
-        logger.info("create_cart OK | cart=%s | user=%s", d.get("code"), user_id)
+        code = d.get("code")
+        guid = d.get("guid")
+        # SAP Commerce requires GUID for anonymous cart URLs, code for authenticated
+        effective_cart_id = guid if user_id == "anonymous" else code
+        logger.info("create_cart OK | cart=%s guid=%s effective=%s | user=%s",
+                    code, guid, effective_cart_id, user_id)
         return {
             "success":   True,
-            "cart_id":   d.get("code"),
-            "cart_guid": d.get("guid"),
+            "cart_id":   effective_cart_id,
+            "cart_code": code,
+            "cart_guid": guid,
         }
     return {"success": False, "error": resp.text}
 

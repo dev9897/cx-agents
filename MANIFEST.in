@@ -1,0 +1,20 @@
+# Include
+include .env.example
+include requirements.txt
+recursive-include app/static *
+
+# Exclude — secrets and dev files
+exclude .env
+exclude .env.local
+exclude .env.backup
+exclude .dockerignore
+exclude Dockerfile
+exclude Dockerfile.mcp
+exclude cloudbuild.yaml
+exclude cloudrun-api.yaml
+exclude cloudrun-mcp.yaml
+recursive-exclude venv *
+recursive-exclude .claude *
+recursive-exclude __pycache__ *
+global-exclude *.pyc *.pyo
+global-exclude .DS_Store

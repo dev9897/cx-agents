@@ -91,6 +91,11 @@ async function doLogin() {
       `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, memory cards, accessories, or any electronics from the catalog.`
     );
     updateSidebarUser(d.username);
+
+    // Fetch personalized recommendations after login
+    if (typeof fetchRecommendations === 'function') {
+      setTimeout(() => fetchRecommendations(), 500);
+    }
   } catch {
     showLoginError('Could not reach the server. Please try again.');
   } finally {

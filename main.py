@@ -34,10 +34,9 @@ REQUIRED_ENV_VARS = [
     *(["GOOGLE_API_KEY"] if _provider == "gemini" else ["ANTHROPIC_API_KEY"]),
 ]
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+from app.middleware.logging_config import setup_logging
+
+setup_logging()
 logger = logging.getLogger("sap_agent.main")
 
 
@@ -224,7 +223,7 @@ def run_server():
 
     uvicorn.run(
         "app.main:app",
-        host=host,
+        host="localhost",
         port=port,
         reload=reload,
         log_level=CONFIG.observability.log_level.lower(),
@@ -253,7 +252,8 @@ def run_check():
 # ─────────────────────────────────────────────────────────────────────────────
 # ENTRYPOINT
 # ─────────────────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
+def main():
+    """CLI entrypoint — used by `cxagent` command and `python main.py`."""
     parser = argparse.ArgumentParser(
         description="SAP Commerce Cloud Shopping Agent"
     )
@@ -279,3 +279,7 @@ if __name__ == "__main__":
     else:  # server (default)
         _import_modules()
         run_server()
+
+
+if __name__ == "__main__":
+    main()

@@ -100,14 +100,29 @@
             <div class="feature-desc">Find cameras, lenses, memory cards and accessories by name, spec, or price range.</div>
           </div>
           <div class="feature-card">
+            <div class="feature-icon">&#128247;</div>
+            <div class="feature-title">Image Search</div>
+            <div class="feature-desc">Upload a photo or use your camera to find visually similar products instantly.</div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#127908;</div>
+            <div class="feature-title">Voice Search</div>
+            <div class="feature-desc">Speak naturally to search. Your voice is transcribed and matched to products.</div>
+          </div>
+          <div class="feature-card">
             <div class="feature-icon">&#128722;</div>
             <div class="feature-title">Cart &amp; Checkout</div>
             <div class="feature-desc">Add items, view your cart, set delivery address and payment, then place your order.</div>
           </div>
           <div class="feature-card">
+            <div class="feature-icon">&#9733;</div>
+            <div class="feature-title">AI Recommendations</div>
+            <div class="feature-desc">Sign in to get personalized recommendations powered by collaborative and content filtering.</div>
+          </div>
+          <div class="feature-card">
             <div class="feature-icon">&#128100;</div>
             <div class="feature-title">Account Orders</div>
-            <div class="feature-desc">Sign in to access your order history and get personalised product recommendations.</div>
+            <div class="feature-desc">Sign in to access your order history and manage your account preferences.</div>
           </div>
         </div>
         <div class="chips">
@@ -124,11 +139,49 @@
     </div>
 
     <div class="input-bar">
+      <!-- Image preview bar (shown when image selected) -->
+      <div class="image-preview-bar" id="imagePreviewBar">
+        <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
+        <div class="image-preview-info">
+          <strong id="imagePreviewName">image.jpg</strong>
+          <span id="imagePreviewSize">0 KB</span>
+        </div>
+        <div class="image-preview-actions">
+          <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
+          <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Audio recording bar -->
+      <div class="audio-recording-bar" id="audioRecordingBar">
+        <div class="audio-recording-dot"></div>
+        <span>Recording</span>
+        <div class="audio-waveform">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <span class="audio-recording-timer" id="audioTimer">0:00</span>
+        <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
+      </div>
+
       <div class="input-wrap">
+        <div class="input-actions">
+          <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Image Search">
+            &#128247;
+            <span class="tooltip">Search by image</span>
+          </button>
+          <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice Search">
+            &#127908;
+            <span class="tooltip">Voice search</span>
+          </button>
+        </div>
         <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart..."></textarea>
         <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
       </div>
-      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line</div>
+      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line &middot; &#128247; Image &middot; &#127908; Voice</div>
+
+      <!-- Hidden file inputs -->
+      <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
+      <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
     </div>
   </div>
 </div>
@@ -216,11 +269,14 @@
 </div>
 
 <!-- ── Scripts (order matters: app first, then modules that depend on it) ── -->
-<script src="/static/js/app.js?v=8"></script>
-<script src="/static/js/renderers.js?v=8"></script>
-<script src="/static/js/auth.js?v=8"></script>
-<script src="/static/js/chat.js?v=8"></script>
-<script src="/static/js/settings.js?v=8"></script>
+<script src="/static/js/app.js?v=9"></script>
+<script src="/static/js/renderers.js?v=9"></script>
+<script src="/static/js/auth.js?v=9"></script>
+<script src="/static/js/chat.js?v=9"></script>
+<script src="/static/js/settings.js?v=9"></script>
+<script src="/static/js/image_search.js?v=9"></script>
+<script src="/static/js/audio_search.js?v=9"></script>
+<script src="/static/js/recommendations.js?v=9"></script>
 
 </body>
 </html>

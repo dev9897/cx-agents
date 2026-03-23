@@ -15,6 +15,11 @@ const App = {
   savedAddresses: [],
   sapPaymentDetails: [],
   stripeCards: [],
+  features: {
+    recommendations: { enabled: false },
+    image_search: { enabled: false },
+    audio_search: { enabled: false },
+  },
 };
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -133,9 +138,30 @@ function updateCartUI() {
 
 // ── Initialization ───────────────────────────────────────────────────────────
 
+// ── Feature discovery ────────────────────────────────────────────────────────
+
+async function loadFeatures() {
+  try {
+    const r = await fetch(`${API}/features`);
+    if (r.ok) {
+      const features = await r.json();
+      App.features = features;
+
+      // Show/hide input action buttons based on feature availability
+      const imageBtn = document.getElementById('imageSearchBtn');
+      const audioBtn = document.getElementById('audioSearchBtn');
+      if (imageBtn) imageBtn.style.display = features.image_search?.enabled ? 'flex' : 'none';
+      if (audioBtn) audioBtn.style.display = features.audio_search?.enabled ? 'flex' : 'none';
+    }
+  } catch {
+    // Features endpoint not available — hide smart search buttons
+  }
+}
+
 function initApp() {
   checkHealth();
   setInterval(checkHealth, 30000);
+  loadFeatures();
 
   // Auto-resize textarea
   const input = document.getElementById('userInput');

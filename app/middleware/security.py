@@ -63,9 +63,11 @@ def sanitise_input(text: str) -> str:
 
 _AUTO_ALLOWED_TOOLS = {
     "account_login", "guest_token", "search_products", "get_product_details",
-    "create_cart", "add_to_cart", "get_cart",
+    "create_cart", "add_to_cart", "get_cart", "update_cart_entry",
     "set_delivery_address", "set_delivery_mode", "set_payment_details",
     "semantic_search_products", "initiate_checkout",
+    "get_order", "get_order_history", "get_saved_addresses",
+    "list_saved_cards", "get_personalized_recommendations",
 }
 
 _REQUIRE_CONFIRMATION_TOOLS = {"place_order"}

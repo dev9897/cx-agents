@@ -25,6 +25,17 @@ class ClaudeConfig:
 
 
 @dataclass
+class AzureOpenAIConfig:
+    deployment_name: str = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5")
+    api_key: str = os.getenv("AZURE_OPENAI_API_KEY", "")
+    endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    api_version: str = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+    max_tokens: int = int(os.getenv("AZURE_OPENAI_MAX_TOKENS", "4096"))
+    temperature: float = float(os.getenv("AZURE_OPENAI_TEMPERATURE", "0.0"))
+    streaming: bool = True
+
+
+@dataclass
 class GeminiConfig:
     model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     api_key: str = os.getenv("GOOGLE_API_KEY", "")
@@ -51,6 +62,7 @@ class ResilienceConfig:
     enable_llm_fallback: bool = True
     max_messages_in_context: int = 50
     context_trim_strategy: Literal["oldest_first", "keep_system"] = "oldest_first"
+    max_tool_loops_per_turn: int = int(os.getenv("MAX_TOOL_LOOPS_PER_TURN", "5"))
 
 
 @dataclass
@@ -80,15 +92,29 @@ class RedisConfig:
 
 
 @dataclass
+class FeaturesConfig:
+    """Feature flags for pluggable modules."""
+    recommendations: bool = os.getenv("FEATURE_RECOMMENDATIONS", "true").lower() == "true"
+    image_search: bool = os.getenv("FEATURE_IMAGE_SEARCH", "true").lower() == "true"
+    audio_search: bool = os.getenv("FEATURE_AUDIO_SEARCH", "true").lower() == "true"
+    clip_model: str = os.getenv("CLIP_MODEL", "openai/clip-vit-base-patch32")
+    whisper_model: str = os.getenv("WHISPER_MODEL", "openai/whisper-small")
+    reco_collaborative_weight: float = float(os.getenv("RECO_COLLABORATIVE_WEIGHT", "0.4"))
+    reco_content_weight: float = float(os.getenv("RECO_CONTENT_WEIGHT", "0.6"))
+
+
+@dataclass
 class AgentConfig:
     llm_provider: str = os.getenv("LLM_PROVIDER", "anthropic")
     claude: ClaudeConfig = field(default_factory=ClaudeConfig)
+    azure_openai: AzureOpenAIConfig = field(default_factory=AzureOpenAIConfig)
     gemini: GeminiConfig = field(default_factory=GeminiConfig)
     observability: ObservabilityConfig = field(default_factory=ObservabilityConfig)
     resilience: ResilienceConfig = field(default_factory=ResilienceConfig)
     cost: CostConfig = field(default_factory=CostConfig)
     stripe: StripeConfig = field(default_factory=StripeConfig)
     redis: RedisConfig = field(default_factory=RedisConfig)
+    features: FeaturesConfig = field(default_factory=FeaturesConfig)
 
 
 # Singleton

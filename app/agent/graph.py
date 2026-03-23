@@ -3,40 +3,40 @@ LangGraph agent — graph definition, nodes, and routing.
 
 This is the core agent orchestration. Nodes handle reasoning,
 tool execution, human approval, and state synchronization.
+
+Debug logging
+=============
+Set LOG_LEVEL=DEBUG or LOG_LEVEL_OVERRIDES=sap_agent:DEBUG to see:
+  - Full LLM request messages (all_msgs sent to the model)
+  - Full LLM response (content + tool_calls)
+  - State snapshot at each node entry
+  - Tool call arguments and results
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
-import random
-import time
-import uuid
-from typing import AsyncIterator, Optional
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage, SystemMessage
-from langchain_core.rate_limiters import InMemoryRateLimiter
-from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
-from langgraph.types import Command, interrupt
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage  # noqa: E402
+from langchain_core.runnables import RunnableConfig  # noqa: E402
+from langgraph.checkpoint.memory import MemorySaver  # noqa: E402
+from langgraph.graph import END, START, StateGraph  # noqa: E402
+from langgraph.prebuilt import ToolNode  # noqa: E402
+from langgraph.types import interrupt  # noqa: E402
 
-from app.agent.prompts import build_system_message
-from app.agent.state import ShoppingState
-from app.config import CONFIG
-from app.middleware.audit import audit
-from app.middleware.error_handler import (
-    CircuitBreaker, is_overload_error, is_ssl_error, log_ssl_error, sap_circuit_breaker,
+from app.agent.llm import LLMFactory  # noqa: E402
+from app.agent.prompts import build_system_messages  # noqa: E402
+from app.agent.state import ShoppingState  # noqa: E402
+from app.config import CONFIG  # noqa: E402
+from app.middleware.audit import audit  # noqa: E402
+from app.middleware.error_handler import (  # noqa: E402
+    is_overload_error, is_ssl_error, log_ssl_error, sap_circuit_breaker,
 )
-from app.middleware.security import detect_prompt_injection, rate_limiter, sanitise_input
 
 logger = logging.getLogger("sap_agent")
 
@@ -45,13 +45,13 @@ logger = logging.getLogger("sap_agent")
 def _load_tools():
     from app.integrations.mcp_client import get_tools_sync, get_mcp_session_id
     from app.integrations.qdrant_client import is_qdrant_configured, semantic_search_products
-    from app.agent.tools import list_saved_cards, acp_checkout
+    from app.agent.tools import list_saved_cards, acp_checkout, get_order_history, get_saved_addresses
 
     tools = list(get_tools_sync())
 
-    # Always add ACP tools (Stripe-based, not in MCP server)
+    # Always add local tools (not in MCP server)
     mcp_tool_names = {t.name for t in tools}
-    for local_tool in [list_saved_cards, acp_checkout]:
+    for local_tool in [list_saved_cards, acp_checkout, get_order_history, get_saved_addresses]:
         if local_tool.name not in mcp_tool_names:
             tools.append(local_tool)
             print(f"Added local tool: {local_tool.name}")
@@ -62,6 +62,18 @@ def _load_tools():
     else:
         print("Qdrant not configured — semantic search disabled")
 
+    # Load tools from pluggable features (recommendations, etc.)
+    try:
+        from app.features.registry import FeatureRegistry
+        feature_tools = FeatureRegistry.instance().get_all_tools()
+        tool_names = {t.name for t in tools}
+        for ft in feature_tools:
+            if ft.name not in tool_names:
+                tools.append(ft)
+                print(f"Added feature tool: {ft.name}")
+    except Exception as e:
+        print(f"Feature tools not loaded: {e}")
+
     mcp_session_id = get_mcp_session_id()
     return tools, mcp_session_id
 
@@ -69,95 +81,10 @@ def _load_tools():
 ALL_TOOLS, _MCP_SESSION_ID = _load_tools()
 
 
-# ── LLM selection ────────────────────────────────────────────────────────────
+# ── LLM (injected from LLMFactory) ───────────────────────────────────────────
 
-def _create_llm():
-    provider = CONFIG.llm_provider.lower()
-    if provider == "gemini":
-        logger.info("LLM provider: Google Gemini (%s)", CONFIG.gemini.model)
-        return ChatGoogleGenerativeAI(
-            model=CONFIG.gemini.model,
-            google_api_key=CONFIG.gemini.api_key,
-            max_output_tokens=CONFIG.gemini.max_tokens,
-            temperature=CONFIG.gemini.temperature,
-        )
-    else:
-        logger.info("LLM provider: Anthropic Claude (%s)", CONFIG.claude.model)
-        rate_lim = InMemoryRateLimiter(
-            requests_per_second=0.5, check_every_n_seconds=0.1, max_bucket_size=10,
-        )
-        return ChatAnthropic(
-            base_url="https://api.anthropic.com",
-            model=CONFIG.claude.model,
-            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-            max_tokens=CONFIG.claude.max_tokens,
-            temperature=CONFIG.claude.temperature,
-            timeout=CONFIG.claude.timeout_seconds,
-            max_retries=CONFIG.claude.max_retries,
-            streaming=CONFIG.claude.streaming,
-            rate_limiter=rate_lim,
-            default_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-        )
-
-
-_llm = _create_llm()
-_llm_with_tools = _llm.bind_tools(ALL_TOOLS)
-
-# Overload retry config
-_OVERLOAD_MAX_RETRIES = int(os.getenv("ANTHROPIC_OVERLOAD_RETRIES", "4"))
-_OVERLOAD_BASE_DELAY = float(os.getenv("ANTHROPIC_OVERLOAD_BASE_DELAY", "2.0"))
-
-
-def _llm_invoke_with_retry(llm, messages, config):
-    last_exc = None
-    for attempt in range(_OVERLOAD_MAX_RETRIES + 1):
-        try:
-            return llm.invoke(messages, config=config)
-        except Exception as exc:
-            if not is_overload_error(exc):
-                raise
-            last_exc = exc
-            if attempt == _OVERLOAD_MAX_RETRIES:
-                break
-            delay = _OVERLOAD_BASE_DELAY * (2 ** attempt)
-            jitter = delay * 0.25 * (2 * random.random() - 1)
-            wait = round(delay + jitter, 2)
-            logger.warning("Anthropic overloaded | attempt=%d/%d | retrying in %.1fs",
-                           attempt + 1, _OVERLOAD_MAX_RETRIES, wait)
-            time.sleep(wait)
-    logger.error("Anthropic still overloaded after %d retries", _OVERLOAD_MAX_RETRIES)
-    raise last_exc
-
-
-# ── Token Tracking ───────────────────────────────────────────────────────────
-
-class TokenTracker:
-    INPUT_COST_PER_1K = 0.003
-    OUTPUT_COST_PER_1K = 0.015
-    CACHE_READ_PER_1K = 0.0003
-
-    @staticmethod
-    def update(state: ShoppingState, response: AIMessage) -> dict:
-        usage = response.usage_metadata or {}
-        in_tokens = usage.get("input_tokens", 0)
-        out_tokens = usage.get("output_tokens", 0)
-        cached = usage.get("cache_read_input_tokens", 0)
-
-        new_in = state.get("total_input_tokens", 0) + in_tokens
-        new_out = state.get("total_output_tokens", 0) + out_tokens
-
-        cost = (
-            (in_tokens / 1000) * TokenTracker.INPUT_COST_PER_1K +
-            (out_tokens / 1000) * TokenTracker.OUTPUT_COST_PER_1K +
-            (cached / 1000) * TokenTracker.CACHE_READ_PER_1K
-        )
-
-        if new_in > CONFIG.cost.session_token_budget:
-            logger.warning("Session token budget exceeded: %d tokens", new_in)
-
-        logger.info("tokens | session=%s in=%d out=%d cached=%d cost_usd=%.4f",
-                     state.get("session_id", "?"), new_in, new_out, cached, cost)
-        return {"total_input_tokens": new_in, "total_output_tokens": new_out}
+_llm_factory = LLMFactory()
+_llm_with_tools = _llm_factory.bind_tools(ALL_TOOLS)
 
 
 # ── Context Trimming ─────────────────────────────────────────────────────────
@@ -305,10 +232,74 @@ def _sanitize_tool_pairs(messages: list[BaseMessage]) -> list[BaseMessage]:
     return result
 
 
+# ── Debug helpers ────────────────────────────────────────────────────────────
+
+def _dump_state(state: ShoppingState) -> str:
+    """Full JSON state dump — everything except messages (logged separately)."""
+    snapshot = {}
+    for k, v in state.items():
+        if k == "messages":
+            snapshot["messages_count"] = len(v) if v else 0
+            continue
+        # Redact access_token value but show presence
+        if k == "access_token":
+            snapshot[k] = f"***({len(v)}chars)" if v else None
+            continue
+        snapshot[k] = v
+    try:
+        return json.dumps(snapshot, default=str, ensure_ascii=False)
+    except Exception:
+        return str(snapshot)
+
+
+def _dump_msg(msg: BaseMessage, truncate: int = 0) -> str:
+    """Full message dump. Set truncate>0 to cap content length."""
+    kind = type(msg).__name__
+    content = msg.content
+
+    # Full content unless truncate is set
+    if isinstance(content, list):
+        parts = []
+        for b in content:
+            if isinstance(b, dict) and b.get("type") == "text":
+                text = b.get("text", "")
+                if truncate and len(text) > truncate:
+                    text = text[:truncate] + f"...[{len(b.get('text',''))} total chars]"
+                parts.append(text)
+            elif isinstance(b, str):
+                t = b if not truncate else b[:truncate]
+                parts.append(t)
+            else:
+                parts.append(json.dumps(b, default=str)[:500])
+        content_str = "\n".join(parts)
+    elif isinstance(content, str):
+        content_str = content if not truncate or len(content) <= truncate else content[:truncate] + f"...[{len(content)} total chars]"
+    else:
+        content_str = str(content)
+
+    extras = ""
+    if isinstance(msg, AIMessage) and msg.tool_calls:
+        calls_detail = []
+        for tc in msg.tool_calls:
+            args_str = json.dumps(tc.get("args", {}), default=str)
+            calls_detail.append(f"  {tc['name']}(id={tc['id']}) args={args_str}")
+        extras = "\n  tool_calls:\n" + "\n".join(calls_detail)
+    if isinstance(msg, ToolMessage):
+        extras = f" [tool_call_id={getattr(msg, 'tool_call_id', '?')}]"
+
+    return f"[{kind}] {content_str}{extras}"
+
+
 # ── Graph Nodes ──────────────────────────────────────────────────────────────
 
 def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
     session_id = state.get("session_id", "?")
+
+    # Reset tool loop counter at the start of a new human turn
+    last_msg = state["messages"][-1] if state.get("messages") else None
+    extra_updates = {}
+    if isinstance(last_msg, HumanMessage):
+        extra_updates["tool_loops_this_turn"] = 0
 
     if sap_circuit_breaker.is_open:
         return {
@@ -316,27 +307,36 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
             "last_error": "circuit_breaker_open",
         }
 
-    system_msg = build_system_message(state, _MCP_SESSION_ID or "")
+    # ── DEBUG: full state snapshot ──────────────────────────────────────
+    logger.debug("agent_node STATE | %s", _dump_state(state))
+
+    system_msgs = build_system_messages(state, _MCP_SESSION_ID or "", _llm_factory.provider)
     trimmed = _trim_context(state["messages"])
     sanitized = _sanitize_tool_pairs(trimmed)
-    all_msgs = [system_msg] + sanitized
+    all_msgs = system_msgs + sanitized
 
-    # Debug: verify no orphaned tool_use remains
+    # ── DEBUG: full LLM request (every message, full content) ────────────
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("agent_node LLM_REQUEST | %d messages to %s model:",
+                     len(all_msgs), _llm_factory.provider)
+        for idx, m in enumerate(all_msgs):
+            logger.debug("  msg[%d] %s", idx, _dump_msg(m))
+
+    # Verify no orphaned tool_use remains
     for idx, m in enumerate(sanitized):
-        if isinstance(m, AIMessage):
-            if m.tool_calls:
-                tc_ids = [tc["id"] for tc in m.tool_calls]
-                logger.debug("msg[%d] AIMessage tool_calls=%s", idx, tc_ids)
-            if isinstance(m.content, list):
-                tu_ids = [b.get("id") for b in m.content
-                          if isinstance(b, dict) and b.get("type") == "tool_use"]
-                if tu_ids:
-                    logger.warning("msg[%d] AIMessage has tool_use in content: %s", idx, tu_ids)
+        if isinstance(m, AIMessage) and isinstance(m.content, list):
+            tu_ids = [b.get("id") for b in m.content
+                      if isinstance(b, dict) and b.get("type") == "tool_use"]
+            if tu_ids:
+                logger.warning("msg[%d] AIMessage has tool_use in content: %s", idx, tu_ids)
 
     try:
-        response = _llm_invoke_with_retry(_llm_with_tools, all_msgs, config)
-        token_updates = TokenTracker.update(state, response)
+        response = _llm_factory.invoke_with_retry(_llm_with_tools, all_msgs, config)
+        token_updates = _llm_factory.track_tokens(state, response)
         sap_circuit_breaker.record_success()
+
+        # ── DEBUG: full LLM response (complete content + tool calls) ─────
+        logger.debug("agent_node LLM_RESPONSE | %s", _dump_msg(response))
 
         return {
             "messages": [response],
@@ -344,6 +344,7 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
             "last_error": None,
             "consecutive_errors": 0,
             **token_updates,
+            **extra_updates,
         }
 
     except Exception as exc:
@@ -399,8 +400,10 @@ def human_approval_node(state: ShoppingState) -> dict:
 
 
 def state_sync_node(state: ShoppingState) -> dict:
+    logger.debug("state_sync_node STATE | %s", _dump_state(state))
     updates: dict = {}
-    session_id = state.get("session_id", "?")
+    has_any_success = False
+    has_any_failure = False
 
     for msg in reversed(state["messages"]):
         if not isinstance(msg, ToolMessage):
@@ -412,16 +415,23 @@ def state_sync_node(state: ShoppingState) -> dict:
 
         if not result.get("success"):
             sap_circuit_breaker.record_failure()
+            has_any_failure = True
             continue
 
         sap_circuit_breaker.record_success()
+        has_any_success = True
         if "access_token" in result:
             updates["access_token"] = result["access_token"]
         if "username" in result:
             updates["username"] = result["username"]
             updates["user_id"] = "current"
         if result.get("cart_id"):
-            updates["cart_id"] = result["cart_id"]
+            # SAP Commerce requires GUID for anonymous cart URLs
+            is_anonymous = state.get("user_id", "anonymous") == "anonymous"
+            if is_anonymous and result.get("cart_guid"):
+                updates["cart_id"] = result["cart_guid"]
+            else:
+                updates["cart_id"] = result["cart_id"]
         if result.get("user_id") and "username" not in result:
             updates["user_id"] = result["user_id"]
         if "order_code" in result:
@@ -446,6 +456,18 @@ def state_sync_node(state: ShoppingState) -> dict:
         if "description" in result and "code" in result and "products" not in result and "entries" not in result:
             updates["last_product_detail"] = result
 
+    # Track consecutive tool failures for loop detection.
+    # Reset on any success; increment only on all-failure rounds.
+    if has_any_success:
+        updates["tool_loops_this_turn"] = 0
+    elif has_any_failure:
+        updates["tool_loops_this_turn"] = state.get("tool_loops_this_turn", 0) + 1
+
+    # ── DEBUG: full state updates from sync ─────────────────────────────
+    if logger.isEnabledFor(logging.DEBUG):
+        safe = {k: v for k, v in updates.items() if k != "access_token"}
+        logger.debug("state_sync UPDATES | %s", json.dumps(safe, default=str))
+
     return updates
 
 
@@ -461,6 +483,15 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
 
     access_token = state.get("access_token") or ""
     rejected_tool_calls = state.get("rejected_tool_calls") or []
+
+    # ── DEBUG: full tool call args ──────────────────────────────────────
+    if logger.isEnabledFor(logging.DEBUG):
+        for tc in last.tool_calls:
+            safe_args = {k: v for k, v in tc.get("args", {}).items()
+                         if k != "access_token"}
+            logger.debug("tool_node CALL | tool=%s | id=%s | args=%s",
+                         tc["name"], tc["id"],
+                         json.dumps(safe_args, default=str))
 
     # Rejected tool results
     tool_results = []
@@ -490,7 +521,6 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
         result = _raw_tool_node.invoke(patched_state)
     except Exception as e:
         logger.exception("tool_node_with_injection | ToolNode.invoke failed")
-        # Produce error ToolMessages so tool_use/tool_result pairing is preserved
         error_msgs = []
         for tc in patched_calls:
             error_msgs.append(ToolMessage(
@@ -499,10 +529,32 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
             ))
         result = {"messages": error_msgs}
 
+    # ── DEBUG: full tool results ─────────────────────────────────────────
+    if logger.isEnabledFor(logging.DEBUG):
+        for msg in result.get("messages", []):
+            if isinstance(msg, ToolMessage):
+                logger.debug("tool_node RESULT | tool_call_id=%s | %s",
+                             getattr(msg, "tool_call_id", "?"), msg.content)
+
     if tool_results:
         result["messages"] = tool_results + result.get("messages", [])
     result["rejected_tool_calls"] = None
     return result
+
+
+# ── Loop Breaker Node ────────────────────────────────────────────────────
+
+def loop_breaker_node(state: ShoppingState) -> dict:
+    """Terminate agent loop when consecutive tool failures exceed the limit."""
+    logger.warning("loop_breaker | session=%s | breaking after %d consecutive tool failures",
+                   state.get("session_id", "?"), state.get("tool_loops_this_turn", 0))
+    return {
+        "messages": [AIMessage(
+            content="I'm sorry, I ran into repeated issues trying to complete that action. "
+                    "Please try again or contact support if this continues."
+        )],
+        "tool_loops_this_turn": 0,
+    }
 
 
 # ── Routing ──────────────────────────────────────────────────────────────────
@@ -510,16 +562,33 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
 def route_after_agent(state: ShoppingState) -> str:
     last = state["messages"][-1]
     if isinstance(last, AIMessage) and last.tool_calls:
+        tool_names = [tc["name"] for tc in last.tool_calls]
         for tc in last.tool_calls:
             if tc["name"] in ("place_order", "acp_checkout"):
+                logger.debug("route_after_agent → human_approval | tools=%s", tool_names)
                 return "human_approval"
+        logger.debug("route_after_agent → tools | tools=%s", tool_names)
         return "tools"
+    logger.debug("route_after_agent → sync (no tool calls)")
     return "sync"
 
 
 def route_after_sync(state: ShoppingState) -> str:
     last = state["messages"][-1]
-    return "agent" if isinstance(last, ToolMessage) else END
+    if not isinstance(last, ToolMessage):
+        logger.debug("route_after_sync → END (last msg is %s)", type(last).__name__)
+        return END
+
+    # Guard against infinite tool-retry loops (only counts consecutive failures)
+    consecutive_failures = state.get("tool_loops_this_turn", 0)
+    max_failures = CONFIG.resilience.max_tool_loops_per_turn
+    if consecutive_failures >= max_failures:
+        logger.warning("route_after_sync → loop_breaker | failures=%d/%d",
+                       consecutive_failures, max_failures)
+        return "loop_breaker"
+
+    logger.debug("route_after_sync → agent | failures=%d/%d", consecutive_failures, max_failures)
+    return "agent"
 
 
 # ── Graph Assembly ───────────────────────────────────────────────────────────
@@ -531,6 +600,7 @@ def build_graph():
     g.add_node("human_approval", human_approval_node)
     g.add_node("tools", tool_node_with_injection)
     g.add_node("sync", state_sync_node)
+    g.add_node("loop_breaker", loop_breaker_node)
 
     g.add_edge(START, "agent")
     g.add_conditional_edges("agent", route_after_agent, {
@@ -540,7 +610,12 @@ def build_graph():
     })
     g.add_edge("human_approval", "tools")
     g.add_edge("tools", "sync")
-    g.add_conditional_edges("sync", route_after_sync, {"agent": "agent", END: END})
+    g.add_conditional_edges("sync", route_after_sync, {
+        "agent": "agent",
+        "loop_breaker": "loop_breaker",
+        END: END,
+    })
+    g.add_edge("loop_breaker", END)
 
     checkpointer = MemorySaver()
     return g.compile(checkpointer=checkpointer, interrupt_before=[])

@@ -460,6 +460,41 @@ def place_order(cart_id: str, access_token: str = "",
         return _handle_http_error(e, "place_order", url)
 
 
+def get_user_orders(access_token: str = "", user_id: str = "current",
+                    page_size: int = 20, current_page: int = 0) -> dict:
+    """Fetch order history for the authenticated user (for recommendations)."""
+    resolved_user = _resolve_user(user_id)
+    url = f"{BASE_URL}/{SITE_ID}/users/{resolved_user}/orders"
+    try:
+        resp = _safe_request("GET", url, "get_user_orders",
+                             params={"pageSize": page_size, "currentPage": current_page,
+                                     "fields": "FULL"},
+                             headers=_headers(access_token))
+        if resp.status_code == 200:
+            data = resp.json()
+            orders = []
+            for order in data.get("orders", []):
+                entries = []
+                for entry in order.get("entries", []):
+                    product = entry.get("product", {})
+                    entries.append({
+                        "product_code": product.get("code", ""),
+                        "product_name": strip_html(product.get("name", "")),
+                        "quantity": entry.get("quantity", 1),
+                    })
+                orders.append({
+                    "code": order.get("code", ""),
+                    "date": order.get("placed", ""),
+                    "total": order.get("total", {}).get("formattedValue", ""),
+                    "status": order.get("statusDisplay", ""),
+                    "entries": entries,
+                })
+            return {"success": True, "orders": orders, "total": data.get("pagination", {}).get("totalResults", 0)}
+        return {"success": False, "error": resp.text}
+    except httpx.HTTPError as e:
+        return _handle_http_error(e, "get_user_orders", url)
+
+
 def get_order(order_code: str, access_token: str = "",
               user_id: str = "current") -> dict:
     resolved_user = _resolve_user(user_id)

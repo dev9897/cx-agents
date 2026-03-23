@@ -241,6 +241,24 @@ def acp_checkout(
     }
 
 
+@tool
+def get_order_history(access_token: str = "", user_id: str = "current",
+                      page_size: int = 10) -> dict:
+    """Fetch the authenticated user's past orders.
+    Returns order codes, dates, totals, statuses, and items.
+    Use this when the user asks about their previous orders, wants to reorder,
+    or wants to check an order status."""
+    return sap_client.get_user_orders(access_token, user_id, page_size)
+
+
+@tool
+def get_saved_addresses(access_token: str = "", user_id: str = "current") -> dict:
+    """Fetch the user's saved delivery addresses.
+    Use this to offer address selection during checkout instead of asking
+    the user to re-type their address."""
+    return sap_client.get_user_addresses(access_token, user_id)
+
+
 def get_direct_sap_tools() -> list:
     """Return all LangChain tools (used as MCP fallback)."""
     return [
@@ -248,5 +266,6 @@ def get_direct_sap_tools() -> list:
         create_cart, add_to_cart, get_cart, update_cart_entry,
         set_delivery_address, set_delivery_mode,
         initiate_checkout, place_order, get_order,
+        get_order_history, get_saved_addresses,
         list_saved_cards, acp_checkout,
     ]

@@ -6,3 +6,6 @@ __pycache__/
 .env.local
 .env.backup
 !.env.example
+
+# Log files
+logs/

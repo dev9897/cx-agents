@@ -47,3 +47,6 @@ class ShoppingState(TypedDict):
     last_error: Optional[str]
     consecutive_errors: int
     rejected_tool_calls: Optional[list[str]]
+
+    # Loop guardrail — reset to 0 on each new human message
+    tool_loops_this_turn: int

@@ -1,0 +1,34 @@
+# ──────────────────────────────────────────────────────────────
+# SAP Commerce ImpEx: Sample Customers for Recommendation Engine
+# Import: Electronics storefront users with profiles
+# ──────────────────────────────────────────────────────────────
+
+$defaultPassword = 12341234
+$siteUid = electronics
+
+# ── Customer Group ───────────────────────────────────────────
+INSERT_UPDATE UserGroup; uid[unique = true]; locname[lang = en]
+; customergroup ; Customer Group
+
+# ── Customers ────────────────────────────────────────────────
+INSERT_UPDATE Customer; uid[unique = true]          ; name                ; customerID          ; &userRef          ; groups(uid)    ; sessionLanguage(isocode) ; sessionCurrency(isocode) ; password[default = $defaultPassword]
+                      ; alice@electronics.store     ; Alice Johnson       ; CUST-001            ; aliceRef          ; customergroup  ; en                       ; USD
+                      ; bob@electronics.store       ; Bob Williams        ; CUST-002            ; bobRef            ; customergroup  ; en                       ; USD
+                      ; carol@electronics.store     ; Carol Martinez      ; CUST-003            ; carolRef          ; customergroup  ; en                       ; USD
+                      ; dave@electronics.store      ; Dave Chen           ; CUST-004            ; daveRef           ; customergroup  ; en                       ; USD
+                      ; emma@electronics.store      ; Emma Thompson       ; CUST-005            ; emmaRef           ; customergroup  ; en                       ; USD
+                      ; frank@electronics.store     ; Frank Mueller       ; CUST-006            ; frankRef          ; customergroup  ; en                       ; USD
+                      ; grace@electronics.store     ; Grace Kim           ; CUST-007            ; graceRef          ; customergroup  ; en                       ; USD
+                      ; henry@electronics.store     ; Henry Patel         ; CUST-008            ; henryRef          ; customergroup  ; en                       ; USD
+                      ; iris@electronics.store      ; Iris Nakamura       ; CUST-009            ; irisRef           ; customergroup  ; en                       ; USD
+                      ; jack@electronics.store      ; Jack Robinson       ; CUST-010            ; jackRef           ; customergroup  ; en                       ; USD
+                      ; karen@electronics.store     ; Karen Okonkwo       ; CUST-011            ; karenRef          ; customergroup  ; en                       ; USD
+                      ; liam@electronics.store      ; Liam Garcia         ; CUST-012            ; liamRef           ; customergroup  ; en                       ; USD
+                      ; mia@electronics.store       ; Mia Anderson        ; CUST-013            ; miaRef            ; customergroup  ; en                       ; USD
+                      ; noah@electronics.store      ; Noah Brown          ; CUST-014            ; noahRef           ; customergroup  ; en                       ; USD
+                      ; olivia@electronics.store    ; Olivia Davis        ; CUST-015            ; oliviaRef         ; customergroup  ; en                       ; USD
+                      ; peter@electronics.store     ; Peter Wilson        ; CUST-016            ; peterRef          ; customergroup  ; en                       ; USD
+                      ; quinn@electronics.store     ; Quinn Taylor        ; CUST-017            ; quinnRef          ; customergroup  ; en                       ; USD
+                      ; rachel@electronics.store    ; Rachel Lee          ; CUST-018            ; rachelRef         ; customergroup  ; en                       ; USD
+                      ; sam@electronics.store       ; Sam Harris          ; CUST-019            ; samRef            ; customergroup  ; en                       ; USD
+                      ; tina@electronics.store      ; Tina Fernandez      ; CUST-020            ; tinaRef           ; customergroup  ; en                       ; USD

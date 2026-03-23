@@ -17,6 +17,7 @@ from app.agent.graph import production_graph, _MCP_SESSION_ID
 from app.agent.state import ShoppingState
 from app.middleware.audit import audit
 from app.middleware.error_handler import is_ssl_error, log_ssl_error, sap_circuit_breaker
+from app.middleware.logging_config import set_trace_context
 from app.middleware.security import detect_prompt_injection, rate_limiter, sanitise_input
 
 logger = logging.getLogger("sap_agent.agent_service")
@@ -25,6 +26,7 @@ logger = logging.getLogger("sap_agent.agent_service")
 def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
     """Create a fresh session with a bootstrapped SAP token."""
     thread_id = str(uuid.uuid4())
+    set_trace_context(thread_id)
 
     static_token = os.getenv("SAP_STATIC_TOKEN", "")
     if static_token:
@@ -105,6 +107,10 @@ def update_session_auth(thread_id: str, access_token: str, username: str,
 def run_turn(user_message: str, thread_id: str, state: ShoppingState,
              approval_response: Optional[dict] = None) -> ShoppingState:
     """Run one conversation turn with security + observability."""
+    trace_id = set_trace_context(thread_id)
+    logger.info("turn_start | msg_len=%d | turn=%d",
+                len(user_message), state.get("turn_count", 0))
+
     # Security checks
     is_malicious, reason = detect_prompt_injection(user_message)
     if is_malicious:
@@ -179,6 +185,7 @@ def get_last_ai_message(state: ShoppingState) -> str:
 async def stream_turn(user_message: str, thread_id: str,
                       state: ShoppingState) -> AsyncIterator[str]:
     """Async streaming turn — yields text chunks for WebSocket."""
+    set_trace_context(thread_id)
     clean = sanitise_input(user_message)
     state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
     lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
