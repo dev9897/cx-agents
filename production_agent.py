@@ -3,59 +3,79 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import random
 import ssl
 import time
 import uuid
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Annotated, Any, AsyncIterator, Optional, TypedDict
-from qdrant_tool import semantic_search_products
 
 from dotenv import load_dotenv
 
-# ── Load .env BEFORE any local imports — sap_commerce_tools reads env vars
-# at module level when creating the shared httpx.Client, so .env must be
-# populated before that import runs.
+
 load_dotenv()
 
-# from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import (
-    AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage,
-    trim_messages,
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
 )
-from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
-from langgraph.checkpoint.memory import MemorySaver          # swap → AsyncSqliteSaver in prod
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langgraph.types import Command, interrupt                 # Human-in-the-loop
+from langgraph.types import Command, interrupt
 
-# ── Local modules ────────────────────────────────────────────────────────────
+# Local modules
 from agent_config import CONFIG
 from security_layer import (
-    SecurityMiddleware, audit, detect_prompt_injection,
-    rate_limiter, sanitise_input, scrub_pii,
+    audit,
+    detect_prompt_injection,
+    rate_limiter,
+    sanitise_input,
 )
 from mcp_client import get_tools_sync, get_mcp_session_id
+from qdrant_tool import semantic_search_products
+from memory_history.user_memory import (
+    ensure_user_collection,
+    get_cf_recommendations,
+    save_user_interaction,
+)
+
+# ── Tool registry ─────────────────────────────────────────────────────────────
 ALL_TOOLS = get_tools_sync()
-# syncing with qdrant vdB for sematic search
-ALL_TOOLS.append(semantic_search_products) 
+ALL_TOOLS.append(semantic_search_products)
+
 _MCP_SESSION_ID = get_mcp_session_id()
-# ── Observability ────────────────────────────────────────────────────────────
+
+# Warm up Qdrant collection once at startup — not on every request (fix #1)
+try:
+    ensure_user_collection()
+except Exception as _qdrant_init_err:
+    logging.getLogger("sap_agent").warning(
+        "Qdrant collection init failed at startup: %s — will retry on first use",
+        _qdrant_init_err,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OBSERVABILITY
+# ─────────────────────────────────────────────────────────────────────────────
+
 logging.basicConfig(
     level=getattr(logging, CONFIG.observability.log_level),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("sap_agent")
 
-# Force DEBUG on the tools logger so token diagnostics always show in dev
 if os.getenv("SAP_STATIC_TOKEN"):
     logging.getLogger("sap_agent.tools").setLevel(logging.DEBUG)
 
-# Enable LangSmith tracing if configured
 if CONFIG.observability.tracing_backend == "langsmith":
     os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
     os.environ.setdefault("LANGCHAIN_PROJECT", CONFIG.observability.langsmith_project)
@@ -66,7 +86,6 @@ if CONFIG.observability.tracing_backend == "langsmith":
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _is_ssl_error(exc: BaseException) -> bool:
-    """Return True if the exception chain contains an SSL certificate error."""
     cause = exc.__cause__ or exc
     return (
         isinstance(cause, ssl.SSLError)
@@ -76,27 +95,16 @@ def _is_ssl_error(exc: BaseException) -> bool:
 
 
 def _log_ssl_error(exc: BaseException, context: str, url: str = "") -> None:
-    """
-    Emit a structured, actionable log entry for SSL failures so they are easy
-    to find in log aggregators (grep for 'SSL_ERROR').
-    """
     cause = exc.__cause__ or exc
     logger.error(
-        "🔒 SSL_ERROR | context=%s | url=%s | error=%s\n"
-        "   ── Diagnosis ────────────────────────────────────────────\n"
+        "SSL_ERROR | context=%s | url=%s | error=%s\n"
         "   OpenSSL version : %s\n"
         "   CA file         : %s\n"
         "   CA path         : %s\n"
-        "   ── Likely fixes ─────────────────────────────────────────\n"
-        "   1. Corporate proxy with SSL inspection → add proxy CA cert:\n"
-        "         cp proxy-ca.crt /usr/local/share/ca-certificates/\n"
-        "         update-ca-certificates\n"
-        "   2. Missing/outdated CA bundle:\n"
-        "         pip install --upgrade certifi\n"
-        "         export SSL_CERT_FILE=$(python -m certifi)\n"
-        "         export REQUESTS_CA_BUNDLE=$(python -m certifi)\n"
-        "   3. SAP uses self-signed cert → set SAP_SSL_VERIFY=false (dev only)\n"
-        "   ─────────────────────────────────────────────────────────",
+        "   Likely fixes:\n"
+        "   1. Corporate proxy with SSL inspection -> add proxy CA cert\n"
+        "   2. Missing/outdated CA bundle: pip install --upgrade certifi\n"
+        "   3. SAP uses self-signed cert -> set SAP_SSL_VERIFY=false (dev only)",
         context,
         url or "(unknown)",
         cause,
@@ -108,94 +116,50 @@ def _log_ssl_error(exc: BaseException, context: str, url: str = "") -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# OVERLOAD / RATE-LIMIT RETRY
+# LLM RETRY (overload / transient errors)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# How many times to retry on 529 overloaded_error before giving up
-_OVERLOAD_MAX_RETRIES = int(os.getenv("ANTHROPIC_OVERLOAD_RETRIES", "4"))
-# Base delay in seconds for exponential backoff (doubles each attempt + jitter)
-_OVERLOAD_BASE_DELAY  = float(os.getenv("ANTHROPIC_OVERLOAD_BASE_DELAY", "2.0"))
+_OVERLOAD_MAX_RETRIES = int(os.getenv("LLM_OVERLOAD_RETRIES", "4"))
+_OVERLOAD_BASE_DELAY  = float(os.getenv("LLM_OVERLOAD_BASE_DELAY", "2.0"))
 
 
 def _is_overload_error(exc: BaseException) -> bool:
-    """Return True if Anthropic responded with an overloaded_error (HTTP 529)."""
-    err_str = str(exc)
+    err = str(exc)
     return (
-        "overloaded_error" in err_str
-        or "Overloaded" in err_str
+        "overloaded_error" in err
+        or "Overloaded" in err
         or getattr(exc, "status_code", None) == 529
     )
 
 
 def _llm_invoke_with_retry(llm, messages, config):
-    """
-    Invoke the LLM with exponential backoff for overloaded_error (529).
 
-    Retry schedule (default): 2s, 4s, 8s, 16s  → total wait up to ~30s.
-    Each delay has ±25% jitter to avoid thundering-herd on shared infra.
-    All other exceptions are re-raised immediately.
-    """
     last_exc = None
     for attempt in range(_OVERLOAD_MAX_RETRIES + 1):
         try:
             return llm.invoke(messages, config=config)
         except Exception as exc:
             if not _is_overload_error(exc):
-                raise  # non-overload errors bubble up immediately
-
+                raise
             last_exc = exc
             if attempt == _OVERLOAD_MAX_RETRIES:
-                break  # exhausted retries
-
-            delay = _OVERLOAD_BASE_DELAY * (2 ** attempt)
-            jitter = delay * 0.25 * (2 * random.random() - 1)   # ±25%
+                break
+            delay  = _OVERLOAD_BASE_DELAY * (2 ** attempt)
+            jitter = delay * 0.25 * (2 * random.random() - 1)
             wait   = round(delay + jitter, 2)
-
             logger.warning(
-                "⚠️  Anthropic overloaded | attempt=%d/%d | retrying in %.1fs",
+                "LLM overloaded | attempt=%d/%d | retrying in %.1fs",
                 attempt + 1, _OVERLOAD_MAX_RETRIES, wait,
             )
             time.sleep(wait)
 
-    logger.error(
-        "❌ Anthropic still overloaded after %d retries — giving up",
-        _OVERLOAD_MAX_RETRIES,
-    )
+    logger.error("LLM still overloaded after %d retries — giving up", _OVERLOAD_MAX_RETRIES)
     raise last_exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 1 — Claude API via ChatAnthropic (correct model, caching, streaming)
+# LLM SETUP
 # ─────────────────────────────────────────────────────────────────────────────
-
-# API-level rate limiter (respect Anthropic tier limits)
-# _anthropic_rate_limiter = InMemoryRateLimiter(
-#     requests_per_second=0.5,     # 30 RPM = 0.5/s (adjust to your tier)
-#     check_every_n_seconds=0.1,
-#     max_bucket_size=10,
-# )
-
-# _llm = ChatAnthropic(
-#     base_url="https://api.anthropic.com",
-#     model="claude-haiku-4-5",               # "claude-sonnet-4-6"
-#     anthropic_api_key="YOUR_ANTHROPIC_API_KEY_HERE",
-#     max_tokens=CONFIG.claude.max_tokens,
-#     temperature=CONFIG.claude.temperature,
-#     timeout=CONFIG.claude.timeout_seconds,
-#     max_retries=CONFIG.claude.max_retries,
-#     streaming=CONFIG.claude.streaming,
-#     rate_limiter=_anthropic_rate_limiter,
-#     # Prompt caching: mark system prompt as cacheable (saves ~90% on repeat calls)
-#     # Uses cache_control beta — automatically handled by langchain-anthropic >= 0.3
-#     default_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-# )
-
-# """_llm = ChatOllama(
-#     model="mistral:latest",   # or whatever name shows in `ollama list`
-#     base_url="http://localhost:11434",
-#     temperature=CONFIG.claude.temperature,
-#     num_predict=CONFIG.claude.max_tokens,
-# )"""
 
 _llm = ChatOllama(
     model=os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
@@ -204,24 +168,24 @@ _llm = ChatOllama(
     num_predict=CONFIG.claude.max_tokens,
 )
 
-
 _llm_with_tools = _llm.bind_tools(ALL_TOOLS)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 2 — Typed State with all necessary fields
+# TYPED STATE
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ShoppingState(TypedDict):
     # Core conversation
     messages: Annotated[list[BaseMessage], add_messages]
+
     # SAP session
     access_token: Optional[str]
-    user_id: str                  # "current" | "anonymous"
+    user_id: str                    
     cart_id: Optional[str]
     order_code: Optional[str]
     username: Optional[str]
-    mcp_session_id: Optional[str]  # MCP token vault session_id
+    mcp_session_id: Optional[str]
 
     # Observability / cost
     session_id: str
@@ -234,12 +198,15 @@ class ShoppingState(TypedDict):
     consecutive_errors: int
     rejected_tool_calls: Optional[list[str]]
 
+    # Collaborative Filtering
+    cf_recommendations: Optional[list[dict]]
+    last_added_product: Optional[str]
+    last_saved_query: Optional[str]  
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 3 — System Prompt (structured for prompt caching)
+# SYSTEM PROMPT
 # ─────────────────────────────────────────────────────────────────────────────
-# The static portion goes first — this is what gets cached.
-# Dynamic state is injected separately each turn.
 
 _STATIC_SYSTEM = """
 You are a helpful SAP Commerce Cloud shopping assistant with access to tools
@@ -248,7 +215,7 @@ for searching products, managing carts, and completing purchases.
 ## Your capabilities
 - Search and browse the product catalog
 - Add products to the shopping cart
-- Complete checkout (address → delivery mode → payment → order)
+- Complete checkout (address -> delivery mode -> payment -> order)
 - Work as a guest OR as an authenticated user
 
 ## Strict rules
@@ -259,14 +226,13 @@ for searching products, managing carts, and completing purchases.
 5. If a tool returns success=false, explain the issue clearly and offer alternatives.
 6. Keep responses concise. Show prices, product names, and next steps clearly.
 7. NEVER ask the user for their access_token, password, or any credentials.
-   You do not handle login — the login form in the UI does that securely.
 
 ## Login behaviour
 - You CANNOT log users in. Login is handled by the UI login form, not by you.
 - If the user asks to log in, say:
-  "Please use the **Login** button in the top right corner to sign in.
+  "Please use the Login button in the top right corner to sign in.
    Once you're logged in, I'll automatically have access to your account."
-- If the user is already authenticated (check "Authenticated: Yes" in session below),
+- If already authenticated (check "Authenticated: Yes" in session below),
   greet them by name and proceed normally.
 - Never suggest sharing tokens, passwords, or credentials in chat.
 
@@ -278,16 +244,23 @@ for searching products, managing carts, and completing purchases.
 1. set_delivery_address
 2. set_delivery_mode  (default: standard-gross)
 3. set_payment_details
-4. CONFIRM with user → place_order
+4. CONFIRM with user -> place_order
 """.strip()
 
 
 def _build_system_message(state: ShoppingState) -> SystemMessage:
-    """Combine static (cached) prompt with dynamic session context."""
-    username = state.get("username")
+    """Combine static (cache-friendly) prompt with dynamic session context."""
+    username      = state.get("username")
     authenticated = bool(state.get("access_token")) and state.get("user_id") == "current"
+    mcp_session   = state.get("mcp_session_id") or _MCP_SESSION_ID
 
-    mcp_session = state.get("mcp_session_id") or _MCP_SESSION_ID
+    # Inject all CF recommendations (up to 5) for maximum LLM signal (#9)
+    cf_recs    = state.get("cf_recommendations") or []
+    cf_section = ""
+    if cf_recs:
+        items      = ", ".join(r["item"] for r in cf_recs[:5])
+        cf_section = f"\n- CF suggestions (similar users liked): {items}"
+
     dynamic = f"""
 ## Current session
 - Authenticated : {"Yes — logged in as " + username if authenticated else "No (guest)"}
@@ -295,61 +268,52 @@ def _build_system_message(state: ShoppingState) -> SystemMessage:
 - Cart ID       : {state.get("cart_id") or "Not created yet"}
 - Session ID    : {mcp_session or "Not available — call account_login or guest_token first"}
 - Turn          : {state.get("turn_count", 0)}
+{cf_section}
 
 IMPORTANT: When calling tools that require session_id, always use: {mcp_session}
+If CF suggestions are present, proactively mention them when relevant.
 """.strip()
+
     return SystemMessage(content=_STATIC_SYSTEM + "\n\n" + dynamic)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 4 — Context Window Management (trim old messages)
+# CONTEXT WINDOW MANAGEMENT
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     """
     Prevent context overflow while keeping tool call / tool result pairs intact.
-
-    Anthropic's API requires that every ToolMessage (tool_result) is immediately
-    preceded by the AIMessage (tool_use) that produced it. trim_messages() can
-    split these pairs when truncating, causing a 400 BadRequestError.
-
     Strategy:
-    1. Always keep the last MAX_MESSAGES messages as a hard fallback.
-    2. Walk forward from the trim point and skip forward until we land on a
-       HumanMessage — never start mid tool-call/result pair.
+    1. Keep the last MAX_MESSAGES messages.
+    2. Walk forward to the first HumanMessage so we never start mid-pair.
+    3. Drop any leading ToolMessages that have no preceding AIMessage.
+    4. Run _validate_tool_message_pairs as a final safety net.
     """
     max_msgs = CONFIG.resilience.max_messages_in_context
 
     if len(messages) <= max_msgs:
-        # Even if we don't trim, validate the message structure
         validated = _validate_tool_message_pairs(messages)
         logger.debug(
-            "_trim_context | no trimming needed | original=%d → validated=%d",
-            len(messages), len(validated)
+            "_trim_context | no trimming needed | original=%d -> validated=%d",
+            len(messages), len(validated),
         )
         return validated
 
-    # Take the last max_msgs messages
     trimmed = messages[-max_msgs:]
 
-    # Walk forward until we find a safe start point (HumanMessage).
-    # This ensures we never start with an orphaned ToolMessage or AIMessage
-    # that has tool_calls without the preceding context.
     for i, msg in enumerate(trimmed):
         if isinstance(msg, HumanMessage):
             trimmed = trimmed[i:]
             break
 
-    # Final safety check: if the first message is a ToolMessage, something
-    # is still wrong — drop messages until it isn't.
     while trimmed and isinstance(trimmed[0], ToolMessage):
         trimmed = trimmed[1:]
 
-    # Validate tool call/result pairs
     safe = _validate_tool_message_pairs(trimmed)
 
     logger.debug(
-        "_trim_context | original=%d → trimmed=%d → safe=%d",
+        "_trim_context | original=%d -> trimmed=%d -> safe=%d",
         len(messages), len(trimmed), len(safe),
     )
     return safe
@@ -357,83 +321,56 @@ def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
 
 def _validate_tool_message_pairs(messages: list[BaseMessage]) -> list[BaseMessage]:
     """
-    Ensure every AIMessage with tool_calls is followed by corresponding ToolMessages,
-    and every ToolMessage has a preceding AIMessage with matching tool_call.
+    Ensure every AIMessage with tool_calls is followed by the matching
+    ToolMessages, and every ToolMessage has a preceding AIMessage.
+    Orphaned ToolMessages and unmatched tool_calls are removed and logged.
     """
-    safe = []
-    pending_tool_calls = {}  # tool_call_id -> tool_call
+    safe               = []
+    pending_tool_calls: dict[str, Any] = {}
 
-    for i, msg in enumerate(messages):
+    for msg in messages:
         if isinstance(msg, AIMessage):
             if msg.tool_calls:
-                # Track tool calls that need results
                 for tc in msg.tool_calls:
                     pending_tool_calls[tc["id"]] = tc
-                safe.append(msg)
-            else:
-                safe.append(msg)
+            safe.append(msg)
 
         elif isinstance(msg, ToolMessage):
             tool_call_id = getattr(msg, "tool_call_id", None)
             if tool_call_id and tool_call_id in pending_tool_calls:
-                # This ToolMessage matches a pending tool call
                 safe.append(msg)
                 del pending_tool_calls[tool_call_id]
             else:
                 logger.warning(
-                    "_validate_tool_message_pairs | dropping orphaned ToolMessage tool_call_id=%s",
+                    "_validate_tool_message_pairs | dropping orphaned ToolMessage "
+                    "tool_call_id=%s",
                     tool_call_id or "?",
                 )
-
         else:
-            # HumanMessage, SystemMessage, etc.
             safe.append(msg)
 
-    # Check for unmatched tool calls
+    # Clean up any AIMessages whose tool_calls were never answered
     if pending_tool_calls:
         logger.error(
-            "_validate_tool_message_pairs | found %d unmatched tool_calls: %s | cleaning up...",
+            "_validate_tool_message_pairs | %d unmatched tool_calls: %s | cleaning up",
             len(pending_tool_calls),
-            list(pending_tool_calls.keys())
+            list(pending_tool_calls.keys()),
         )
-        # Remove AIMessages with unmatched tool calls to prevent API errors
         final_safe = []
         for msg in safe:
             if isinstance(msg, AIMessage) and msg.tool_calls:
-                # Keep only tool calls that have results
-                matched_tool_calls = [
-                    tc for tc in msg.tool_calls
-                    if tc["id"] not in pending_tool_calls
-                ]
-                if matched_tool_calls:
-                    # Create new message with only matched tool calls
-                    new_msg = AIMessage(
-                        content=msg.content,
-                        tool_calls=matched_tool_calls,
-                        id=msg.id,
-                    )
-                    final_safe.append(new_msg)
-                    logger.debug(
-                        "_validate_tool_message_pairs | kept %d/%d tool calls for message %s",
-                        len(matched_tool_calls), len(msg.tool_calls), msg.id
+                matched = [tc for tc in msg.tool_calls if tc["id"] not in pending_tool_calls]
+                if matched:
+                    final_safe.append(
+                        AIMessage(content=msg.content, tool_calls=matched, id=msg.id)
                     )
                 else:
-                    # If no tool calls remain, create message without tool calls
-                    new_msg = AIMessage(
-                        content=msg.content,
-                        id=msg.id,
-                    )
-                    final_safe.append(new_msg)
-                    logger.debug(
-                        "_validate_tool_message_pairs | removed all tool calls from message %s",
-                        msg.id
-                    )
+                    final_safe.append(AIMessage(content=msg.content, id=msg.id))
             else:
                 final_safe.append(msg)
-
         logger.info(
-            "_validate_tool_message_pairs | cleanup complete | removed %d unmatched tool calls",
-            len(pending_tool_calls)
+            "_validate_tool_message_pairs | cleanup complete | removed %d unmatched calls",
+            len(pending_tool_calls),
         )
         return final_safe
 
@@ -441,54 +378,51 @@ def _validate_tool_message_pairs(messages: list[BaseMessage]) -> list[BaseMessag
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 5 — Token / Cost Tracking
+# TOKEN TRACKING  (Ollama-aware — fix #6)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TokenTracker:
-    # Approximate pricing for claude-sonnet-4-6 (check docs.anthropic.com for latest)
-    INPUT_COST_PER_1K  = 0.003   # USD
-    OUTPUT_COST_PER_1K = 0.015   # USD
-    CACHE_READ_PER_1K  = 0.0003  # 90% cheaper
+    """
+    Tracks token usage from Ollama response metadata.
+
+    Ollama exposes token counts in response_metadata, not usage_metadata.
+    Keys used: "prompt_eval_count" (input) and "eval_count" (output).
+    """
 
     @staticmethod
     def update(state: ShoppingState, response: AIMessage) -> dict:
+        # Prefer usage_metadata (Anthropic / OpenAI) then fall back to
+        # response_metadata (Ollama).
         usage = response.usage_metadata or {}
-        in_tokens  = usage.get("input_tokens", 0)
-        out_tokens = usage.get("output_tokens", 0)
-        cached     = usage.get("cache_read_input_tokens", 0)
+        if not usage:
+            meta    = getattr(response, "response_metadata", {}) or {}
+            in_tok  = meta.get("prompt_eval_count", 0)
+            out_tok = meta.get("eval_count", 0)
+        else:
+            in_tok  = usage.get("input_tokens", 0)
+            out_tok = usage.get("output_tokens", 0)
 
-        new_in  = state.get("total_input_tokens", 0) + in_tokens
-        new_out = state.get("total_output_tokens", 0) + out_tokens
+        new_in  = state.get("total_input_tokens",  0) + in_tok
+        new_out = state.get("total_output_tokens", 0) + out_tok
 
-        # Cost estimate
-        cost = (
-            (in_tokens  / 1000) * TokenTracker.INPUT_COST_PER_1K +
-            (out_tokens / 1000) * TokenTracker.OUTPUT_COST_PER_1K +
-            (cached     / 1000) * TokenTracker.CACHE_READ_PER_1K
-        )
-
-        # Session budget alert
         if new_in > CONFIG.cost.session_token_budget:
-            logger.warning("⚠️  Session token budget exceeded: %d tokens", new_in)
+            logger.warning("Session token budget exceeded: %d tokens", new_in)
 
         logger.info(
-            "tokens | session=%s in=%d out=%d cached=%d cost_usd=%.4f",
-            state.get("session_id", "?"), new_in, new_out, cached, cost,
+            "tokens | session=%s in=%d out=%d",
+            state.get("session_id", "?"), new_in, new_out,
         )
 
-        return {
-            "total_input_tokens": new_in,
-            "total_output_tokens": new_out,
-        }
+        return {"total_input_tokens": new_in, "total_output_tokens": new_out}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 6 — Circuit Breaker for SAP API calls
+# CIRCUIT BREAKER
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CircuitBreaker:
     def __init__(self):
-        self._failures = 0
+        self._failures  = 0
         self._opened_at: Optional[float] = None
 
     @property
@@ -496,14 +430,14 @@ class CircuitBreaker:
         if self._opened_at is None:
             return False
         if time.time() - self._opened_at > CONFIG.resilience.circuit_breaker_timeout:
-            self._failures = 0
+            self._failures  = 0
             self._opened_at = None
             logger.info("Circuit breaker reset (half-open)")
             return False
         return True
 
     def record_success(self):
-        self._failures = 0
+        self._failures  = 0
         self._opened_at = None
 
     def record_failure(self):
@@ -517,23 +451,49 @@ sap_circuit_breaker = CircuitBreaker()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CATEGORY EXTRACTION  (compiled regex — fix #5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CATEGORY_MAP: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\btyre|tire\b",       re.I), "tyres"),
+    (re.compile(r"\bwheel\b",           re.I), "wheels"),
+    (re.compile(r"\bcamera\b",          re.I), "cameras"),
+    (re.compile(r"\blens\b",            re.I), "lenses"),
+    (re.compile(r"\boil\b",             re.I), "engine_oil"),
+    (re.compile(r"\bengine\b",          re.I), "engine"),
+    (re.compile(r"\balignment\b",       re.I), "alignment"),
+    (re.compile(r"\bservice\b",         re.I), "service"),
+    (re.compile(r"\bmud\b",             re.I), "accessories"),
+    (re.compile(r"\boffroad|off.road\b",re.I), "off_road"),
+    (re.compile(r"\bbattery|batteries\b",re.I),"battery"),
+    (re.compile(r"\bbrake|brakes\b",    re.I), "brakes"),
+    (re.compile(r"\bfilter\b",          re.I), "filters"),
+]
+
+
+def _extract_category(text: str) -> str:
+    for pattern, cat in _CATEGORY_MAP:
+        if pattern.search(text):
+            return cat
+    return "general"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GRAPH NODES
 # ─────────────────────────────────────────────────────────────────────────────
 
 def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
     """
     Main reasoning node.
-    - Builds context-aware system prompt
-    - Trims context window
-    - Calls Claude with tool binding
-    - Tracks tokens
+    - Builds context-aware system prompt (with CF recommendations).
+    - Trims context window and validates tool-call pairs.
+    - Calls LLM with tool binding and tracks token usage.
     """
     session_id = state.get("session_id", "?")
 
-    # Check circuit breaker
     if sap_circuit_breaker.is_open:
         logger.warning(
-            "agent_node | session=%s | circuit breaker is OPEN — skipping LLM call",
+            "agent_node | session=%s | circuit breaker OPEN — skipping LLM call",
             session_id,
         )
         return {
@@ -548,78 +508,16 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
     trimmed    = _trim_context(state["messages"])
     all_msgs   = [system_msg] + trimmed
 
-    # Debug tool call/result pairing before sending to Claude
-    tool_call_debug = []
-    for i, msg in enumerate(all_msgs):
-        if isinstance(msg, AIMessage) and msg.tool_calls:
-            tool_call_debug.append(f"AI#{i}: {[tc['id'][:8] for tc in msg.tool_calls]}")
-        elif isinstance(msg, ToolMessage):
-            tool_call_id = getattr(msg, "tool_call_id", "?")
-            tool_call_debug.append(f"Tool#{i}: {tool_call_id[:8] if tool_call_id != '?' else '?'}")
-
     logger.debug(
-        "agent_node | session=%s | turn=%d | messages_in_context=%d | tool_flow=%s",
+        "agent_node | session=%s | turn=%d | messages_in_context=%d",
         session_id,
         state.get("turn_count", 0),
         len(all_msgs),
-        " → ".join(tool_call_debug) if tool_call_debug else "no_tools",
     )
 
-    # Additional debugging for unmatched tool calls
-    unmatched_calls = []
-    pending_calls = {}
-    for msg in all_msgs:
-        if isinstance(msg, AIMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
-                pending_calls[tc["id"]] = tc["name"]
-        elif isinstance(msg, ToolMessage):
-            tool_call_id = getattr(msg, "tool_call_id", None)
-            if tool_call_id and tool_call_id in pending_calls:
-                del pending_calls[tool_call_id]
-
-    if pending_calls:
-        logger.error(
-            "agent_node | session=%s | CRITICAL: About to send unmatched tool calls to Claude: %s | EMERGENCY CLEANUP",
-            session_id, list(pending_calls.keys())
-        )
-        # Log the actual messages being sent for debugging
-        for i, msg in enumerate(all_msgs[-10:]):  # Last 10 messages
-            if isinstance(msg, AIMessage) and msg.tool_calls:
-                logger.error("agent_node | msg[%d] AIMessage tool_calls: %s", i, [tc["id"] for tc in msg.tool_calls])
-            elif isinstance(msg, ToolMessage):
-                logger.error("agent_node | msg[%d] ToolMessage tool_call_id: %s", i, getattr(msg, "tool_call_id", "?"))
-
-        # EMERGENCY: Remove problematic tool calls to prevent API error
-        cleaned_msgs = []
-        for msg in all_msgs:
-            if isinstance(msg, AIMessage) and msg.tool_calls:
-                # Remove unmatched tool calls
-                safe_tool_calls = [tc for tc in msg.tool_calls if tc["id"] not in pending_calls]
-                if safe_tool_calls:
-                    cleaned_msgs.append(AIMessage(
-                        content=msg.content,
-                        tool_calls=safe_tool_calls,
-                        id=msg.id,
-                    ))
-                else:
-                    # Remove tool calls entirely
-                    cleaned_msgs.append(AIMessage(
-                        content=msg.content,
-                        id=msg.id,
-                    ))
-            else:
-                cleaned_msgs.append(msg)
-
-        all_msgs = cleaned_msgs
-        logger.warning("agent_node | session=%s | Emergency cleanup applied - removed %d unmatched tool calls",
-                      session_id, len(pending_calls))
-
     try:
-        response = _llm_invoke_with_retry(_llm_with_tools, all_msgs, config)
-
-        # Token tracking
+        response      = _llm_invoke_with_retry(_llm_with_tools, all_msgs, config)
         token_updates = TokenTracker.update(state, response)
-
         sap_circuit_breaker.record_success()
 
         logger.debug(
@@ -629,25 +527,22 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
         )
 
         return {
-            "messages": [response],
-            "turn_count": state.get("turn_count", 0) + 1,
-            "last_error": None,
+            "messages":          [response],
+            "turn_count":        state.get("turn_count", 0) + 1,
+            "last_error":        None,
             "consecutive_errors": 0,
             **token_updates,
         }
 
     except Exception as exc:
-        # ── Classify the error before touching the circuit breaker ────────────
         if _is_overload_error(exc):
-            # Overload is an Anthropic-side capacity issue, NOT a SAP failure.
-            # Do NOT trip the circuit breaker — just surface a friendly message.
             logger.error(
-                "agent_node | Anthropic overloaded (529) after %d retries | session=%s",
+                "agent_node | LLM overloaded after %d retries | session=%s",
                 _OVERLOAD_MAX_RETRIES, session_id,
             )
             audit("API_ERROR", session_id, {
-                "error": "overloaded_error",
-                "context": "anthropic_llm_call",
+                "error":            "overloaded_error",
+                "context":          "llm_call",
                 "retries_exhausted": _OVERLOAD_MAX_RETRIES,
             })
             return {
@@ -655,45 +550,36 @@ def agent_node(state: ShoppingState, config: RunnableConfig) -> dict:
                     "The AI service is currently under heavy load. "
                     "Please wait a moment and try again."
                 ))],
-                "last_error": "overloaded_error",
+                "last_error":        "overloaded_error",
                 "consecutive_errors": state.get("consecutive_errors", 0),
-                # Don't increment consecutive_errors — not a code bug
             }
 
         if _is_ssl_error(exc):
-            _log_ssl_error(exc, context="anthropic_llm_call", url="https://api.anthropic.com")
-            audit("API_ERROR", session_id, {
-                "error": str(exc.__cause__ or exc),
-                "context": "anthropic_llm_call",
-                "ssl": True,
-            })
+            _log_ssl_error(exc, context="llm_call")
+            audit("API_ERROR", session_id, {"error": str(exc.__cause__ or exc), "ssl": True})
         else:
-            logger.exception(
-                "agent_node | LLM call failed | session=%s | error=%s",
-                session_id, exc,
-            )
+            logger.exception("agent_node | LLM call failed | session=%s", session_id)
 
-        # Only trip circuit breaker for genuine failures (not overload/SSL)
         sap_circuit_breaker.record_failure()
 
         consecutive = state.get("consecutive_errors", 0) + 1
-        if consecutive >= 3:
-            msg = "I'm experiencing repeated issues. Please contact support."
-        else:
-            msg = f"I hit a snag ({type(exc).__name__}). Let me try again — could you rephrase?"
+        msg = (
+            "I'm experiencing repeated issues. Please contact support."
+            if consecutive >= 3
+            else f"I hit a snag ({type(exc).__name__}). Could you rephrase?"
+        )
 
         return {
-            "messages": [AIMessage(content=msg)],
-            "last_error": str(exc),
+            "messages":          [AIMessage(content=msg)],
+            "last_error":        str(exc),
             "consecutive_errors": consecutive,
         }
 
 
 def human_approval_node(state: ShoppingState) -> dict:
     """
-    FACTOR 7 — Human-in-the-loop (LangGraph interrupt).
+    Human-in-the-loop (LangGraph interrupt).
     Pauses graph execution before place_order and waits for explicit approval.
-    In production: integrate with your UI via LangGraph Cloud / Server API.
     """
     last = state["messages"][-1]
     if not isinstance(last, AIMessage) or not last.tool_calls:
@@ -703,13 +589,12 @@ def human_approval_node(state: ShoppingState) -> dict:
 
     for tc in last.tool_calls:
         if tc["name"] == "place_order":
-            # Pause and send to client for approval
-            cart_id = tc["args"].get("cart_id", "?")
+            cart_id  = tc["args"].get("cart_id", "?")
             approval = interrupt({
-                "type": "order_confirmation",
-                "message": f"Ready to place order for cart {cart_id}. Confirm?",
+                "type":         "order_confirmation",
+                "message":      f"Ready to place order for cart {cart_id}. Confirm?",
                 "tool_call_id": tc["id"],
-                "args": tc["args"],
+                "args":         tc["args"],
             })
             if not approval.get("approved"):
                 audit("ORDER_REJECTED", state.get("session_id", "?"), tc["args"])
@@ -717,16 +602,12 @@ def human_approval_node(state: ShoppingState) -> dict:
             else:
                 audit("ORDER_APPROVED", state.get("session_id", "?"), tc["args"])
 
-    # Store rejected tool calls in state for the tools node to handle
-    if rejected_tool_calls:
-        return {"rejected_tool_calls": rejected_tool_calls}
-
-    return {}
+    return {"rejected_tool_calls": rejected_tool_calls} if rejected_tool_calls else {}
 
 
 def state_sync_node(state: ShoppingState) -> dict:
-    """Scan tool results and persist important state fields."""
-    updates: dict = {}
+    """Scan the most recent tool results and persist important state fields."""
+    updates    = {}
     session_id = state.get("session_id", "?")
 
     for msg in reversed(state["messages"]):
@@ -736,115 +617,242 @@ def state_sync_node(state: ShoppingState) -> dict:
             result = json.loads(msg.content)
         except (json.JSONDecodeError, TypeError):
             logger.warning(
-                "state_sync_node | session=%s | could not parse ToolMessage as JSON: %r",
+                "state_sync_node | session=%s | non-JSON ToolMessage: %r",
                 session_id, msg.content[:200],
             )
             continue
 
         if not result.get("success"):
-            # Check if the tool failure was SSL-related
             error_str = str(result.get("error", ""))
             if "CERTIFICATE_VERIFY_FAILED" in error_str or "SSL" in error_str.upper():
                 logger.error(
-                    "🔒 SSL_ERROR | context=tool_result | session=%s | tool_call_id=%s | error=%s\n"
-                    "   This means a SAP Commerce API call failed due to SSL.\n"
-                    "   Check the tool that produced tool_call_id=%s for the exact URL.",
-                    session_id, msg.tool_call_id, error_str, msg.tool_call_id,
+                    "SSL_ERROR | context=tool_result | session=%s | error=%s",
+                    session_id, error_str,
                 )
                 audit("API_ERROR", session_id, {
-                    "error": error_str,
-                    "context": "sap_tool_call",
+                    "error":        error_str,
+                    "context":      "sap_tool_call",
                     "tool_call_id": msg.tool_call_id,
-                    "ssl": True,
+                    "ssl":          True,
                 })
             else:
                 logger.warning(
-                    "state_sync_node | session=%s | tool_call_id=%s | success=false | error=%s",
+                    "state_sync_node | session=%s | tool_call_id=%s | error=%s",
                     session_id, msg.tool_call_id, error_str or result,
                 )
             sap_circuit_breaker.record_failure()
             continue
 
         sap_circuit_breaker.record_success()
+
         if "access_token" in result:
             updates["access_token"] = result["access_token"]
         if "username" in result:
             updates["username"] = result["username"]
-            updates["user_id"] = "current"
-        # create_cart returns cart_id (guid for anonymous, code for authenticated)
+            updates["user_id"]  = "current"
         if result.get("cart_id"):
             updates["cart_id"] = result["cart_id"]
-        # Also persist user_id returned by create_cart (anonymous vs current)
         if result.get("user_id") and "username" not in result:
             updates["user_id"] = result["user_id"]
         if "order_code" in result:
             updates["order_code"] = result["order_code"]
+        if result.get("entry_number") is not None and result.get("success"):
+            updates["last_added_product"] = result.get("product_code", "")
 
     if updates:
-        logger.debug("state_sync_node | session=%s | state updates=%s", session_id, list(updates.keys()))
+        logger.debug(
+            "state_sync_node | session=%s | updated fields=%s",
+            session_id, list(updates.keys()),
+        )
 
     return updates
 
 
-# Pre-built ToolNode
+def memory_node(state: ShoppingState) -> dict:
+    """
+    Memory + Collaborative Filtering node — runs after every completed turn.
+
+    1. Find the last human message.
+    2. Skip if it's the same as the last saved query (de-dup — fix #7).
+    3. Save add_to_cart interactions from tool results.
+    4. Save search interactions based on keyword heuristics.
+    5. Fetch updated CF recommendations for the next turn.
+
+    All Qdrant calls are individually wrapped in try/except so a storage
+    failure never crashes a turn (fix #2).
+    """
+    username   = state.get("username") or "anonymous"
+    messages   = state.get("messages", [])
+    session_id = state.get("session_id", "?")
+
+    # Find the last human message
+    last_human = ""
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            last_human = msg.content if isinstance(msg.content, str) else str(msg.content)
+            break
+
+    if not last_human:
+        logger.debug("memory_node | session=%s | no human message, skipping", session_id)
+        return {}
+
+    # De-duplicate: skip if this query was already saved this session (#7)
+    if last_human == state.get("last_saved_query"):
+        logger.debug(
+            "memory_node | session=%s | duplicate query skipped for user=%s",
+            session_id, username,
+        )
+    else:
+        category = _extract_category(last_human)
+
+        # Check most recent ToolMessage for an add_to_cart result
+        for msg in reversed(messages):
+            if isinstance(msg, ToolMessage):
+                try:
+                    result = json.loads(msg.content)
+                    if result.get("success") and result.get("entry_number") is not None:
+                        try:
+                            save_user_interaction(username, {
+                                "action":       "add_to_cart",
+                                "query":        last_human,
+                                "product_code": state.get("last_added_product") or "",
+                                "category":     category,
+                            })
+                            logger.debug(
+                                "memory_node | session=%s | saved add_to_cart for user=%s",
+                                session_id, username,
+                            )
+                        except Exception as save_err:
+                            logger.warning(
+                                "memory_node | session=%s | save_user_interaction failed: %s",
+                                session_id, save_err,
+                            )
+                except Exception as parse_err:
+                    logger.warning(
+                        "memory_node | session=%s | tool result parse error: %s",
+                        session_id, parse_err,
+                    )
+                break  # only inspect the most recent ToolMessage
+
+        # Save search interaction
+        _SEARCH_KEYWORDS = frozenset(
+            {"search", "show", "find", "looking", "want", "need", "get",
+             "buy", "price", "cost", "available", "stock"}
+        )
+        if any(w in last_human.lower() for w in _SEARCH_KEYWORDS):
+            try:
+                save_user_interaction(username, {
+                    "action":   "search",
+                    "query":    last_human,
+                    "category": category,
+                })
+                logger.debug(
+                    "memory_node | session=%s | saved search for user=%s",
+                    session_id, username,
+                )
+            except Exception as save_err:
+                logger.warning(
+                    "memory_node | session=%s | search save failed: %s",
+                    session_id, save_err,
+                )
+
+    # Generate CF recommendations for the next turn
+    # cf_updates: dict = {"last_saved_query": last_human}
+    # try:
+    #     cf_recs = get_cf_recommendations(username, last_human, top_k=5)
+    #     if cf_recs:
+    #         logger.debug(
+    #             "memory_node | session=%s | %d CF recs for user=%s",
+    #             session_id, len(cf_recs), username,
+    #         )
+    #         cf_updates["cf_recommendations"] = cf_recs
+    # except Exception as cf_err:
+    #     logger.warning(
+    #         "memory_node | session=%s | get_cf_recommendations failed: %s",
+    #         session_id, cf_err,
+    #     )
+
+    # return cf_updates
+
+
+
+     # Generate hybrid CF+CBF recommendations for the next turn
+    cf_updates: dict = {"last_saved_query": last_human}
+    try:
+        from hybrid_recommender import get_hybrid_recommendations, hybrid_recs_for_state
+        hybrid_recs = get_hybrid_recommendations(
+            username      = username,
+            current_query = last_human,
+            top_k         = 5,
+        )
+        if hybrid_recs:
+            logger.debug(
+                "memory_node | session=%s | %d hybrid recs for user=%s",
+                session_id, len(hybrid_recs), username,
+            )
+            cf_updates["cf_recommendations"] = hybrid_recs_for_state(hybrid_recs)
+    except Exception as rec_err:
+        logger.warning(
+            "memory_node | session=%s | hybrid recommendations failed: %s",
+            session_id, rec_err,
+        )
+ 
+    return cf_updates
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TOOL NODE WITH ACCESS-TOKEN INJECTION
+# ─────────────────────────────────────────────────────────────────────────────
+
 _raw_tool_node = ToolNode(ALL_TOOLS)
 
 
 def tool_node_with_injection(state: ShoppingState) -> dict:
     """
-    Injects access_token from session state into every tool call.
-    Claude never needs to pass the token — it comes from state automatically.
+    Injects access_token from session state into every non-rejected tool call
+    so the LLM never needs to handle auth tokens directly.
     """
     last = state["messages"][-1]
     if not isinstance(last, AIMessage) or not last.tool_calls:
         return _raw_tool_node.invoke(state)
 
-    access_token = state.get("access_token") or ""
+    access_token        = state.get("access_token") or ""
+    rejected_tool_calls = state.get("rejected_tool_calls") or []
 
-    # Ensure rejected_tool_calls is always a list, never None
-    rejected_tool_calls = state.get("rejected_tool_calls")
-    if rejected_tool_calls is None:
-        rejected_tool_calls = []
+    # Produce rejection ToolMessages for cancelled calls
+    tool_results = [
+        ToolMessage(
+            content=json.dumps({"success": False, "reason": "User cancelled order."}),
+            tool_call_id=tc["id"],
+        )
+        for tc in last.tool_calls
+        if tc["id"] in rejected_tool_calls
+    ]
 
-    # Create tool results for rejected calls first
-    tool_results = []
-    for tool_call in last.tool_calls:
-        if tool_call["id"] in rejected_tool_calls:
-            tool_results.append(ToolMessage(
-                content=json.dumps({"success": False, "reason": "User cancelled order."}),
-                tool_call_id=tool_call["id"],
-            ))
-
-    # Process remaining (non-rejected) tool calls
+    # Patch access_token into surviving calls
     patched_calls = []
     for tc in last.tool_calls:
-        if tc["id"] not in rejected_tool_calls:
-            args = dict(tc.get("args", {}))
-            # ALWAYS override access_token from state — Claude may pass
-            # user_id ("current") as the token by mistake.
-            if access_token:
-                args["access_token"] = access_token
-                logger.debug("tool_injection | %s | injected access_token (len=%d)", tc.get("name"), len(access_token))
-            patched_calls.append({**tc, "args": args})
+        if tc["id"] in rejected_tool_calls:
+            continue
+        args = dict(tc.get("args", {}))
+        if access_token:
+            args["access_token"] = access_token
+            logger.debug(
+                "tool_injection | %s | injected access_token (len=%d)",
+                tc.get("name"), len(access_token),
+            )
+        patched_calls.append({**tc, "args": args})
 
-    # If all tool calls were rejected, just return the rejection messages
     if not patched_calls:
         return {"messages": tool_results, "rejected_tool_calls": None}
 
-    # Execute non-rejected tool calls
-    patched_msg = AIMessage(
-        content=last.content,
-        tool_calls=patched_calls,
-        id=last.id,
-    )
+    patched_msg   = AIMessage(content=last.content, tool_calls=patched_calls, id=last.id)
     patched_state = {**state, "messages": state["messages"][:-1] + [patched_msg]}
-    result = _raw_tool_node.invoke(patched_state)
+    result        = _raw_tool_node.invoke(patched_state)
 
-    # Add rejected tool results to the beginning of the results
     if tool_results:
         result["messages"] = tool_results + result.get("messages", [])
 
-    # Clear rejected tool calls from state
     result["rejected_tool_calls"] = None
     return result
 
@@ -854,9 +862,11 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def route_after_agent(state: ShoppingState) -> str:
-    last = state["messages"][-1]
+    msgs = state.get("messages", [])
+    if not msgs:
+        return "sync"
+    last = msgs[-1]
     if isinstance(last, AIMessage) and last.tool_calls:
-        # Check if any tool requires human approval
         for tc in last.tool_calls:
             if tc["name"] == "place_order":
                 return "human_approval"
@@ -865,8 +875,13 @@ def route_after_agent(state: ShoppingState) -> str:
 
 
 def route_after_sync(state: ShoppingState) -> str:
-    last = state["messages"][-1]
-    if isinstance(last, ToolMessage):
+    """
+    Return "agent" if there are pending tool results to process;
+    otherwise end the turn (routing to memory node via conditional edge).
+    Fix #8: guards against empty messages list.
+    """
+    msgs = state.get("messages", [])
+    if msgs and isinstance(msgs[-1], ToolMessage):
         return "agent"
     return END
 
@@ -882,6 +897,7 @@ def build_production_graph():
     g.add_node("human_approval", human_approval_node)
     g.add_node("tools",          tool_node_with_injection)
     g.add_node("sync",           state_sync_node)
+    g.add_node("memory",         memory_node)
 
     g.add_edge(START, "agent")
 
@@ -892,48 +908,56 @@ def build_production_graph():
     })
 
     g.add_edge("human_approval", "tools")
-    g.add_edge("tools", "sync")
+    g.add_edge("tools",          "sync")
 
+    # After sync: if tool results still pending → back to agent.
+    # Otherwise → memory node → END.
     g.add_conditional_edges("sync", route_after_sync, {
         "agent": "agent",
-        END:     END,
+        END:     "memory",
     })
 
-    # FACTOR 8 — Checkpointing: persist state across turns (survives restarts)
-    # In production: replace MemorySaver with AsyncSqliteSaver or RedisCheckpointer
-    checkpointer = MemorySaver()
-    return g.compile(checkpointer=checkpointer, interrupt_before=[])
+    g.add_edge("memory", END)
+
+    return g.compile(checkpointer=MemorySaver(), interrupt_before=[])
+
 
 production_graph = build_production_graph()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SESSION MANAGEMENT  (fix #3 — always define token variables)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
     """
     Create a fresh session. Returns (initial_state, thread_id).
 
-    Always bootstraps an anonymous SAP OAuth token so that tool calls
-    work immediately without requiring a login step.
+    In dev mode a SAP_STATIC_TOKEN can be set in .env to bypass OAuth.
+    In production the token is acquired by the UI login flow.
     """
     thread_id = str(uuid.uuid4())
 
-    # Allow a hardcoded token for dev/testing — set SAP_STATIC_TOKEN in .env
-    # to skip the OAuth flow entirely. Must be a password-grant token, not client_credentials.
-    # Never use this in production.
-    static_token ="8ZLSDZxna5k5IbrkAc-OAhcWs_A"
-    if static_token:
+    # Safe defaults — always defined regardless of branch taken (#3)
+    access_token      = os.getenv("SAP_STATIC_TOKEN", "")
+    resolved_user_id  = user_id
+    resolved_username = os.getenv("SAP_STATIC_USERNAME", "guest")
+
+    if access_token:
+        resolved_user_id  = "current"
+        resolved_username = os.getenv("SAP_STATIC_USERNAME", "lang-graph-user")
         logger.warning(
-            "⚠️  new_session | Using SAP_STATIC_TOKEN — dev mode only | session=%s",
+            "new_session | SAP_STATIC_TOKEN in use — dev mode only | session=%s",
             thread_id,
         )
-        access_token     = static_token
-        resolved_user_id = "current"
-        resolved_username = os.getenv("SAP_STATIC_USERNAME", "lang-graph-user")
     else:
-        logger.warning("new_session | Could not obtain SAP token | session=%s", thread_id)
+        logger.info(
+            "new_session | No static token — guest session | session=%s", thread_id
+        )
 
     init_state = ShoppingState(
         messages=[],
-        access_token=access_token,
+        access_token=access_token or None,
         user_id=resolved_user_id,
         cart_id=None,
         order_code=None,
@@ -945,38 +969,42 @@ def new_session(user_id: str = "anonymous") -> tuple[ShoppingState, str]:
         turn_count=0,
         last_error=None,
         consecutive_errors=0,
-    )
-
-    logger.info(
-        "new_session | session=%s | user_id=%s | token_len=%d | token_preview=%s",
-        thread_id,
-        resolved_user_id,
-        len(access_token) if access_token else 0,
-        (access_token[:12] + "...") if access_token and len(access_token) > 12 else repr(access_token),
-    )
-    logger.debug(
-        "new_session | full init_state keys=%s | access_token in state=%r | user_id in state=%r",
-        list(init_state.keys()),
-        init_state.get("access_token", "MISSING")[:10] if init_state.get("access_token") else "NONE",
-        init_state.get("user_id", "MISSING"),
+        rejected_tool_calls=None,
+        cf_recommendations=None,
+        last_added_product=None,
+        last_saved_query=None,  # NEW
     )
 
     audit("SESSION_START", thread_id, {
-        "user_id": resolved_user_id,
-        "token_ok": bool(access_token and len(access_token) > 20),
+        "user_id":  resolved_user_id,
+        "token_ok": bool(access_token),
     })
+
+    logger.info(
+        "new_session | session=%s | user_id=%s | authenticated=%s",
+        thread_id, resolved_user_id, bool(access_token),
+    )
+
     return init_state, thread_id
 
 
-def run_turn(user_message: str, thread_id: str,
-             state: ShoppingState,
-             approval_response: Optional[dict] = None) -> ShoppingState:
+# ─────────────────────────────────────────────────────────────────────────────
+# TURN RUNNER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_turn(
+    user_message: str,
+    thread_id: str,
+    state: ShoppingState,
+    approval_response: Optional[dict] = None,
+) -> ShoppingState:
     """
     Run one conversation turn with full security + observability pipeline.
 
-    approval_response: pass {"approved": True/False} when resuming after interrupt.
+    approval_response: pass {"approved": True/False} when resuming after
+    a human-approval interrupt.
     """
-    # ── Security middleware ──────────────────────────────────────────────────
+    # Security gate
     is_malicious, reason = detect_prompt_injection(user_message)
     if is_malicious:
         audit("INJECTION_BLOCKED", thread_id, {"reason": reason})
@@ -994,29 +1022,16 @@ def run_turn(user_message: str, thread_id: str,
         ]
         return state
 
-    clean = sanitise_input(user_message)
-
-    # ── LangGraph config (thread = session for checkpointing) ────────────────
-    lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    clean     = sanitise_input(user_message)
+    lg_config = RunnableConfig(configurable={"thread_id": thread_id})
 
     logger.debug(
-        "run_turn | thread=%s | approval_response=%s | message_len=%d",
-        thread_id,
-        bool(approval_response),
-        len(clean),
+        "run_turn | thread=%s | resuming=%s | message_len=%d",
+        thread_id, bool(approval_response), len(clean),
     )
 
-    # ── Invoke ───────────────────────────────────────────────────────────────
-    logger.debug(
-        "run_turn | thread=%s | access_token_len=%d | user_id=%s",
-        thread_id,
-        len(state.get("access_token") or ""),
-        state.get("user_id"),
-    )
     try:
         if approval_response:
-            # Resume after human interrupt — must use Command(resume=...)
-            # so LangGraph continues from the interrupted node, not restart.
             new_state = production_graph.invoke(
                 Command(resume=approval_response), config=lg_config
             )
@@ -1024,51 +1039,45 @@ def run_turn(user_message: str, thread_id: str,
             state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
             new_state = production_graph.invoke(state, config=lg_config)
 
-        # LangGraph MemorySaver merges checkpoint state on every invoke.
-        # Explicitly restore access_token from our session store so it is
-        # never overwritten by a stale checkpoint value.
+        # LangGraph MemorySaver can overwrite access_token from stale
+        # checkpoint data — restore from our in-memory session store.
         if state.get("access_token"):
             new_state["access_token"] = state["access_token"]
             new_state["user_id"]      = state.get("user_id", "current")
 
     except Exception as exc:
         if _is_ssl_error(exc):
-            _log_ssl_error(exc, context="graph_invoke", url="(SAP or Anthropic)")
-            audit("API_ERROR", thread_id, {
-                "error": str(exc.__cause__ or exc),
-                "context": "graph_invoke",
-                "ssl": True,
-            })
+            _log_ssl_error(exc, context="graph_invoke")
+            audit("API_ERROR", thread_id, {"error": str(exc.__cause__ or exc), "ssl": True})
         else:
             logger.exception("run_turn | graph.invoke failed | thread=%s", thread_id)
             audit("API_ERROR", thread_id, {"error": str(exc)})
         raise
 
     audit("TURN_COMPLETE", thread_id, {
-        "turn": new_state.get("turn_count"),
+        "turn":         new_state.get("turn_count"),
         "input_tokens": new_state.get("total_input_tokens"),
-        "output_tokens": new_state.get("total_output_tokens"),
+        "output_tokens":new_state.get("total_output_tokens"),
     })
 
     return new_state
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# RESPONSE EXTRACTION
+# ─────────────────────────────────────────────────────────────────────────────
+
 def get_last_ai_message(state: ShoppingState) -> str:
     """
-    Extract the last visible AI response as a plain string.
-
-    Claude sometimes returns content as a list of content blocks:
-        [{'type': 'text', 'text': '...', 'index': 0}, ...]
-    This helper always coerces that to a str so Pydantic serialisation
-    in api_server.py never sees a list.
+    Return the last visible AI response as a plain string.
+    Handles both str content and list-of-content-blocks (Anthropic streaming
+    format).
     """
     for msg in reversed(state.get("messages", [])):
         if isinstance(msg, AIMessage) and not msg.tool_calls:
             content = msg.content
-            # Already a plain string — most common case
             if isinstance(content, str):
                 return content
-            # List of content blocks (e.g. when tool_use is mixed in)
             if isinstance(content, list):
                 parts = []
                 for block in content:
@@ -1079,40 +1088,47 @@ def get_last_ai_message(state: ShoppingState) -> str:
                 text = "\n".join(p for p in parts if p).strip()
                 if text:
                     return text
-            # Fallback — stringify whatever we got
             logger.warning(
-                "get_last_ai_message | unexpected content type=%s value=%r",
-                type(content).__name__, str(content)[:200],
+                "get_last_ai_message | unexpected content type=%s",
+                type(content).__name__,
             )
             return str(content)
     return ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 9 — Streaming (async)
+# STREAMING (ASYNC) — fix #10
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def stream_turn(user_message: str, thread_id: str,
-                      state: ShoppingState) -> AsyncIterator[str]:
+async def stream_turn(
+    user_message: str,
+    thread_id: str,
+    state: ShoppingState,
+) -> AsyncIterator[str]:
     """
-    Async streaming turn — yields text chunks as they arrive from Claude.
+    Async streaming turn — yields text chunks as they arrive from the LLM.
     Wire into FastAPI / WebSocket for real-time UX.
     """
     clean = sanitise_input(user_message)
     state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
-    lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    lg_config = RunnableConfig(configurable={"thread_id": thread_id})
 
     async for chunk in production_graph.astream(
         state, config=lg_config, stream_mode="messages"
     ):
         if isinstance(chunk, tuple) and len(chunk) == 2:
-            msg, meta = chunk
+            msg, _meta = chunk
             if isinstance(msg, AIMessage) and msg.content:
                 yield str(msg.content)
+        else:
+            logger.debug(
+                "stream_turn | unexpected chunk structure: type=%s value=%r",
+                type(chunk).__name__, repr(chunk)[:120],
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FACTOR 10 — Graceful degradation / fallback
+# GRACEFUL DEGRADATION
 # ─────────────────────────────────────────────────────────────────────────────
 
 _FALLBACK_RESPONSES = {
@@ -1127,11 +1143,11 @@ def get_fallback(intent: str = "generic") -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CLI demo
+# CLI DEMO
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("🛒  SAP Commerce Agent (Production)  — type 'quit' to exit\n")
+    print("SAP Commerce Agent (Production) — type 'quit' to exit\n")
     session_state, tid = new_session("demo-user-001")
 
     while True:
@@ -1140,10 +1156,11 @@ if __name__ == "__main__":
             break
 
         session_state = run_turn(user_input, tid, session_state)
-        reply = get_last_ai_message(session_state)
+        reply         = get_last_ai_message(session_state)
         print(f"\nAssistant: {reply}\n")
 
-        # Print cost summary every 5 turns
         if session_state.get("turn_count", 0) % 5 == 0:
-            print(f"  [Tokens: in={session_state['total_input_tokens']} "
-                  f"out={session_state['total_output_tokens']}]\n")
+            print(
+                f"  [Tokens: in={session_state['total_input_tokens']} "
+                f"out={session_state['total_output_tokens']}]\n"
+            )

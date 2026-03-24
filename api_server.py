@@ -9,6 +9,7 @@ Routes:
   POST /chat           — Send a message, get agent reply
   POST /chat/approve   — Approve/reject a pending order confirmation
   WS   /chat/stream    — Real-time streaming via WebSocket
+  GET  /recommendations — Hybrid CF+CBF recommendations for a user         
   GET  /docs           — Swagger UI (auto-generated)
 """
 
@@ -66,9 +67,6 @@ def favicon():
 
 
 # ── Session store (replace with Redis in production) ─────────────────────────
-# Stores: session_id → ShoppingState
-# thread_id == session_id — they are the same value, kept separate previously
-# which caused the stored state to go stale.
 _sessions: dict[str, ShoppingState] = {}
 
 
@@ -114,6 +112,24 @@ class LoginResponse(BaseModel):
     message: str
 
 
+# ── NEW: Recommendation response model ────────────────────────────────────────
+class RecommendationItem(BaseModel):
+    item: str
+    name: str
+    category: str
+    cf_score: float
+    cbf_score: float
+    hybrid_score: float
+    source: str   # "hybrid" | "cf_only" | "cbf_only"
+
+
+class RecommendationsResponse(BaseModel):
+    username: str
+    query: str
+    interaction_count: int
+    recommendations: list[RecommendationItem]
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -124,6 +140,91 @@ def health():
         "active_sessions": len(_sessions),
     }
 
+
+# ── NEW: Hybrid CF+CBF recommendations endpoint ───────────────────────────────
+@app.get("/recommendations", response_model=RecommendationsResponse)
+def get_recommendations(
+    username: str,
+    query: str = "electronics",
+    top_k: int = 5,
+):
+    """
+    Return hybrid CF+CBF product recommendations for a given user and query.
+
+    - username : the current user's identifier (use "anonymous" for guests)
+    - query    : the user's last search term / chat message (used for CBF)
+    - top_k    : number of results to return (default 5, max 20)
+
+    The hybrid_recommender automatically blends collaborative-filtering (CF)
+    weight based on how many interactions the user has recorded in Qdrant.
+    New users get mostly content-based (CBF) results; returning users get
+    a personalised CF+CBF mix.
+    """
+    top_k = min(max(top_k, 1), 20)   # clamp to 1-20
+
+    try:
+        # from hybrid_recommender import get_hybrid_recommendations
+        # from memory_history.user_memory import _count_user_interactions, ensure_user_collection
+        # ✅ CORRECT — _count_user_interactions is defined in hybrid_recommender.py
+        from hybrid_recommender import get_hybrid_recommendations, _count_user_interactions
+        from memory_history.user_memory import ensure_user_collection
+
+        ensure_user_collection()
+
+        # Count interactions so the frontend can show "Based on X interactions"
+        interaction_count = 0
+        try:
+            interaction_count = _count_user_interactions(username)
+        except Exception as count_err:
+            logger.warning(
+                "get_recommendations | interaction count failed for user=%s: %s",
+                username, count_err,
+            )
+
+        recs = get_hybrid_recommendations(
+            username=username,
+            current_query=query,
+            interaction_count=interaction_count,
+            top_k=top_k,
+        )
+
+        logger.info(
+            "get_recommendations | user=%s query='%s' -> %d recs",
+            username, query[:60], len(recs),
+        )
+
+        return RecommendationsResponse(
+            username=username,
+            query=query,
+            interaction_count=interaction_count,
+            recommendations=[
+                RecommendationItem(
+                    item=r.get("item", ""),
+                    name=r.get("name", r.get("item", "")),
+                    category=r.get("category", ""),
+                    cf_score=r.get("cf_score", 0.0),
+                    cbf_score=r.get("cbf_score", 0.0),
+                    hybrid_score=r.get("hybrid_score", r.get("cf_score", 0.0)),
+                    source=r.get("source", "cbf_only"),
+                )
+                for r in recs
+            ],
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "get_recommendations | FAILED for user=%s query='%s'", username, query
+        )
+        # Return empty list gracefully — never crash the UI for a rec failure
+        return RecommendationsResponse(
+            username=username,
+            query=query,
+            interaction_count=0,
+            recommendations=[],
+        )
+
+
+# ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.post("/auth/login", response_model=LoginResponse)
 def login(req: LoginRequest):
@@ -137,7 +238,6 @@ def login(req: LoginRequest):
     - Only the access_token is kept (in server-side session state).
     - The LLM only sees "Authenticated: Yes" in its system prompt.
     """
-    # Resolve or create a session
     if req.session_id and req.session_id in _sessions:
         state = _sessions[req.session_id]
         thread_id = req.session_id
@@ -153,7 +253,6 @@ def login(req: LoginRequest):
             detail="Invalid username or password",
         )
 
-    # Inject token + user info directly into session state — no LLM involved
     state["access_token"] = result["access_token"]
     state["username"]     = result["username"]
     state["user_id"]      = "current"
@@ -172,10 +271,6 @@ def login(req: LoginRequest):
 
 @app.get("/auth/status")
 def auth_status(session_id: str):
-    """
-    Returns the authentication state for a session.
-    The frontend uses this to show/hide the Login button.
-    """
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     state = _sessions[session_id]
@@ -189,10 +284,6 @@ def auth_status(session_id: str):
 
 @app.post("/auth/logout")
 def logout(session_id: str):
-    """
-    Clears the access token from session state.
-    The session itself persists so the cart (as guest) is preserved.
-    """
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     state = _sessions[session_id]
@@ -206,9 +297,10 @@ def logout(session_id: str):
     return {"session_id": session_id, "authenticated": False}
 
 
+# ── Chat routes ───────────────────────────────────────────────────────────────
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    # ── Resolve or create session ────────────────────────────────────────────
     if req.session_id and req.session_id in _sessions:
         state = _sessions[req.session_id]
         thread_id = req.session_id
@@ -218,7 +310,6 @@ def chat(req: ChatRequest):
         _sessions[thread_id] = state
         logger.info("chat | new session=%s user=%s", thread_id, req.user_id)
 
-    # ── Run one agent turn ───────────────────────────────────────────────────
     try:
         new_state = run_turn(req.message, thread_id, state)
     except Exception as exc:
@@ -226,14 +317,10 @@ def chat(req: ChatRequest):
         audit("API_ERROR", thread_id, {"error": str(exc)})
         raise HTTPException(status_code=500, detail=get_fallback())
 
-    # ── Persist updated state ────────────────────────────────────────────────
     _sessions[thread_id] = new_state
 
-    # ── Serialise reply — get_last_ai_message always returns str ────────────
     reply = get_last_ai_message(new_state)
     if not reply:
-        # Agent called tools but produced no visible text yet — happens when
-        # tool calls are in flight and the graph hasn't returned to agent node.
         reply = "I'm working on that, one moment…"
         logger.debug("chat | no AI text in state yet | session=%s", thread_id)
 
@@ -286,9 +373,9 @@ def approve_order(req: ApprovalRequest):
         raise HTTPException(status_code=500, detail=get_fallback())
 
     return {
-        "reply":       get_last_ai_message(new_state),
-        "order_code":  new_state.get("order_code"),
-        "session_id":  thread_id,
+        "reply":      get_last_ai_message(new_state),
+        "order_code": new_state.get("order_code"),
+        "session_id": thread_id,
     }
 
 

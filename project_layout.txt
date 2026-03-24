@@ -1,0 +1,36 @@
+--- Folder Layout ---
+.dockerignore
+.env
+[.git] (...)
+.gitignore
+[.idea] (...)
+agent_config.py
+api_server.py
+cloudbuild.yaml
+cloudrun-api.yaml
+cloudrun-mcp.yaml
+Dockerfile
+Dockerfile.mcp
+gcp_prev_code.md
+hybrid_recommender.py
+load_products_to_qdrant.py
+main.py
+mcp_client.py
+[memory_history] (...)
+[model_cache] (...)
+production_agent.py
+qdrant_tool.py
+README.md
+requirements.txt
+reset_and_load_qdrant.py
+sap_commerce_mcp_server.py
+sap_commerce_tools.py
+[schemas] (...)
+security_layer.py
+seed_test_data.py
+state_machine.py
+[static] (...)
+token_vault.py
+[venv] (...)
+win_linx.md
+[__pycache__] (...)

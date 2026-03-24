@@ -1,0 +1,723 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Recommendation Strip — Component Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+
+<style>
+  :root {
+    --bg:           #f5f6fa;
+    --surface:      #ffffff;
+    --border:       #e2e5ef;
+    --accent:       #0070d2;
+    --accent-light: #e8f2fd;
+    --accent-hover: #005bb5;
+    --success:      #2e844a;
+    --success-bg:   #e6f5ec;
+    --danger:       #c23934;
+    --danger-bg:    #fde8e8;
+    --warning:      #dd7a01;
+    --warning-bg:   #fef3e0;
+    --text:         #1b2537;
+    --text-secondary: #596577;
+    --muted:        #8993a4;
+    --font-ui:      'Inter', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', monospace;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,.06);
+    --shadow-md:    0 4px 12px rgba(0,0,0,.08);
+    --radius:       10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-ui); padding: 32px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+
+
+  .rec-strip {
+    margin: 0;
+    padding: 16px 0 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: none; /* hidden until data loads */
+  }
+  .rec-strip.visible { display: block; }
+
+  /* ── Header row ── */
+  .rec-strip__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px 14px;
+    gap: 12px;
+  }
+
+  .rec-strip__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rec-strip__icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #0070d2, #00b4d8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    box-shadow: 0 2px 6px rgba(0,112,210,.28);
+    flex-shrink: 0;
+  }
+
+  .rec-strip__label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .rec-strip__sublabel {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .rec-strip__badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-light);
+    border: 1px solid rgba(0,112,210,.18);
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: .02em;
+  }
+
+  .rec-strip__badge .rec-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: recPulse 2s ease-in-out infinite;
+  }
+  @keyframes recPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .5; transform: scale(.7); }
+  }
+
+  /* ── Scroll track ── */
+  .rec-strip__track-wrap {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .rec-strip__track {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 32px 12px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .rec-strip__track::-webkit-scrollbar { height: 4px; }
+  .rec-strip__track::-webkit-scrollbar-track { background: transparent; }
+  .rec-strip__track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Fade edges when overflow ── */
+  .rec-strip__track-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 12px;
+    width: 60px;
+    background: linear-gradient(to left, var(--surface) 20%, transparent);
+    pointer-events: none;
+  }
+
+  /* ── Individual card ── */
+  .rec-card {
+    flex: 0 0 200px;
+    scroll-snap-align: start;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color .18s, box-shadow .18s, transform .18s;
+    animation: recCardIn .35s ease both;
+  }
+  .rec-card:nth-child(1) { animation-delay: .04s; }
+  .rec-card:nth-child(2) { animation-delay: .10s; }
+  .rec-card:nth-child(3) { animation-delay: .16s; }
+  .rec-card:nth-child(4) { animation-delay: .22s; }
+  .rec-card:nth-child(5) { animation-delay: .28s; }
+
+  @keyframes recCardIn {
+    from { opacity: 0; transform: translateY(10px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .rec-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+  }
+
+  /* ── Score pill (top-right corner) ── */
+  .rec-card__score {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-family: var(--font-mono);
+    font-size: 9px; font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 100px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid rgba(0,112,210,.15);
+    letter-spacing: .02em;
+  }
+
+  /* ── Source tag (CF / hybrid / cbf) ── */
+  .rec-card__source {
+    font-size: 9px; font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: fit-content;
+  }
+  .rec-card__source.hybrid { background: var(--accent-light); color: var(--accent); }
+  .rec-card__source.cf_only { background: #f3eefa; color: #6b4fbb; }
+  .rec-card__source.cbf_only { background: var(--success-bg); color: var(--success); }
+
+  /* ── Item / name ── */
+  .rec-card__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 36px;
+    padding-right: 34px; /* space for score pill */
+  }
+
+  .rec-card__category {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Score bar ── */
+  .rec-card__bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .rec-card__bar {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .rec-card__bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), #00b4d8);
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+    width: 0%;
+  }
+  .rec-card__bar-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ── CTA button ── */
+  .rec-card__btn {
+    margin-top: auto;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .12s;
+    text-align: center;
+  }
+  .rec-card__btn:hover {
+    background: var(--accent-hover);
+    transform: scale(1.02);
+  }
+
+  /* ── Loading skeletons ── */
+  .rec-skeleton {
+    flex: 0 0 200px;
+    height: 160px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: linear-gradient(90deg, var(--bg) 25%, #eaecf2 50%, var(--bg) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── Empty / error state ── */
+  .rec-strip__empty {
+    padding: 16px 32px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Scroll hint ── */
+  .rec-strip__hint {
+    padding: 0 32px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ════════════ PREVIEW PAGE ONLY (remove in index.html) ════════════ */
+  .preview-controls {
+    max-width: 900px;
+    margin: 0 auto 24px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .preview-controls label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+  .preview-controls input, .preview-controls select {
+    padding: 7px 12px; border: 1.5px solid var(--border);
+    border-radius: 7px; font-family: var(--font-ui); font-size: 13px;
+    color: var(--text); background: var(--bg); outline: none;
+  }
+  .preview-controls input:focus, .preview-controls select:focus { border-color: var(--accent); }
+  .preview-btn {
+    padding: 8px 18px; border-radius: 7px; border: none;
+    background: var(--accent); color: white;
+    font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  .preview-btn:hover { background: var(--accent-hover); }
+  .preview-frame {
+    max-width: 900px; margin: 0 auto;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  .preview-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; max-width: 900px; margin-left: auto; margin-right: auto; }
+  .preview-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+  .code-block {
+    max-width: 900px; margin: 28px auto 0;
+    background: #1b2537; color: #a8d8b9;
+    border-radius: var(--radius); padding: 20px 24px;
+    font-family: var(--font-mono); font-size: 12px;
+    line-height: 1.7; overflow-x: auto;
+    box-shadow: var(--shadow-md);
+  }
+  .code-block .cm { color: #596577; }
+  .code-block .kw { color: #00b4d8; }
+  .code-block .st { color: #fef3e0; }
+  .code-block .fn { color: #0070d2; }
+  .code-block .num { color: #dd7a01; }
+</style>
+</head>
+<body>
+
+<!-- ════ PREVIEW PAGE UI (remove everything below in actual integration) ════ -->
+<p class="preview-title">🧩 Recommendation Strip — Component</p>
+<p class="preview-sub">Standalone component. Paste the marked sections into your <code>index.html</code>. Use controls below to simulate a user + query.</p>
+
+<div class="preview-controls">
+  <div>
+    <label>Username</label>
+    <input id="ctrl-user" type="text" value="langraph_user" placeholder="e.g. john_doe" style="width:160px"/>
+  </div>
+  <div>
+    <label>Current query / context</label>
+    <input id="ctrl-query" type="text" value="digital cameras" placeholder="e.g. headphones" style="width:200px"/>
+  </div>
+  <div>
+    <label>Mode (mock)</label>
+    <select id="ctrl-mode">
+      <option value="mock">Mock data (no server)</option>
+      <option value="live">Live API call</option>
+    </select>
+  </div>
+  <button class="preview-btn" onclick="previewLoad()">▶ Load Recommendations</button>
+</div>
+
+<div class="preview-frame">
+  <!-- ════════════════════════════════════════════════════════════════
+       STEP 2 ▸ Copy this entire <section id="rec-strip"> block
+       and paste it in your index.html INSIDE .chat-wrap,
+       right above the <div class="input-bar"> closing section.
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="rec-strip" id="rec-strip" aria-label="Personalised recommendations">
+    <div class="rec-strip__header">
+      <div class="rec-strip__title">
+        <div class="rec-strip__icon">✦</div>
+        <div>
+          <div class="rec-strip__label">Top Picks For You</div>
+          <div class="rec-strip__sublabel" id="rec-sublabel">Personalised recommendations</div>
+        </div>
+      </div>
+      <div class="rec-strip__badge">
+        <span class="rec-dot"></span>
+        <span id="rec-algo-label">CF+CBF</span>
+      </div>
+    </div>
+
+    <div class="rec-strip__track-wrap">
+      <div class="rec-strip__track" id="rec-track">
+        <!-- Cards / skeletons injected by JS -->
+      </div>
+    </div>
+
+    <div class="rec-strip__hint" id="rec-hint" style="display:none">
+      ← scroll for more →
+    </div>
+  </section>
+  <!-- ══════════════════ END OF SECTION TO COPY ══════════════════ -->
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     STEP 3 ▸ Copy this entire <script> block into your index.html
+     right before the closing </script> tag of your existing script.
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+
+
+const RecStrip = (() => {
+  /* ── Config ── */
+  const API_ENDPOINT  = '/recommendations';   // your FastAPI route
+  const TOP_K         = 5;
+  const DEBOUNCE_MS   = 400;
+  const MIN_INTERACTIONS_FOR_CF = 3;  // show "Trending" label below threshold
+
+  /* ── State ── */
+  let _username   = null;
+  let _query      = '';
+  let _timer      = null;
+  let _loading    = false;
+  let _lastFetch  = 0;
+
+  /* ── DOM refs ── */
+  const strip    = () => document.getElementById('rec-strip');
+  const track    = () => document.getElementById('rec-track');
+  const sublabel = () => document.getElementById('rec-sublabel');
+  const algoLbl  = () => document.getElementById('rec-algo-label');
+  const hint     = () => document.getElementById('rec-hint');
+
+  /* ── Helpers ── */
+  function esc(s) {
+    return String(s || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function scoreWidth(score) {
+    // score is 0‥1 (normalised hybrid_score)
+    return Math.min(Math.max(score * 100, 8), 100).toFixed(1) + '%';
+  }
+
+  function sourceLabel(src) {
+    if (src === 'hybrid')   return 'Hybrid';
+    if (src === 'cf_only')  return 'Collab';
+    if (src === 'cbf_only') return 'Content';
+    return src;
+  }
+
+  function formatScore(s) {
+    return (s * 100).toFixed(0) + '%';
+  }
+
+  /* ── Skeleton ── */
+  function showSkeletons(n = 5) {
+    const t = track();
+    t.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'rec-skeleton';
+      t.appendChild(sk);
+    }
+    strip().classList.add('visible');
+  }
+
+  /* ── Render cards ── */
+  function renderCards(recs, interactionCount) {
+    const t = track();
+    t.innerHTML = '';
+
+    if (!recs || recs.length === 0) {
+      strip().classList.remove('visible');
+      return;
+    }
+
+    // Determine algo label
+    const hasCF  = recs.some(r => r.source === 'hybrid' || r.source === 'cf_only');
+    const hasCBF = recs.some(r => r.source === 'cbf_only' || r.source === 'hybrid');
+    const algTxt = hasCF && hasCBF ? 'CF+CBF' : hasCF ? 'Collab' : 'Content';
+    algoLbl().textContent = algTxt;
+
+    // Sublabel personalisation
+    if (interactionCount >= MIN_INTERACTIONS_FOR_CF) {
+      sublabel().textContent = `Based on your browsing · ${interactionCount} interactions`;
+    } else {
+      sublabel().textContent = 'Trending picks you might like';
+    }
+
+    // Max score for normalising bar widths
+    const maxScore = Math.max(...recs.map(r => r.hybrid_score || r.cf_score || 0), 0.01);
+
+    recs.forEach((rec, idx) => {
+      const normScore  = (rec.hybrid_score || rec.cf_score || 0) / maxScore;
+      const scoreText  = formatScore(rec.hybrid_score || rec.cf_score || 0);
+      const srcClass   = rec.source || 'cbf_only';
+      const itemName   = rec.name || rec.item || 'Product';
+      const category   = rec.category || '';
+
+      // Build click message (sends to chat)
+      const safeItem = esc(itemName).replace(/'/g, "\\'");
+      const clickMsg = rec.item && rec.item.match(/^\d/)
+        ? `Show me details for product ${esc(rec.item)}`
+        : `Search for ${safeItem}`;
+
+      const card = document.createElement('div');
+      card.className = 'rec-card';
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `Recommended: ${itemName}`);
+      card.setAttribute('data-idx', idx);
+
+      card.innerHTML = `
+        <div class="rec-card__score">${scoreText}</div>
+        <span class="rec-card__source ${srcClass}">${sourceLabel(srcClass)}</span>
+        <div class="rec-card__name">${esc(itemName)}</div>
+        ${category ? `<div class="rec-card__category">${esc(category)}</div>` : ''}
+        <div class="rec-card__bar-wrap">
+          <div class="rec-card__bar">
+            <div class="rec-card__bar-fill" style="width:0%" data-target="${scoreWidth(normScore)}"></div>
+          </div>
+          <span class="rec-card__bar-label">match</span>
+        </div>
+        <button class="rec-card__btn" onclick="event.stopPropagation(); recCardClick('${clickMsg}')">
+          Explore →
+        </button>
+      `;
+
+      // Keyboard support
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') recCardClick(clickMsg);
+      });
+
+      t.appendChild(card);
+    });
+
+    strip().classList.add('visible');
+
+    // Show hint if overflow
+    requestAnimationFrame(() => {
+      const t = track();
+      hint().style.display = t.scrollWidth > t.clientWidth ? 'flex' : 'none';
+
+      // Animate bars after paint
+      document.querySelectorAll('.rec-card__bar-fill').forEach(bar => {
+        const target = bar.getAttribute('data-target');
+        setTimeout(() => { bar.style.width = target; }, 60);
+      });
+    });
+  }
+
+  /* ── Fetch from your backend ── */
+  async function fetchRecs(username, query) {
+    const params = new URLSearchParams({
+      username,
+      query : query || 'electronics',
+      top_k : TOP_K,
+    });
+    const res = await fetch(`${API_ENDPOINT}?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+    // Expected shape: { recommendations: HybridRecommendation[], interaction_count: number }
+  }
+
+  /* ── Mock data for preview / dev ── */
+  function mockRecs(username, query) {
+    const pool = [
+      { item: '1382080', name: 'Canon EOS 450D + 18-55mm Lens', category: 'Digital Cameras',    cf_score: 0.88, cbf_score: 0.76, hybrid_score: 0.83, source: 'hybrid'   },
+      { item: '1934793', name: 'Sony DSC-W55 Cyber-shot',        category: 'Digital Cameras',    cf_score: 0.00, cbf_score: 0.91, hybrid_score: 0.73, source: 'cbf_only' },
+      { item: '1641905', name: 'SanDisk 16GB Ultra SDHC',        category: 'Memory Cards',       cf_score: 0.79, cbf_score: 0.55, hybrid_score: 0.69, source: 'hybrid'   },
+      { item: '358639',  name: 'Sony MDR-XB300 Headphones',      category: 'Headphones',         cf_score: 0.71, cbf_score: 0.00, hybrid_score: 0.57, source: 'cf_only'  },
+      { item: '816780',  name: 'Nikon 50mm f/1.8D AF Lens',      category: 'Camera Lenses',      cf_score: 0.65, cbf_score: 0.68, hybrid_score: 0.66, source: 'hybrid'   },
+    ];
+    return {
+      recommendations : pool,
+      interaction_count: 14,
+      username,
+      query,
+    };
+  }
+
+  /* ── Core load ── */
+  async function _load(username, query, useMock) {
+    if (_loading) return;
+    _loading = true;
+    _username = username;
+    _query    = query;
+
+    showSkeletons();
+
+    try {
+      let data;
+      if (useMock) {
+        await new Promise(r => setTimeout(r, 700));  // simulate latency
+        data = mockRecs(username, query);
+      } else {
+        data = await fetchRecs(username, query);
+      }
+      renderCards(data.recommendations, data.interaction_count || 0);
+    } catch (err) {
+      console.warn('[RecStrip] fetch failed:', err.message);
+      strip().classList.remove('visible');
+    } finally {
+      _loading = false;
+      _lastFetch = Date.now();
+    }
+  }
+
+  /* ── Debounced public entry points ── */
+  function init(username, query, useMock = false) {
+    clearTimeout(_timer);
+    _timer = setTimeout(() => _load(username, query, useMock), DEBOUNCE_MS);
+  }
+
+  function refresh(newQuery, useMock = false) {
+    if (!_username) return;
+    init(_username, newQuery, useMock);
+  }
+
+  function hide() {
+    strip().classList.remove('visible');
+  }
+
+  return { init, refresh, hide };
+})();
+
+/* ── Global helpers called by cards & preview controls ── */
+function recCardClick(message) {
+  // Hooks into your existing sendQuick() — no changes needed there
+  if (typeof sendQuick === 'function') {
+    sendQuick(message);
+  } else {
+    // Preview mode fallback
+    alert('Would send to chat: ' + message);
+  }
+}
+
+/* ── Public aliases for your index.html ── */
+function initRecommendations(username, query) {
+  RecStrip.init(username, query);
+}
+function refreshRecommendations(query) {
+  RecStrip.refresh(query);
+}
+
+
+/* ════ PREVIEW PAGE ONLY — calls with mock mode ════ */
+function previewLoad() {
+  const user  = document.getElementById('ctrl-user').value.trim()  || 'guest';
+  const query = document.getElementById('ctrl-query').value.trim() || 'electronics';
+  const mode  = document.getElementById('ctrl-mode').value;
+  RecStrip.init(user, query, mode === 'mock');
+}
+
+// Auto-load on preview page
+previewLoad();
+</script>
+<!-- ════════════════ END OF SCRIPT TO COPY ════════════════ -->
+
+
+<!-- ══ Integration guide ══ -->
+<div class="code-block">
+<span class="cm">/* ══════════════════════════════════════════════════════</span>
+<span class="cm">   INTEGRATION: 3 small edits in your existing index.html</span>
+<span class="cm">   ══════════════════════════════════════════════════════ */</span>
+
+<span class="cm">// ── 1. Add FastAPI endpoint (backend) ──────────────────</span>
+<span class="cm">// In your api_server.py:</span>
+
+<span class="kw">@app</span>.get(<span class="st">"/recommendations"</span>)
+<span class="kw">async def</span> <span class="fn">get_recommendations</span>(
+    username: str, query: str = <span class="st">""</span>, top_k: int = <span class="num">5</span>
+):
+    <span class="kw">from</span> hybrid_recommender <span class="kw">import</span> get_hybrid_recommendations
+    recs = get_hybrid_recommendations(username, query, top_k=top_k)
+    count = _count_user_interactions(username)  <span class="cm"># reuse your helper</span>
+    <span class="kw">return</span> {<span class="st">"recommendations"</span>: recs, <span class="st">"interaction_count"</span>: count}
+
+
+<span class="cm">// ── 2. Call initRecommendations after login / chat turn ─</span>
+<span class="cm">// In your existing doSend() function, add after line:</span>
+<span class="cm">// "sessionId = d.session_id;"</span>
+
+<span class="kw">if</span> (currentUser || d.username) {
+    initRecommendations(
+        currentUser || d.username,
+        text  <span class="cm">// the user's last message becomes the query</span>
+    );
+}
+
+<span class="cm">// ── 3. Also call after doLogin() succeeds ───────────────</span>
+<span class="cm">// In your doLogin() success block, after updateAuthUI():</span>
+
+initRecommendations(d.username, <span class="st">"electronics"</span>);
+
+
+<span class="cm">// ── Optional: refresh on every message ──────────────────</span>
+<span class="cm">// If you want recs to update with each new user query:</span>
+
+<span class="cm">// inside doSend(), after the initRecommendations call:</span>
+refreshRecommendations(text);
+</div>
+
+</body>
+</html>

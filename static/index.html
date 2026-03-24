@@ -3,588 +3,792 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SAP Commerce Shopping Assistant</title>
+<title>SAP Commerce — Shopping Assistant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-  :root {
-    --bg:        #f5f6fa;
-    --surface:   #ffffff;
-    --border:    #e2e5ef;
-    --accent:    #0070d2;
-    --accent-light: #e8f2fd;
-    --accent-hover: #005bb5;
-    --success:   #2e844a;
-    --success-bg:#e6f5ec;
-    --danger:    #c23934;
-    --danger-bg: #fde8e8;
-    --warning:   #dd7a01;
-    --warning-bg:#fef3e0;
-    --text:      #1b2537;
-    --text-secondary: #596577;
-    --muted:     #8993a4;
-    --user-bg:   #0070d2;
-    --user-text: #ffffff;
-    --agent-bg:  #ffffff;
-    --sidebar-bg:#ffffff;
-    --font-ui:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
-    --shadow-md: 0 4px 12px rgba(0,0,0,.08);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
-    --radius:    10px;
-  }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:           #f0f2f7;
+  --surface:      #ffffff;
+  --surface-2:    #f7f8fc;
+  --border:       #e3e6ef;
+  --border-2:     #d4d8e6;
+  --accent:       #1a6ef5;
+  --accent-dim:   #e8f0fe;
+  --accent-hover: #1459d4;
+  --accent-glow:  rgba(26,110,245,.18);
+  --success:      #16a34a;
+  --success-bg:   #dcfce7;
+  --danger:       #dc2626;
+  --danger-bg:    #fee2e2;
+  --warning:      #d97706;
+  --warning-bg:   #fef3c7;
+  --purple:       #7c3aed;
+  --purple-bg:    #ede9fe;
+  --text:         #111827;
+  --text-2:       #4b5563;
+  --text-3:       #9ca3af;
+  --user-bg:      #1a6ef5;
+  --user-text:    #ffffff;
+  --font:         'DM Sans', system-ui, sans-serif;
+  --mono:         'DM Mono', 'Fira Code', monospace;
+  --r-sm:         6px;
+  --r-md:         10px;
+  --r-lg:         14px;
+  --r-xl:         20px;
+  --sh-sm:        0 1px 4px rgba(0,0,0,.06);
+  --sh-md:        0 4px 16px rgba(0,0,0,.08);
+  --sh-lg:        0 12px 40px rgba(0,0,0,.13);
+}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-ui);
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ── Header ── */
-  header {
-    position: relative; z-index: 10;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px;
-    height: 56px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    flex-shrink: 0;
-  }
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
 
-  .logo {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
-    color: var(--text);
-  }
-  .logo-icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: linear-gradient(135deg, #0070d2, #00b4d8);
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 16px; font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0,112,210,.3);
-  }
-  .logo span.brand-sap { color: var(--accent); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
 
-  .header-right { display: flex; align-items: center; gap: 10px; }
+/* ─────────────────────────────────────────────────────────
+   HEADER
+───────────────────────────────────────────────────────── */
+header {
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--sh-sm);
+  position: relative;
+  z-index: 20;
+}
 
-  .status-pill {
-    display: flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono); font-size: 11px;
-    color: var(--muted);
-    padding: 4px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    transition: all .3s;
-  }
-  .status-pill.online { color: var(--success); border-color: rgba(46,132,74,.25); background: var(--success-bg); }
-  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: inherit;
+}
+.logo-mark {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1a6ef5 0%, #06b6d4 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: white;
+  box-shadow: 0 2px 8px rgba(26,110,245,.35);
+  letter-spacing: -1px;
+  flex-shrink: 0;
+}
+.logo-text {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.logo-text em { color: var(--accent); font-style: normal; }
 
-  .token-badge {
-    font-family: var(--font-mono); font-size: 11px;
-    color: var(--muted); padding: 4px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border); border-radius: 100px;
-  }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  #authBtn {
-    display: flex; align-items: center; gap: 7px;
-    padding: 6px 16px;
-    border-radius: 8px; border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text); font-family: var(--font-ui); font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all .2s;
-  }
-  #authBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-  #authBtn.logged-in { border-color: var(--success); color: var(--success); background: var(--success-bg); }
-  #authBtn .auth-icon { font-size: 14px; }
+.status-pill {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); padding: 4px 10px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 100px; transition: all .3s;
+}
+.status-pill.online { color: var(--success); border-color: rgba(22,163,74,.3); background: var(--success-bg); }
+.status-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
-  /* ── Layout ── */
-  .layout {
-    position: relative; z-index: 1;
-    flex: 1; display: flex;
-    overflow: hidden;
-  }
+.token-badge {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-3); padding: 4px 10px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 100px;
+}
 
-  /* ── Sidebar ── */
-  .sidebar {
-    width: 260px; flex-shrink: 0;
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    padding: 16px 0;
-    background: var(--sidebar-bg);
-    overflow-y: auto;
-  }
+#authBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text); font-family: var(--font); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .18s;
+}
+#authBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+#authBtn.logged-in { border-color: var(--success); color: var(--success); background: var(--success-bg); }
 
-  .sidebar-section { padding: 0 16px 20px; }
-  .sidebar-label {
-    font-size: 11px; font-weight: 600;
-    color: var(--muted); letter-spacing: .06em;
-    text-transform: uppercase;
-    margin-bottom: 10px; padding: 0 4px;
-  }
+/* ─────────────────────────────────────────────────────────
+   LAYOUT
+───────────────────────────────────────────────────────── */
+.layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
 
-  .session-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 12px 14px;
-    font-family: var(--font-mono); font-size: 11px;
-  }
-  .session-card .row {
-    display: flex; justify-content: space-between;
-    padding: 4px 0; color: var(--text-secondary);
-  }
-  .session-card .row span:last-child { color: var(--text); font-weight: 500; }
-  .session-card .row span.active { color: var(--success); font-weight: 600; }
+/* ─────────────────────────────────────────────────────────
+   SIDEBAR
+───────────────────────────────────────────────────────── */
+.sidebar {
+  width: 252px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 0 20px;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* ── Cart panel in sidebar ── */
-  .cart-panel {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .cart-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    font-size: 13px; font-weight: 600;
-  }
-  .cart-header .cart-count {
-    background: var(--accent);
-    color: white; font-size: 10px; font-weight: 700;
-    padding: 2px 7px; border-radius: 100px;
-    min-width: 20px; text-align: center;
-  }
-  .cart-items { padding: 8px 10px; max-height: 180px; overflow-y: auto; }
-  .cart-item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 6px 4px; font-size: 12px;
-    border-bottom: 1px solid rgba(0,0,0,.04);
-  }
-  .cart-item:last-child { border-bottom: none; }
-  .cart-item-name { flex: 1; color: var(--text); font-weight: 500; }
-  .cart-item-qty { color: var(--muted); font-family: var(--font-mono); font-size: 11px; margin: 0 8px; }
-  .cart-item-price { color: var(--text); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
-  .cart-empty { padding: 16px 10px; text-align: center; color: var(--muted); font-size: 12px; }
-  .cart-total {
-    display: flex; justify-content: space-between;
-    padding: 10px 14px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    font-size: 13px; font-weight: 600;
-  }
-  .cart-total .price { color: var(--accent); font-family: var(--font-mono); }
+.sidebar-section { padding: 0 14px 18px; }
 
-  .quick-btn {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 8px 12px;
-    border: none; border-radius: 8px;
-    background: transparent; color: var(--text-secondary);
-    font-family: var(--font-ui); font-size: 13px;
-    cursor: pointer; transition: all .15s;
-    text-align: left; margin-bottom: 2px;
-  }
-  .quick-btn:hover { background: var(--accent-light); color: var(--accent); }
-  .quick-btn .icon { font-size: 15px; width: 22px; text-align: center; }
+.sidebar-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 9px; padding: 0 2px;
+}
 
-  .flow-steps { padding: 0 16px; }
-  .step {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 7px 4px; position: relative;
-  }
-  .step:not(:last-child)::after {
-    content: '';
-    position: absolute; left: 13px; top: 28px;
-    width: 1.5px; height: calc(100% - 12px);
-    background: var(--border);
-  }
-  .step-num {
-    width: 20px; height: 20px; border-radius: 50%;
-    border: 1.5px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-    color: var(--muted); flex-shrink: 0;
-    background: var(--surface); transition: all .3s;
-  }
-  .step.done .step-num   { border-color: var(--success); color: white; background: var(--success); }
-  .step.active .step-num { border-color: var(--accent);  color: white; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
-  .step-text { font-size: 12px; color: var(--muted); padding-top: 2px; line-height: 1.4; }
-  .step.done .step-text   { color: var(--text); }
-  .step.active .step-text { color: var(--text); font-weight: 500; }
+/* User pill */
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; margin: 0 14px 14px;
+  border-radius: var(--r-md);
+  background: var(--success-bg);
+  border: 1px solid rgba(22,163,74,.2);
+  font-size: 12px; color: var(--success);
+}
+.user-pill .uname { font-weight: 600; flex: 1; font-size: 12px; }
+.user-pill .logout-link {
+  font-size: 10px; color: var(--text-3);
+  cursor: pointer; text-decoration: underline;
+}
+.user-pill .logout-link:hover { color: var(--danger); }
 
-  /* ── Chat ── */
-  .chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+/* Session card */
+.session-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font-family: var(--mono); font-size: 10px;
+}
+.session-card .row {
+  display: flex; justify-content: space-between;
+  padding: 3px 0; color: var(--text-2);
+}
+.session-card .row span:last-child { color: var(--text); font-weight: 500; }
+.session-card .row span.active { color: var(--success); font-weight: 600; }
 
-  #messages {
-    flex: 1; overflow-y: auto;
-    padding: 28px 32px;
-    display: flex; flex-direction: column; gap: 16px;
-    scroll-behavior: smooth;
-  }
-  #messages::-webkit-scrollbar { width: 5px; }
-  #messages::-webkit-scrollbar-track { background: transparent; }
-  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* Cart */
+.cart-panel {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.cart-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 600;
+}
+.cart-count {
+  background: var(--accent); color: white;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 100px; min-width: 18px; text-align: center;
+}
+.cart-items { padding: 6px 10px; max-height: 160px; overflow-y: auto; }
+.cart-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 2px; font-size: 11px;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+}
+.cart-item:last-child { border-bottom: none; }
+.cart-item-name { flex: 1; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+.cart-item-qty  { color: var(--text-3); font-family: var(--mono); font-size: 10px; margin: 0 6px; }
+.cart-item-price{ color: var(--text); font-weight: 600; font-family: var(--mono); font-size: 10px; }
+.cart-empty { padding: 14px 10px; text-align: center; color: var(--text-3); font-size: 11px; }
+.cart-total {
+  display: flex; justify-content: space-between;
+  padding: 9px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 12px; font-weight: 600;
+}
+.cart-total .price { color: var(--accent); font-family: var(--mono); }
 
-  .welcome {
-    margin: auto; text-align: center; max-width: 520px;
-    animation: fadeUp .4s ease both;
-  }
-  .welcome-icon {
-    width: 72px; height: 72px; border-radius: 20px;
-    background: linear-gradient(135deg, var(--accent-light), #dbeafe);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 36px; margin: 0 auto 20px;
-    box-shadow: var(--shadow-md);
-  }
-  .welcome h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
-  .welcome p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+/* Quick actions */
+.quick-btn {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 7px 10px;
+  border: none; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-2);
+  font-family: var(--font); font-size: 12px;
+  cursor: pointer; transition: all .14s;
+  text-align: left; margin-bottom: 2px;
+}
+.quick-btn:hover { background: var(--accent-dim); color: var(--accent); }
+.quick-btn .icon { font-size: 14px; width: 20px; text-align: center; }
 
-  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
-  .chip {
-    padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all .15s;
-    background: var(--surface); box-shadow: var(--shadow-sm);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-  .chip .chip-icon { font-size: 18px; }
+/* Checkout steps */
+.flow-steps { padding: 0 14px; }
+.step {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 6px 2px; position: relative;
+}
+.step:not(:last-child)::after {
+  content: '';
+  position: absolute; left: 11px; top: 26px;
+  width: 1.5px; height: calc(100% - 10px);
+  background: var(--border);
+}
+.step-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  color: var(--text-3); flex-shrink: 0;
+  background: var(--surface); transition: all .25s;
+}
+.step.done   .step-num { border-color: var(--success); color: white; background: var(--success); }
+.step.active .step-num { border-color: var(--accent); color: white; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.step-text { font-size: 11px; color: var(--text-3); padding-top: 1px; line-height: 1.4; }
+.step.done   .step-text { color: var(--text); }
+.step.active .step-text { color: var(--text); font-weight: 500; }
 
-  .msg { display: flex; gap: 10px; max-width: 780px; animation: fadeUp .2s ease both; }
-  .msg.user { flex-direction: row-reverse; margin-left: auto; }
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(8px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
+/* ─────────────────────────────────────────────────────────
+   CHAT AREA
+───────────────────────────────────────────────────────── */
+.chat-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  min-width: 0;
+}
 
-  .avatar {
-    width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 14px;
-  }
-  .msg.agent .avatar { background: var(--accent-light); color: var(--accent); }
-  .msg.user  .avatar { background: var(--user-bg); color: var(--user-text); }
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+  min-height: 0;
+}
+#messages::-webkit-scrollbar { width: 5px; }
+#messages::-webkit-scrollbar-track { background: transparent; }
+#messages::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
-  .bubble {
-    padding: 12px 16px; border-radius: 12px;
-    font-size: 14px; line-height: 1.7; max-width: 620px;
-  }
-  .msg.agent .bubble {
-    background: var(--surface); border: 1px solid var(--border);
-    border-top-left-radius: 3px; box-shadow: var(--shadow-sm);
-    color: var(--text);
-  }
-  .msg.user .bubble {
-    background: var(--user-bg); color: var(--user-text);
-    border-top-right-radius: 3px; box-shadow: var(--shadow-sm);
-  }
+/* Welcome screen */
+.welcome {
+  margin: auto;
+  text-align: center;
+  max-width: 500px;
+  padding: 16px;
+  animation: fadeUp .4s ease both;
+}
+.welcome-icon {
+  width: 68px; height: 68px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--accent-dim), #dbeafe);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; margin: 0 auto 18px;
+  box-shadow: var(--sh-md);
+}
+.welcome h2 { font-size: 22px; font-weight: 700; margin-bottom: 7px; letter-spacing: -0.02em; }
+.welcome p  { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+.chips {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 7px; margin-top: 20px;
+}
+.chip {
+  padding: 8px 14px; border: 1px solid var(--border);
+  border-radius: 100px; font-size: 12px; font-weight: 500;
+  color: var(--text-2); cursor: pointer; transition: all .14s;
+  background: var(--surface); box-shadow: var(--sh-sm);
+  display: flex; align-items: center; gap: 6px;
+}
+.chip:hover {
+  border-color: var(--accent); color: var(--accent);
+  background: var(--accent-dim); box-shadow: var(--sh-md);
+  transform: translateY(-1px);
+}
+.chip .chip-icon { font-size: 15px; }
 
-  /* Product cards inside agent bubbles */
-  .bubble .product-line { margin: 4px 0; }
+/* Messages */
+.msg {
+  display: flex;
+  gap: 9px;
+  max-width: 760px;
+  animation: fadeUp .2s ease both;
+}
+.msg.user { flex-direction: row-reverse; margin-left: auto; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-  .typing { display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
-  .typing span {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--accent); opacity: .4;
-    animation: blink 1.2s infinite;
-  }
-  .typing span:nth-child(2) { animation-delay: .2s; }
-  .typing span:nth-child(3) { animation-delay: .4s; }
-  @keyframes blink {
-    0%,80%,100% { opacity:.2; transform:scale(1); }
-    40%          { opacity:1;  transform:scale(1.15); }
-  }
+.avatar {
+  width: 30px; height: 30px;
+  border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.msg.agent .avatar { background: var(--accent-dim); color: var(--accent); }
+.msg.user  .avatar { background: var(--user-bg); color: var(--user-text); }
 
-  .confirm-banner {
-    margin: 10px 0 0; padding: 14px 16px;
-    background: var(--warning-bg); border: 1px solid rgba(221,122,1,.3);
-    border-radius: var(--radius); font-size: 13px;
-  }
-  .confirm-banner strong { color: var(--warning); }
-  .confirm-actions { display: flex; gap: 8px; margin-top: 12px; }
-  .btn-confirm {
-    padding: 8px 20px; border-radius: 8px; font-size: 13px;
-    font-family: var(--font-ui); font-weight: 600;
-    cursor: pointer; transition: all .15s; border: none;
-  }
-  .btn-confirm.yes { background: var(--success); color: white; }
-  .btn-confirm.yes:hover { background: #256d3b; }
-  .btn-confirm.no  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-  .btn-confirm.no:hover { background: var(--border); }
+.bubble {
+  padding: 11px 15px;
+  border-radius: var(--r-lg);
+  font-size: 13.5px; line-height: 1.7;
+  max-width: 600px;
+}
+.msg.agent .bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top-left-radius: 3px;
+  box-shadow: var(--sh-sm);
+  color: var(--text);
+}
+.msg.user .bubble {
+  background: var(--user-bg);
+  color: var(--user-text);
+  border-top-right-radius: 3px;
+  box-shadow: var(--sh-sm);
+}
 
-  .error-bubble {
-    padding: 12px 16px;
-    background: var(--danger-bg); border: 1px solid rgba(194,57,52,.2);
-    border-radius: var(--radius); font-size: 13px; color: var(--danger);
-  }
+/* Typing indicator */
+.typing { display: flex; align-items: center; gap: 4px; padding: 4px 2px; }
+.typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); opacity: .35;
+  animation: blink 1.1s infinite;
+}
+.typing span:nth-child(2) { animation-delay: .18s; }
+.typing span:nth-child(3) { animation-delay: .36s; }
+@keyframes blink {
+  0%,80%,100% { opacity:.2; transform:scale(1); }
+  40%          { opacity:1;  transform:scale(1.2); }
+}
 
-  /* ── Input bar ── */
-  .input-bar {
-    border-top: 1px solid var(--border);
-    padding: 16px 32px 20px;
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-  .input-wrap {
-    display: flex; align-items: flex-end; gap: 10px;
-    background: var(--bg); border: 1.5px solid var(--border);
-    border-radius: 12px; padding: 10px 14px; transition: all .2s;
-  }
-  .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+/* Confirm banner */
+.confirm-banner {
+  margin: 10px 0 0; padding: 13px 15px;
+  background: var(--warning-bg); border: 1px solid rgba(217,119,6,.28);
+  border-radius: var(--r-md); font-size: 12px;
+}
+.confirm-banner strong { color: var(--warning); }
+.confirm-actions { display: flex; gap: 7px; margin-top: 10px; }
+.btn-confirm {
+  padding: 7px 18px; border-radius: var(--r-sm); font-size: 12px;
+  font-family: var(--font); font-weight: 600;
+  cursor: pointer; transition: all .14s; border: none;
+}
+.btn-confirm.yes { background: var(--success); color: white; }
+.btn-confirm.yes:hover { background: #15803d; }
+.btn-confirm.no  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-confirm.no:hover { background: var(--border); }
 
-  #userInput {
-    flex: 1; background: transparent; border: none; outline: none;
-    color: var(--text); font-family: var(--font-ui); font-size: 14px;
-    resize: none; max-height: 140px; min-height: 24px; line-height: 1.5;
-  }
-  #userInput::placeholder { color: var(--muted); }
+.error-bubble {
+  padding: 11px 15px;
+  background: var(--danger-bg); border: 1px solid rgba(220,38,38,.2);
+  border-radius: var(--r-md); font-size: 12px; color: var(--danger);
+}
 
-  #sendBtn {
-    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-    background: var(--accent); border: none;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all .15s; color: white; font-size: 16px;
-  }
-  #sendBtn:hover { background: var(--accent-hover); transform: scale(1.05); }
-  #sendBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+/* ─────────────────────────────────────────────────────────
+   PRODUCT CARDS (inside chat bubbles)
+───────────────────────────────────────────────────────── */
+.bubble:has(.product-cards-wrap) { max-width: 700px; }
+.product-cards-wrap { margin: 10px -2px 2px; }
+.product-cards-intro { font-size: 13px; line-height: 1.7; margin-bottom: 9px; }
+.product-cards {
+  display: flex; gap: 10px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 3px 3px 9px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.product-cards::-webkit-scrollbar { height: 4px; }
+.product-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  .input-hint {
-    font-size: 11px;
-    color: var(--muted); margin-top: 8px; padding: 0 4px;
-  }
-  .input-hint kbd {
-    padding: 1px 5px; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 4px; font-family: var(--font-mono); font-size: 10px;
-  }
+.product-card {
+  flex: 0 0 210px; scroll-snap-align: start;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px;
+  display: flex; flex-direction: column;
+  transition: all .18s; position: relative;
+}
+.product-card:hover { border-color: var(--accent); box-shadow: var(--sh-md); transform: translateY(-2px); }
+.product-card-name {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  line-height: 1.4; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 34px;
+}
+.product-card-code { font-family: var(--mono); font-size: 9px; color: var(--text-3); margin-bottom: 8px; }
+.product-card-price { font-size: 16px; font-weight: 700; color: var(--accent); font-family: var(--mono); margin-bottom: 6px; }
+.product-card-meta  { display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.product-card-stock { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 100px; }
+.product-card-stock.in-stock    { background: var(--success-bg); color: var(--success); }
+.product-card-stock.out-of-stock{ background: var(--danger-bg);  color: var(--danger); }
+.product-card-stock.low-stock   { background: var(--warning-bg); color: var(--warning); }
+.product-card-rating { font-size: 10px; color: var(--warning); display: flex; align-items: center; gap: 2px; }
+.product-card-rating .val { color: var(--text-2); font-family: var(--mono); }
+.product-card-actions { margin-top: auto; display: flex; gap: 5px; }
+.product-card-btn {
+  flex: 1; padding: 6px 8px; border-radius: var(--r-sm);
+  font-size: 11px; font-family: var(--font); font-weight: 600;
+  cursor: pointer; transition: all .14s; border: none; text-align: center;
+}
+.product-card-btn.add-cart { background: var(--accent); color: white; }
+.product-card-btn.add-cart:hover { background: var(--accent-hover); }
+.product-card-btn.details { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.product-card-btn.details:hover { border-color: var(--accent); background: var(--accent-dim); }
+.product-scroll-hint { font-size: 10px; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 3px; }
 
-  /* ── Login modal ── */
-  .modal-overlay {
-    position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,.4);
-    backdrop-filter: blur(4px);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; pointer-events: none;
-    transition: opacity .25s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
+/* ─────────────────────────────────────────────────────────
+   RECOMMENDATION STRIP  ← NEW
+───────────────────────────────────────────────────────── */
+.rec-strip {
+  flex-shrink: 0;
+  padding: 12px 0 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.rec-strip.visible { display: block; }
 
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 36px 32px;
-    width: 100%; max-width: 400px;
-    position: relative;
-    transform: translateY(12px);
-    transition: transform .25s;
-    box-shadow: var(--shadow-lg);
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
+.rec-strip__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px 10px; gap: 10px;
+}
+.rec-strip__title { display: flex; align-items: center; gap: 9px; }
+.rec-strip__icon {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: linear-gradient(135deg, #1a6ef5, #06b6d4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(26,110,245,.3);
+}
+.rec-strip__label    { font-size: 12px; font-weight: 700; color: var(--text); }
+.rec-strip__sublabel { font-size: 10px; color: var(--text-3); margin-top: 1px; }
 
-  .modal-close {
-    position: absolute; top: 16px; right: 16px;
-    background: none; border: none;
-    color: var(--muted); font-size: 20px;
-    cursor: pointer; line-height: 1; transition: color .15s;
-  }
-  .modal-close:hover { color: var(--text); }
+.rec-strip__badge {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  color: var(--accent); background: var(--accent-dim);
+  border: 1px solid rgba(26,110,245,.18);
+  padding: 3px 9px; border-radius: 100px;
+}
+.rec-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+  animation: recPulse 2s ease-in-out infinite;
+}
+@keyframes recPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%     { opacity:.35; transform:scale(.65); }
+}
 
-  .modal-icon {
-    width: 52px; height: 52px; border-radius: 14px;
-    background: var(--accent-light);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px; margin-bottom: 20px;
-  }
-  .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
-  .modal .modal-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5; }
+.rec-strip__track-wrap { position: relative; overflow: hidden; }
+.rec-strip__track {
+  display: flex; gap: 10px;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 3px 28px 9px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.rec-strip__track::-webkit-scrollbar { height: 3px; }
+.rec-strip__track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.rec-strip__track-wrap::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 9px;
+  width: 50px;
+  background: linear-gradient(to left, var(--surface) 15%, transparent);
+  pointer-events: none;
+}
 
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block; font-size: 13px; font-weight: 500;
-    color: var(--text); margin-bottom: 6px;
-  }
-  .field input {
-    width: 100%; padding: 10px 14px;
-    background: var(--bg); border: 1.5px solid var(--border);
-    border-radius: 8px; color: var(--text);
-    font-family: var(--font-ui); font-size: 14px;
-    outline: none; transition: all .2s;
-  }
-  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
-  .field input::placeholder { color: var(--muted); }
+.rec-card {
+  flex: 0 0 182px; scroll-snap-align: start;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: var(--r-md); padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  position: relative; cursor: pointer;
+  transition: border-color .16s, box-shadow .16s, transform .16s;
+  animation: recCardIn .3s ease both;
+}
+.rec-card:nth-child(1){animation-delay:.04s}
+.rec-card:nth-child(2){animation-delay:.10s}
+.rec-card:nth-child(3){animation-delay:.16s}
+.rec-card:nth-child(4){animation-delay:.22s}
+.rec-card:nth-child(5){animation-delay:.28s}
+@keyframes recCardIn {
+  from { opacity:0; transform:translateY(8px) scale(.97); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+.rec-card:hover { border-color: var(--accent); box-shadow: var(--sh-md); transform: translateY(-3px); }
 
-  .modal-error {
-    padding: 10px 14px; margin-bottom: 16px;
-    background: var(--danger-bg); border: 1px solid rgba(194,57,52,.2);
-    border-radius: 8px; font-size: 13px; color: var(--danger);
-    display: none;
-  }
-  .modal-error.show { display: block; }
+.rec-card__score {
+  position: absolute; top: 8px; right: 8px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 100px;
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid rgba(26,110,245,.15);
+}
+.rec-card__source {
+  font-size: 9px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; padding: 2px 6px;
+  border-radius: 4px; width: fit-content;
+}
+.rec-card__source.hybrid   { background: var(--accent-dim); color: var(--accent); }
+.rec-card__source.cf_only  { background: var(--purple-bg); color: var(--purple); }
+.rec-card__source.cbf_only { background: var(--success-bg); color: var(--success); }
 
-  #loginBtn {
-    width: 100%; padding: 12px;
-    background: var(--accent); color: white;
-    border: none; border-radius: 8px;
-    font-family: var(--font-ui); font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all .15s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  #loginBtn:hover { background: var(--accent-hover); }
-  #loginBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+.rec-card__name {
+  font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-height: 30px; padding-right: 30px;
+}
+.rec-card__category { font-size: 9px; color: var(--text-3); font-family: var(--mono); }
 
-  .login-spinner {
-    width: 16px; height: 16px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.3);
-    border-top-color: white;
-    animation: spin .6s linear infinite;
-    display: none;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+.rec-card__bar-wrap { display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+.rec-card__bar {
+  flex: 1; height: 3px; border-radius: 2px;
+  background: var(--border); overflow: hidden;
+}
+.rec-card__bar-fill {
+  height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) 0%, #06b6d4 100%);
+  transition: width .55s cubic-bezier(.4,0,.2,1); width: 0%;
+}
+.rec-card__bar-label { font-family: var(--mono); font-size: 9px; color: var(--text-3); }
 
-  .modal-divider {
-    text-align: center; font-size: 12px; color: var(--muted);
-    margin: 20px 0 16px; position: relative;
-  }
-  .modal-divider::before, .modal-divider::after {
-    content: ''; position: absolute; top: 50%; width: calc(50% - 28px);
-    height: 1px; background: var(--border);
-  }
-  .modal-divider::before { left: 0; }
-  .modal-divider::after  { right: 0; }
+.rec-card__btn {
+  margin-top: auto; width: 100%; padding: 6px 8px;
+  border-radius: var(--r-sm); border: none;
+  background: var(--accent); color: white;
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: background .14s, transform .12s;
+}
+.rec-card__btn:hover { background: var(--accent-hover); transform: scale(1.02); }
 
-  #guestBtn {
-    width: 100%; padding: 10px;
-    background: transparent; color: var(--text-secondary);
-    border: 1px solid var(--border); border-radius: 8px;
-    font-family: var(--font-ui); font-size: 13px;
-    cursor: pointer; transition: all .15s;
-  }
-  #guestBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.rec-skeleton {
+  flex: 0 0 182px; height: 145px; border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: linear-gradient(90deg, var(--bg) 25%, #e8eaf0 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-  .user-pill {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px; border-radius: var(--radius);
-    background: var(--success-bg);
-    border: 1px solid rgba(46,132,74,.2);
-    font-size: 13px; color: var(--success);
-    margin: 0 16px 16px;
-  }
-  .user-pill .uname { font-weight: 600; flex: 1; }
-  .user-pill .logout-link {
-    font-size: 11px; color: var(--muted);
-    cursor: pointer; text-decoration: underline;
-  }
-  .user-pill .logout-link:hover { color: var(--danger); }
+.rec-strip__hint {
+  padding: 2px 28px 0;
+  font-size: 10px; color: var(--text-3);
+  display: flex; align-items: center; gap: 4px;
+}
 
-  /* ── Product Cards ── */
-  .product-cards-wrap {
-    margin: 12px -4px 4px;
-  }
-  .product-cards-intro {
-    font-size: 14px; line-height: 1.7; margin-bottom: 10px;
-  }
-  .product-cards {
-    display: flex; gap: 12px;
-    overflow-x: auto; overflow-y: hidden;
-    padding: 4px 4px 10px;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-  }
-  .product-cards::-webkit-scrollbar { height: 5px; }
-  .product-cards::-webkit-scrollbar-track { background: transparent; }
-  .product-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* ─────────────────────────────────────────────────────────
+   INPUT BAR
+───────────────────────────────────────────────────────── */
+.input-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 12px 28px 16px;
+  background: var(--surface);
+}
+.input-wrap {
+  display: flex; align-items: flex-end; gap: 9px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--r-lg); padding: 9px 12px; transition: all .18s;
+}
+.input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+#userInput {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: 13.5px;
+  resize: none; max-height: 120px; min-height: 22px; line-height: 1.55;
+}
+#userInput::placeholder { color: var(--text-3); }
 
-  .product-card {
-    flex: 0 0 220px; scroll-snap-align: start;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px; display: flex; flex-direction: column;
-    transition: all .2s; position: relative;
-  }
-  .product-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+#sendBtn {
+  width: 34px; height: 34px; border-radius: var(--r-sm); flex-shrink: 0;
+  background: var(--accent); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .14s; color: white; font-size: 15px;
+}
+#sendBtn:hover { background: var(--accent-hover); transform: scale(1.06); }
+#sendBtn:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; transform: none; }
 
-  .product-card-name {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    line-height: 1.4; margin-bottom: 8px;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    min-height: 36px;
-  }
-  .product-card-code {
-    font-family: var(--font-mono); font-size: 10px; color: var(--muted);
-    margin-bottom: 10px;
-  }
-  .product-card-price {
-    font-size: 18px; font-weight: 700; color: var(--accent);
-    font-family: var(--font-mono); margin-bottom: 6px;
-  }
-  .product-card-meta {
-    display: flex; align-items: center; gap: 6px;
-    margin-bottom: 12px; flex-wrap: wrap;
-  }
-  .product-card-stock {
-    font-size: 11px; font-weight: 600; padding: 2px 8px;
-    border-radius: 100px;
-  }
-  .product-card-stock.in-stock { background: var(--success-bg); color: var(--success); }
-  .product-card-stock.out-of-stock { background: var(--danger-bg); color: var(--danger); }
-  .product-card-stock.low-stock { background: var(--warning-bg); color: var(--warning); }
-  .product-card-rating {
-    font-size: 11px; color: var(--warning);
-    display: flex; align-items: center; gap: 3px;
-  }
-  .product-card-rating .stars { letter-spacing: -1px; }
-  .product-card-rating .val { color: var(--text-secondary); font-family: var(--font-mono); }
+.input-hint {
+  font-size: 10px; color: var(--text-3);
+  margin-top: 7px; padding: 0 3px;
+}
+.input-hint kbd {
+  padding: 1px 4px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 3px;
+  font-family: var(--mono); font-size: 9px;
+}
 
-  .product-card-actions { margin-top: auto; display: flex; gap: 6px; }
-  .product-card-btn {
-    flex: 1; padding: 7px 10px; border-radius: 6px; font-size: 12px;
-    font-family: var(--font-ui); font-weight: 600;
-    cursor: pointer; transition: all .15s; border: none; text-align: center;
-  }
-  .product-card-btn.add-cart {
-    background: var(--accent); color: white;
-  }
-  .product-card-btn.add-cart:hover { background: var(--accent-hover); }
-  .product-card-btn.details {
-    background: transparent; color: var(--accent); border: 1px solid var(--border);
-  }
-  .product-card-btn.details:hover { border-color: var(--accent); background: var(--accent-light); }
+/* ─────────────────────────────────────────────────────────
+   MODAL
+───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.38);
+  backdrop-filter: blur(5px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
 
-  .product-scroll-hint {
-    font-size: 11px; color: var(--muted); margin-top: 4px;
-    display: flex; align-items: center; gap: 4px;
-  }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 32px 28px;
+  width: 100%; max-width: 390px;
+  position: relative;
+  transform: translateY(14px);
+  transition: transform .22s;
+  box-shadow: var(--sh-lg);
+}
+.modal-overlay.open .modal { transform: translateY(0); }
 
-  /* Widen bubble when it has product cards */
-  .bubble:has(.product-cards-wrap) { max-width: 720px; }
+.modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none;
+  color: var(--text-3); font-size: 18px;
+  cursor: pointer; line-height: 1; transition: color .14s;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+}
+.modal-close:hover { color: var(--text); background: var(--bg); }
 
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    .sidebar { display: none; }
-    #messages { padding: 20px 16px; }
-    .input-bar { padding: 12px 16px 16px; }
-    header { padding: 0 16px; }
-    .token-badge { display: none; }
-  }
+.modal-icon {
+  width: 48px; height: 48px; border-radius: 13px;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; margin-bottom: 18px;
+}
+.modal h2   { font-size: 19px; font-weight: 700; margin-bottom: 5px; letter-spacing: -0.02em; }
+.modal .sub { font-size: 12px; color: var(--text-2); margin-bottom: 22px; line-height: 1.55; }
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--text); margin-bottom: 5px;
+}
+.field input {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text);
+  font-family: var(--font); font-size: 13px;
+  outline: none; transition: all .18s;
+}
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.field input::placeholder { color: var(--text-3); }
+
+.modal-error {
+  padding: 9px 12px; margin-bottom: 14px;
+  background: var(--danger-bg); border: 1px solid rgba(220,38,38,.2);
+  border-radius: var(--r-sm); font-size: 12px; color: var(--danger);
+  display: none;
+}
+.modal-error.show { display: block; }
+
+#loginBtn {
+  width: 100%; padding: 11px;
+  background: var(--accent); color: white;
+  border: none; border-radius: var(--r-sm);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .14s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+#loginBtn:hover { background: var(--accent-hover); }
+#loginBtn:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
+
+.login-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: white;
+  animation: spin .6s linear infinite; display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.modal-divider {
+  text-align: center; font-size: 11px; color: var(--text-3);
+  margin: 16px 0 14px; position: relative;
+}
+.modal-divider::before, .modal-divider::after {
+  content: ''; position: absolute; top: 50%;
+  width: calc(50% - 24px); height: 1px; background: var(--border);
+}
+.modal-divider::before { left: 0; }
+.modal-divider::after  { right: 0; }
+
+#guestBtn {
+  width: 100%; padding: 9px;
+  background: transparent; color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-family: var(--font); font-size: 12px;
+  cursor: pointer; transition: all .14s;
+}
+#guestBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* ─────────────────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  #messages { padding: 16px 14px; }
+  .input-bar { padding: 10px 14px 14px; }
+  .rec-strip__header { padding: 0 14px 9px; }
+  .rec-strip__track  { padding: 3px 14px 9px; }
+  .rec-strip__hint   { padding: 2px 14px 0; }
+  header { padding: 0 14px; }
+  .token-badge { display: none; }
+}
 </style>
 </head>
 <body>
 
-<!-- ── Header ── -->
+<!-- ════ HEADER ════ -->
 <header>
-  <div class="logo">
-    <div class="logo-icon">S</div>
-    <span><span class="brand-sap">SAP</span> Commerce Assistant</span>
-  </div>
+  <a class="logo" href="/">
+    <div class="logo-mark">S</div>
+    <span class="logo-text"><em>SAP</em> Commerce Assistant</span>
+  </a>
   <div class="header-right">
     <div class="token-badge" id="tokenBadge">0 tokens</div>
     <div class="status-pill" id="statusPill">
@@ -592,18 +796,19 @@
       <span>connecting</span>
     </div>
     <button id="authBtn" onclick="openLogin()">
-      <span class="auth-icon">&#128100;</span>
+      <span>👤</span>
       <span id="authBtnLabel">Sign In</span>
     </button>
   </div>
 </header>
 
-<!-- ── Layout ── -->
+<!-- ════ LAYOUT ════ -->
 <div class="layout">
 
+  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div id="userPill" class="user-pill" style="display:none">
-      <span>&#10003;</span>
+      <span>✓</span>
       <span class="uname" id="userPillName"></span>
       <span class="logout-link" onclick="doLogout()">logout</span>
     </div>
@@ -611,7 +816,7 @@
     <div class="sidebar-section">
       <div class="sidebar-label">Session</div>
       <div class="session-card">
-        <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
+        <div class="row"><span>ID</span><span id="sessionId">—</span></div>
         <div class="row"><span>User</span><span id="sideUser">guest</span></div>
         <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
       </div>
@@ -629,22 +834,22 @@
         </div>
         <div class="cart-total" id="cartTotal" style="display:none">
           <span>Total</span>
-          <span class="price" id="cartTotalPrice">&mdash;</span>
+          <span class="price" id="cartTotalPrice">—</span>
         </div>
       </div>
     </div>
 
     <div class="sidebar-section">
       <div class="sidebar-label">Quick Actions</div>
-      <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
-      <button class="quick-btn" onclick="sendQuick('Search for headphones')"><span class="icon">&#127911;</span> Find headphones</button>
-      <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
-      <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+      <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">📷</span> Browse cameras</button>
+      <button class="quick-btn" onclick="sendQuick('Search for headphones')"><span class="icon">🎧</span> Find headphones</button>
+      <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">🛒</span> View cart</button>
+      <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">💳</span> Checkout</button>
     </div>
 
     <div class="flow-steps">
       <div class="sidebar-label">Checkout Progress</div>
-      <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
+      <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse &amp; search</div></div>
       <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
       <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
       <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
@@ -652,42 +857,68 @@
     </div>
   </aside>
 
+  <!-- CHAT -->
   <div class="chat-wrap">
+
+    <!-- Messages -->
     <div id="messages">
       <div class="welcome" id="welcome">
-        <div class="welcome-icon">&#128722;</div>
+        <div class="welcome-icon">🛒</div>
         <h2>SAP Commerce Electronics Store</h2>
         <p>Your AI-powered shopping assistant. Browse the electronics catalog, manage your cart, and place orders with conversational ease.</p>
         <div class="chips">
-          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon EOS Cameras</div>
-          <div class="chip" onclick="sendQuick('Search for Sony headphones')"><span class="chip-icon">&#127911;</span> Sony Headphones</div>
-          <div class="chip" onclick="sendQuick('What power drills do you have?')"><span class="chip-icon">&#128295;</span> Power Drills</div>
-          <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
-          <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">&#128248;</span> Camera Lenses</div>
-          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods & Accessories</div>
-          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries & Chargers</div>
-          <div class="chip" onclick="sendQuick('Show me webcams and video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
+          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">📷</span> Canon EOS Cameras</div>
+          <div class="chip" onclick="sendQuick('Search for Sony headphones')"><span class="chip-icon">🎧</span> Sony Headphones</div>
+          <div class="chip" onclick="sendQuick('What power drills do you have?')"><span class="chip-icon">🔧</span> Power Drills</div>
+          <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">💾</span> Memory Cards</div>
+          <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">🔭</span> Camera Lenses</div>
+          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">🎬</span> Tripods &amp; Accessories</div>
+          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">🔋</span> Batteries &amp; Chargers</div>
+          <div class="chip" onclick="sendQuick('Show me webcams and video cameras')"><span class="chip-icon">🎥</span> Video Cameras</div>
         </div>
       </div>
     </div>
 
+    <!-- ══ RECOMMENDATION STRIP ══ -->
+    <section class="rec-strip" id="rec-strip" aria-label="Personalised recommendations">
+      <div class="rec-strip__header">
+        <div class="rec-strip__title">
+          <div class="rec-strip__icon">✦</div>
+          <div>
+            <div class="rec-strip__label">Top Picks For You</div>
+            <div class="rec-strip__sublabel" id="rec-sublabel">Personalised recommendations</div>
+          </div>
+        </div>
+        <div class="rec-strip__badge">
+          <span class="rec-dot"></span>
+          <span id="rec-algo-label">AI</span>
+        </div>
+      </div>
+      <div class="rec-strip__track-wrap">
+        <div class="rec-strip__track" id="rec-track"></div>
+      </div>
+      <div class="rec-strip__hint" id="rec-hint" style="display:none">← scroll for more →</div>
+    </section>
+
+    <!-- Input -->
     <div class="input-bar">
       <div class="input-wrap">
-        <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart..."></textarea>
-        <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
+        <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart…"></textarea>
+        <button id="sendBtn" onclick="sendMessage()" title="Send">➤</button>
       </div>
-      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line</div>
+      <div class="input-hint"><kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line</div>
     </div>
-  </div>
-</div>
 
-<!-- ── Login Modal ── -->
+  </div><!-- /chat-wrap -->
+</div><!-- /layout -->
+
+<!-- ════ LOGIN MODAL ════ -->
 <div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
   <div class="modal">
-    <button class="modal-close" onclick="closeLogin()">&#10005;</button>
-    <div class="modal-icon">&#128100;</div>
+    <button class="modal-close" onclick="closeLogin()">✕</button>
+    <div class="modal-icon">👤</div>
     <h2>Sign In</h2>
-    <p class="modal-sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
+    <p class="sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
     <div class="modal-error" id="loginError"></div>
     <div class="field">
       <label>Username / Email</label>
@@ -706,647 +937,632 @@
   </div>
 </div>
 
+<!-- ════ SCRIPTS ════ -->
 <script>
-  const API = '';
-  let sessionId    = null;
-  let totalTokens  = 0;
-  let turnCount    = 0;
-  let isLoading    = false;
-  let currentUser  = null;
-  let cartData     = { items: [], total: null, id: null, orderCode: null };
+const API = '';
 
-  // ── Health check ──
-  async function checkHealth() {
-    try {
-      const r = await fetch(`${API}/health`);
-      const d = await r.json();
-      setStatus(d.status === 'ok' && d.circuit_breaker === 'closed');
-    } catch { setStatus(false); }
+let sessionId   = null;
+let totalTokens = 0;
+let turnCount   = 0;
+let isLoading   = false;
+let currentUser = null;
+let cartData    = { items: [], total: null, id: null, orderCode: null };
+
+/* ── Health check ── */
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const d = await r.json();
+    setStatus(d.status === 'ok' && d.circuit_breaker === 'closed');
+  } catch { setStatus(false); }
+}
+function setStatus(online) {
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill' + (online ? ' online' : '');
+  pill.querySelector('span').textContent = online ? 'connected' : 'offline';
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+/* ── Textarea auto-resize ── */
+const input = document.getElementById('userInput');
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+/* ── Login modal ── */
+function openLogin() {
+  if (currentUser) { if (confirm(`Sign out of ${currentUser}?`)) doLogout(); return; }
+  document.getElementById('loginError').classList.remove('show');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginModal').classList.add('open');
+  setTimeout(() => document.getElementById('loginUser').focus(), 240);
+}
+function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
+function handleOverlayClick(e) { if (e.target === document.getElementById('loginModal')) closeLogin(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogin(); });
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const btn      = document.getElementById('loginBtn');
+  const spinner  = document.getElementById('loginSpinner');
+  const label    = document.getElementById('loginBtnLabel');
+
+  if (!username || !password) { showLoginError('Please enter your username and password.'); return; }
+
+  btn.disabled = true; spinner.style.display = 'block'; label.textContent = 'Signing in…';
+  document.getElementById('loginError').classList.remove('show');
+
+  try {
+    const body = { username, password };
+    if (sessionId) body.session_id = sessionId;
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) { showLoginError(d.detail || 'Login failed. Please check your credentials.'); return; }
+
+    sessionId   = d.session_id;
+    currentUser = d.username;
+    closeLogin();
+    updateAuthUI(d.username);
+    /* ── RECOMMENDATION STRIP: load on login ── */
+    RecStrip.init(d.username, 'electronics');
+    appendMsg('agent', `Welcome back, **${d.username}**! You're now signed in. How can I help you today?`);
+    updateSidebarUser(d.username);
+  } catch (err) {
+    showLoginError('Could not reach the server. Please try again.');
+  } finally {
+    btn.disabled = false; spinner.style.display = 'none'; label.textContent = 'Sign In';
+    document.getElementById('loginPass').value = '';
   }
-  function setStatus(online) {
-    const pill = document.getElementById('statusPill');
-    pill.className = 'status-pill' + (online ? ' online' : '');
-    pill.querySelector('span').textContent = online ? 'connected' : 'offline';
+}
+
+async function doLogout() {
+  if (!sessionId) return;
+  try { await fetch(`${API}/auth/logout?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' }); } catch {}
+  currentUser = null;
+  updateAuthUI(null);
+  updateSidebarUser(null);
+  RecStrip.hide();
+  appendMsg('agent', 'You have been signed out. You can continue browsing as a guest.');
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg; el.classList.add('show');
+}
+function updateAuthUI(username) {
+  const btn   = document.getElementById('authBtn');
+  const label = document.getElementById('authBtnLabel');
+  const pill  = document.getElementById('userPill');
+  const name  = document.getElementById('userPillName');
+  if (username) {
+    btn.classList.add('logged-in'); label.textContent = username;
+    pill.style.display = 'flex'; name.textContent = username;
+  } else {
+    btn.classList.remove('logged-in'); label.textContent = 'Sign In';
+    pill.style.display = 'none';
   }
-  checkHealth();
-  setInterval(checkHealth, 30000);
+}
+function updateSidebarUser(username) {
+  document.getElementById('sideUser').textContent = username || 'guest';
+}
 
-  // ── Auto-resize textarea ──
-  const input = document.getElementById('userInput');
-  input.addEventListener('input', () => {
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
-  });
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
+/* ── Chat ── */
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+  input.value = ''; input.style.height = 'auto';
+  doSend(text);
+}
+function sendQuick(text) { if (!isLoading) doSend(text); }
 
-  // ── Login modal ──
-  function openLogin() {
-    if (currentUser) {
-      if (confirm(`Sign out of ${currentUser}?`)) doLogout();
+async function doSend(text) {
+  hideWelcome();
+  appendMsg('user', text);
+  setLoading(true);
+  const typing = appendTyping();
+
+  try {
+    const body = { message: text, user_id: currentUser || 'anonymous' };
+    if (sessionId) body.session_id = sessionId;
+    const r = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    typing.remove();
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: 'Server error' }));
+      appendError(err.detail || `HTTP ${r.status}`);
       return;
     }
-    document.getElementById('loginError').classList.remove('show');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('loginModal').classList.add('open');
-    setTimeout(() => document.getElementById('loginUser').focus(), 250);
-  }
-  function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
-  function handleOverlayClick(e) { if (e.target === document.getElementById('loginModal')) closeLogin(); }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogin(); });
-  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
-  async function doLogin() {
-    const username = document.getElementById('loginUser').value.trim();
-    const password = document.getElementById('loginPass').value;
-    const btn      = document.getElementById('loginBtn');
-    const spinner  = document.getElementById('loginSpinner');
-    const label    = document.getElementById('loginBtnLabel');
+    const d = await r.json();
+    sessionId    = d.session_id;
+    totalTokens += d.tokens_used || 0;
+    turnCount    = d.turn || turnCount + 1;
 
-    if (!username || !password) { showLoginError('Please enter your username and password.'); return; }
+    appendMsg('agent', d.reply);
+    updateSidebar(d);
+    parseCartFromReply(d);
 
-    btn.disabled = true;
-    spinner.style.display = 'block';
-    label.textContent = 'Signing in...';
-    document.getElementById('loginError').classList.remove('show');
+    /* ── RECOMMENDATION STRIP: refresh after every chat turn ── */
+    RecStrip.init(currentUser || d.username || 'anonymous', text);
 
-    try {
-      const body = { username, password };
-      if (sessionId) body.session_id = sessionId;
-      const r = await fetch(`${API}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const d = await r.json();
-      if (!r.ok) { showLoginError(d.detail || 'Login failed. Please check your credentials.'); return; }
-
-      sessionId   = d.session_id;
+    if (d.authenticated && d.username && !currentUser) {
       currentUser = d.username;
-      closeLogin();
       updateAuthUI(d.username);
-      appendMsg('agent', `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, headphones, or any electronics from the catalog.`);
       updateSidebarUser(d.username);
-    } catch (err) {
-      showLoginError('Could not reach the server. Please try again.');
-    } finally {
-      btn.disabled = false;
-      spinner.style.display = 'none';
-      label.textContent = 'Sign In';
-      document.getElementById('loginPass').value = '';
     }
+    if (d.awaiting_approval) showOrderConfirm(d.session_id);
+
+  } catch (err) {
+    typing.remove();
+    appendError('Could not reach the agent. Is the server running?');
+  } finally {
+    setLoading(false);
   }
+}
 
-  async function doLogout() {
-    if (!sessionId) return;
-    try { await fetch(`${API}/auth/logout?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' }); } catch {}
-    currentUser = null;
-    updateAuthUI(null);
-    updateSidebarUser(null);
-    appendMsg('agent', 'You have been signed out. You can continue browsing the electronics catalog as a guest.');
+/* ── Cart parsing ── */
+function parseCartFromReply(d) {
+  if (d.cart_id && d.cart_id !== cartData.id) cartData.id = d.cart_id;
+  if (d.order_code) cartData.orderCode = d.order_code;
+}
+
+function updateCartUI() {
+  const countEl = document.getElementById('cartCount');
+  const itemsEl = document.getElementById('cartItems');
+  const emptyEl = document.getElementById('cartEmpty');
+  const totalEl = document.getElementById('cartTotal');
+  const priceEl = document.getElementById('cartTotalPrice');
+
+  countEl.textContent = cartData.items.length;
+  if (cartData.items.length === 0) {
+    emptyEl.style.display = 'block'; totalEl.style.display = 'none';
+    itemsEl.innerHTML = ''; itemsEl.appendChild(emptyEl);
+  } else {
+    emptyEl.style.display = 'none'; itemsEl.innerHTML = '';
+    cartData.items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'cart-item';
+      div.innerHTML = `<span class="cart-item-name">${esc(item.name)}</span>
+        <span class="cart-item-qty">x${item.qty}</span>
+        <span class="cart-item-price">${esc(item.price)}</span>`;
+      itemsEl.appendChild(div);
+    });
+    if (cartData.total) { totalEl.style.display = 'flex'; priceEl.textContent = cartData.total; }
   }
+}
 
-  function showLoginError(msg) {
-    const el = document.getElementById('loginError');
-    el.textContent = msg;
-    el.classList.add('show');
+/* ── Order confirmation ── */
+function showOrderConfirm(sid) {
+  const last = document.querySelector('#messages .msg.agent:last-child .bubble');
+  if (!last) return;
+  const banner = document.createElement('div');
+  banner.className = 'confirm-banner';
+  banner.innerHTML = `
+    <strong>Order Confirmation Required</strong><br>
+    Please confirm you want to place this order. This action cannot be undone.
+    <div class="confirm-actions">
+      <button class="btn-confirm yes" onclick="approveOrder(true, this)">Confirm &amp; Place Order</button>
+      <button class="btn-confirm no"  onclick="approveOrder(false, this)">Cancel</button>
+    </div>`;
+  last.appendChild(banner);
+}
+
+async function approveOrder(approved, btn) {
+  btn.closest('.confirm-banner').querySelectorAll('button').forEach(b => b.disabled = true);
+  const typing = appendTyping();
+  try {
+    const r = await fetch(`${API}/chat/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, approved }),
+    });
+    typing.remove();
+    const d = await r.json();
+    appendMsg('agent', d.reply);
+    if (d.order_code) { cartData.orderCode = d.order_code; markStep('step-order', 'done'); }
+  } catch {
+    typing.remove();
+    appendError('Approval request failed. Please try again.');
   }
+}
 
-  function updateAuthUI(username) {
-    const btn   = document.getElementById('authBtn');
-    const label = document.getElementById('authBtnLabel');
-    const pill  = document.getElementById('userPill');
-    const name  = document.getElementById('userPillName');
-    if (username) {
-      btn.classList.add('logged-in');
-      label.textContent = username;
-      pill.style.display = 'flex';
-      name.textContent   = username;
-    } else {
-      btn.classList.remove('logged-in');
-      label.textContent  = 'Sign In';
-      pill.style.display = 'none';
-    }
-  }
+/* ── DOM helpers ── */
+function hideWelcome() { const w = document.getElementById('welcome'); if (w) w.remove(); }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-  function updateSidebarUser(username) {
-    document.getElementById('sideUser').textContent = username || 'guest';
-  }
+function appendMsg(role, text) {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = role === 'agent' ? 'AI' : 'U';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
 
-  // ── Chat ──
-  async function sendMessage() {
-    const text = input.value.trim();
-    if (!text || isLoading) return;
-    input.value = ''; input.style.height = 'auto';
-    doSend(text);
-  }
-  function sendQuick(text) { if (!isLoading) doSend(text); }
-
-  async function doSend(text) {
-    hideWelcome();
-    appendMsg('user', text);
-    setLoading(true);
-    const typing = appendTyping();
-
-    try {
-      const body = { message: text, user_id: currentUser || 'anonymous' };
-      if (sessionId) body.session_id = sessionId;
-      const r = await fetch(`${API}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      typing.remove();
-
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({ detail: 'Server error' }));
-        appendError(err.detail || `HTTP ${r.status}`);
-        return;
-      }
-
-      const d = await r.json();
-      sessionId    = d.session_id;
-      totalTokens += d.tokens_used || 0;
-      turnCount    = d.turn || turnCount + 1;
-
-      appendMsg('agent', d.reply);
-      updateSidebar(d);
-      parseCartFromReply(d);
-
-      // Sync auth state from server (covers static token / pre-authenticated sessions)
-      if (d.authenticated && d.username && !currentUser) {
-        currentUser = d.username;
-        updateAuthUI(d.username);
-        updateSidebarUser(d.username);
-      }
-
-      if (d.awaiting_approval) showOrderConfirm(d.session_id);
-    } catch (err) {
-      typing.remove();
-      appendError('Could not reach the agent. Is the server running?');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Cart parsing from agent reply ──
-  function parseCartFromReply(d) {
-    if (d.cart_id && d.cart_id !== cartData.id) {
-      cartData.id = d.cart_id;
-    }
-    if (d.order_code) {
-      cartData.orderCode = d.order_code;
-    }
-  }
-
-  function updateCartUI() {
-    const countEl = document.getElementById('cartCount');
-    const itemsEl = document.getElementById('cartItems');
-    const emptyEl = document.getElementById('cartEmpty');
-    const totalEl = document.getElementById('cartTotal');
-    const priceEl = document.getElementById('cartTotalPrice');
-
-    countEl.textContent = cartData.items.length;
-
-    if (cartData.items.length === 0) {
-      emptyEl.style.display = 'block';
-      totalEl.style.display = 'none';
-      itemsEl.innerHTML = '';
-      itemsEl.appendChild(emptyEl);
-    } else {
-      emptyEl.style.display = 'none';
-      itemsEl.innerHTML = '';
-      cartData.items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'cart-item';
-        div.innerHTML = `<span class="cart-item-name">${esc(item.name)}</span>
-          <span class="cart-item-qty">x${item.qty}</span>
-          <span class="cart-item-price">${esc(item.price)}</span>`;
-        itemsEl.appendChild(div);
-      });
-      if (cartData.total) {
-        totalEl.style.display = 'flex';
-        priceEl.textContent = cartData.total;
-      }
-    }
-  }
-
-  // ── Order confirmation ──
-  function showOrderConfirm(sid) {
-    const last = document.querySelector('#messages .msg.agent:last-child .bubble');
-    if (!last) return;
-    const banner = document.createElement('div');
-    banner.className = 'confirm-banner';
-    banner.innerHTML = `
-      <strong>Order Confirmation Required</strong><br>
-      Please confirm you want to place this order. This action cannot be undone.
-      <div class="confirm-actions">
-        <button class="btn-confirm yes" onclick="approveOrder(true, this)">Confirm & Place Order</button>
-        <button class="btn-confirm no"  onclick="approveOrder(false, this)">Cancel</button>
-      </div>`;
-    last.appendChild(banner);
-  }
-
-  async function approveOrder(approved, btn) {
-    btn.closest('.confirm-banner').querySelectorAll('button').forEach(b => b.disabled = true);
-    const typing = appendTyping();
-    try {
-      const r = await fetch(`${API}/chat/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, approved }),
-      });
-      typing.remove();
-      const d = await r.json();
-      appendMsg('agent', d.reply);
-      if (d.order_code) {
-        cartData.orderCode = d.order_code;
-        markStep('step-order', 'done');
-      }
-    } catch {
-      typing.remove();
-      appendError('Approval request failed. Please try again.');
-    }
-  }
-
-  // ── DOM helpers ──
-  function hideWelcome() {
-    const w = document.getElementById('welcome');
-    if (w) w.remove();
-  }
-
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function appendMsg(role, text) {
-    const msgs   = document.getElementById('messages');
-    const div    = document.createElement('div');
-    div.className = `msg ${role}`;
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.textContent = role === 'agent' ? 'AI' : 'U';
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble';
-
-    if (role === 'agent' && isProductSearchReply(text)) {
-      const parsed = parseProductsFromText(text);
-      if (parsed.products.length > 0) {
-        bubble.innerHTML = buildProductCardsHTML(parsed.intro, parsed.products, parsed.outro);
-      } else {
-        bubble.innerHTML = formatText(text);
-      }
+  if (role === 'agent' && isProductSearchReply(text)) {
+    const parsed = parseProductsFromText(text);
+    if (parsed.products.length > 0) {
+      bubble.innerHTML = buildProductCardsHTML(parsed.intro, parsed.products, parsed.outro);
     } else {
       bubble.innerHTML = formatText(text);
     }
-
-    div.appendChild(avatar);
-    div.appendChild(bubble);
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    return div;
+  } else {
+    bubble.innerHTML = formatText(text);
   }
 
-  // ── Detect if reply is a product search result ──
-  function isProductSearchReply(text) {
-    const lower = text.toLowerCase();
-    // Must NOT be a cart, checkout, order, or detail response
-    const isCartOrOrder = /added to (your )?cart|cart (contents|total|summary)|order (placed|confirmed|#|code)|checkout|delivery (address|mode)|payment|shipping|entry.?number|your order|has been added/i.test(lower);
-    if (isCartOrOrder) return false;
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
 
-    // Must look like a search/browse result
-    const hasSearchContext = /found|result|here are|available|match|showing|products? (for|i found|in)|catalog|search|top result|browse/i.test(lower);
-    if (!hasSearchContext) return false;
+function isProductSearchReply(text) {
+  const lower = text.toLowerCase();
+  const isCartOrOrder = /added to (your )?cart|cart (contents|total|summary)|order (placed|confirmed|#|code)|checkout|delivery (address|mode)|payment|shipping|entry.?number|your order|has been added/i.test(lower);
+  if (isCartOrOrder) return false;
+  const hasSearchContext = /found|result|here are|available|match|showing|products? (for|i found|in)|catalog|search|top result|browse/i.test(lower);
+  if (!hasSearchContext) return false;
+  const hasProductTable   = /\|\s*(product|name)\s*\|/i.test(text);
+  const hasNumberedProducts = /^\s*\d+[\.\)]\s*.+/m.test(text) && /price|stock|\$\d/im.test(text);
+  const hasBoldProducts   = /\*\*.+?\*\*/.test(text) && /price|stock|\$\d/im.test(text);
+  return hasProductTable || hasNumberedProducts || hasBoldProducts;
+}
 
-    // Must have a product table OR a numbered list with price/code details
-    const hasProductTable = /\|\s*(product|name)\s*\|/i.test(text);
-    const hasNumberedProducts = /^\s*\d+[\.\)]\s*.+/m.test(text) && /price|stock|\$\d/im.test(text);
-    const hasBoldProducts = /\*\*.+?\*\*/.test(text) && /price|stock|\$\d/im.test(text);
+function parseProductsFromText(text) {
+  const tableResult = parseMarkdownTable(text);
+  if (tableResult.products.length > 0) return tableResult;
+  return parseBoldList(text);
+}
 
-    return hasProductTable || hasNumberedProducts || hasBoldProducts;
-  }
-
-  // ── Product parsing from agent text ──
-  function parseProductsFromText(text) {
-    // Try markdown table first, then fall back to bold-name list
-    const tableResult = parseMarkdownTable(text);
-    if (tableResult.products.length > 0) return tableResult;
-    return parseBoldList(text);
-  }
-
-  // Parse markdown table format:
-  // | Product | Price | Stock | Rating |
-  // |---------|-------|-------|--------|
-  // | Name    | $X.XX | ...   | ...    |
-  function parseMarkdownTable(text) {
-    const lines = text.split('\n');
-    const introLines = [];
-    const outroLines = [];
-    const products = [];
-    let headerIdx = -1;
-    let colMap = {};  // column name → index
-
-    // Find the header row (contains | Product | or | Name |)
-    for (let i = 0; i < lines.length; i++) {
-      const t = lines[i].trim();
-      if (t.startsWith('|') && t.endsWith('|')) {
-        const cells = t.split('|').map(c => c.trim()).filter(c => c);
-        const lower = cells.map(c => c.toLowerCase());
-        if (lower.some(c => c === 'product' || c === 'name')) {
-          headerIdx = i;
-          cells.forEach((c, idx) => { colMap[c.toLowerCase()] = idx; });
-          break;
-        }
-      }
-    }
-
-    if (headerIdx === -1) return { intro: '', products: [], outro: '' };
-
-    // Collect intro (everything before header)
-    for (let i = 0; i < headerIdx; i++) introLines.push(lines[i]);
-
-    // Skip header and separator rows, parse data rows
-    let dataStart = headerIdx + 1;
-    // Skip separator line like |---|---|---|
-    if (dataStart < lines.length && lines[dataStart].trim().match(/^\|[\s\-:|]+\|$/)) {
-      dataStart++;
-    }
-
-    let dataEnd = dataStart;
-    for (let i = dataStart; i < lines.length; i++) {
-      const t = lines[i].trim();
-      if (t.startsWith('|') && t.endsWith('|')) {
-        const cells = t.split('|').map(c => c.trim()).filter(c => c);
-        if (cells.length < 2 || cells.every(c => c.match(/^[-:]+$/))) continue;
-
-        const nameIdx = colMap['product'] ?? colMap['name'] ?? 0;
-        const priceIdx = colMap['price'] ?? 1;
-        const stockIdx = colMap['stock'] ?? 2;
-        const ratingIdx = colMap['rating'] ?? 3;
-
-        const name = (cells[nameIdx] || '').replace(/\*\*/g, '').trim();
-        const price = (cells[priceIdx] || '').replace(/\*\*/g, '').trim();
-        const stock = (cells[stockIdx] || '').trim();
-        const ratingRaw = (cells[ratingIdx] || '').replace(/[^0-9.]/g, '').trim();
-        const rating = ratingRaw ? parseFloat(ratingRaw) : null;
-
-        if (name && name !== '---') {
-          products.push({ name, price: price || null, code: null, stock: stock || null, rating });
-        }
-        dataEnd = i + 1;
-      } else {
+function parseMarkdownTable(text) {
+  const lines = text.split('\n');
+  const introLines = [], outroLines = [], products = [];
+  let headerIdx = -1, colMap = {};
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t.startsWith('|') && t.endsWith('|')) {
+      const cells = t.split('|').map(c => c.trim()).filter(c => c);
+      const lower = cells.map(c => c.toLowerCase());
+      if (lower.some(c => c === 'product' || c === 'name')) {
+        headerIdx = i;
+        cells.forEach((c, idx) => { colMap[c.toLowerCase()] = idx; });
         break;
       }
     }
-
-    // Collect outro (everything after table)
-    for (let i = dataEnd; i < lines.length; i++) outroLines.push(lines[i]);
-
-    return {
-      intro: introLines.join('\n').trim(),
-      products,
-      outro: outroLines.join('\n').trim(),
-    };
   }
+  if (headerIdx === -1) return { intro: '', products: [], outro: '' };
+  for (let i = 0; i < headerIdx; i++) introLines.push(lines[i]);
+  let dataStart = headerIdx + 1;
+  if (dataStart < lines.length && lines[dataStart].trim().match(/^\|[\s\-:|]+\|$/)) dataStart++;
+  let dataEnd = dataStart;
+  for (let i = dataStart; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t.startsWith('|') && t.endsWith('|')) {
+      const cells = t.split('|').map(c => c.trim()).filter(c => c);
+      if (cells.length < 2 || cells.every(c => c.match(/^[-:]+$/))) continue;
+      const nameIdx   = colMap['product'] ?? colMap['name'] ?? 0;
+      const priceIdx  = colMap['price'] ?? 1;
+      const stockIdx  = colMap['stock'] ?? 2;
+      const ratingIdx = colMap['rating'] ?? 3;
+      const name  = (cells[nameIdx]   || '').replace(/\*\*/g, '').trim();
+      const price = (cells[priceIdx]  || '').replace(/\*\*/g, '').trim();
+      const stock = (cells[stockIdx]  || '').trim();
+      const ratingRaw = (cells[ratingIdx] || '').replace(/[^0-9.]/g, '').trim();
+      const rating = ratingRaw ? parseFloat(ratingRaw) : null;
+      if (name && name !== '---') products.push({ name, price: price || null, code: null, stock: stock || null, rating });
+      dataEnd = i + 1;
+    } else { break; }
+  }
+  for (let i = dataEnd; i < lines.length; i++) outroLines.push(lines[i]);
+  return { intro: introLines.join('\n').trim(), products, outro: outroLines.join('\n').trim() };
+}
 
-  // Fallback: parse numbered/bulleted product list
-  // Handles both:
-  //   1. **Product Name** - $XX.XX
-  //   1. Product Name (Code: 1312564)
-  //      - Price: $7.61
-  //      - Stock: In Stock
-  function parseBoldList(text) {
-    const lines = text.split('\n');
-    const products = [];
-    const introLines = [];
-    const outroLines = [];
-    let inProducts = false;
-    let doneProducts = false;
-    let currentProduct = null;
-
-    for (let i = 0; i < lines.length; i++) {
-      const trimmed = lines[i].trim();
-
-      // Skip markdown headings (### Battery Chargers)
-      if (trimmed.match(/^#{1,4}\s+/)) {
-        if (!inProducts) introLines.push(lines[i]);
-        continue;
-      }
-
-      // Match numbered product line: "1. Name (Code: xxx)" or "1. **Name** - $price"
-      const boldMatch = trimmed.match(
-        /^(\d+)[\.\)]\s+\*\*(.+?)\*\*\s*(?:[-–—]\s*)?(.*)$/
-      );
-      const plainMatch = trimmed.match(
-        /^(\d+)[\.\)]\s+(.+?)(?:\s*\((?:Code|SKU)[:\s]*([A-Za-z0-9_-]+)\))?\s*$/
-      );
-
-      if (boldMatch) {
-        if (currentProduct) products.push(currentProduct);
-        inProducts = true;
-        const name = boldMatch[2].trim();
-        const rest = boldMatch[3].trim();
-        const priceMatch = rest.match(/\$[\d,]+\.?\d*/);
-        currentProduct = { name, price: priceMatch ? priceMatch[0] : null, code: null, stock: null, rating: null };
-        const codeInline = rest.match(/(?:code|sku)[:\s]*([A-Za-z0-9_-]+)/i);
-        if (codeInline) currentProduct.code = codeInline[1];
-        continue;
-      }
-
-      if (plainMatch && !plainMatch[2].match(/^[-•]/)) {
-        // Avoid matching detail sub-lines like "- Price: $7.61"
-        if (currentProduct) products.push(currentProduct);
-        inProducts = true;
-        const name = plainMatch[2].trim();
-        const code = plainMatch[3] || null;
-        currentProduct = { name, price: null, code, stock: null, rating: null };
-        continue;
-      }
-
-      // Detail lines for current product (with or without leading dash/bullet)
-      if (currentProduct && !doneProducts) {
-        const stripped = trimmed.replace(/^[-•*]\s*/, '');
-
-        const priceLine = stripped.match(/^price[:\s]*(\$[\d,]+\.?\d*)/i);
-        const stockLine = stripped.match(/^stock[:\s]*(.*)/i);
-        const ratingLine = stripped.match(/^(?:rating|avg\.?\s*rating)[:\s]*([\d.]+)/i);
-        const codeLine = stripped.match(/^(?:code|sku|product\s*code)[:\s]*([A-Za-z0-9_-]+)/i);
-
-        if (priceLine) { currentProduct.price = priceLine[1]; continue; }
-        if (stockLine) { currentProduct.stock = stockLine[1].trim(); continue; }
-        if (ratingLine) { currentProduct.rating = parseFloat(ratingLine[1]); continue; }
-        if (codeLine && !currentProduct.code) { currentProduct.code = codeLine[1]; continue; }
-
-        // Standalone price "$7.61"
-        if (!currentProduct.price && stripped.match(/^\$[\d,]+\.?\d*$/)) {
-          currentProduct.price = stripped; continue;
-        }
-
-        if (trimmed === '') continue;
-
-        // Check if upcoming lines have more numbered products
-        let hasMore = false;
-        for (let j = i; j < lines.length; j++) {
-          if (lines[j].trim().match(/^\d+[\.\)]\s+/)) { hasMore = true; break; }
-        }
-        if (!hasMore) {
-          products.push(currentProduct); currentProduct = null;
-          doneProducts = true; outroLines.push(lines[i]); continue;
-        }
-      }
-
-      if (doneProducts) outroLines.push(lines[i]);
-      else if (!inProducts) introLines.push(lines[i]);
+function parseBoldList(text) {
+  const lines = text.split('\n');
+  const products = [], introLines = [], outroLines = [];
+  let inProducts = false, doneProducts = false, currentProduct = null;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.match(/^#{1,4}\s+/)) { if (!inProducts) introLines.push(lines[i]); continue; }
+    const boldMatch  = trimmed.match(/^(\d+)[\.\)]\s+\*\*(.+?)\*\*\s*(?:[-–—]\s*)?(.*)$/);
+    const plainMatch = trimmed.match(/^(\d+)[\.\)]\s+(.+?)(?:\s*\((?:Code|SKU)[:\s]*([A-Za-z0-9_-]+)\))?\s*$/);
+    if (boldMatch) {
+      if (currentProduct) products.push(currentProduct);
+      inProducts = true;
+      const name = boldMatch[2].trim(), rest = boldMatch[3].trim();
+      const priceMatch = rest.match(/\$[\d,]+\.?\d*/);
+      currentProduct = { name, price: priceMatch ? priceMatch[0] : null, code: null, stock: null, rating: null };
+      const codeInline = rest.match(/(?:code|sku)[:\s]*([A-Za-z0-9_-]+)/i);
+      if (codeInline) currentProduct.code = codeInline[1];
+      continue;
     }
+    if (plainMatch && !plainMatch[2].match(/^[-•]/)) {
+      if (currentProduct) products.push(currentProduct);
+      inProducts = true;
+      currentProduct = { name: plainMatch[2].trim(), price: null, code: plainMatch[3] || null, stock: null, rating: null };
+      continue;
+    }
+    if (currentProduct && !doneProducts) {
+      const stripped  = trimmed.replace(/^[-•*]\s*/, '');
+      const priceLine = stripped.match(/^price[:\s]*(\$[\d,]+\.?\d*)/i);
+      const stockLine = stripped.match(/^stock[:\s]*(.*)/i);
+      const ratingLine = stripped.match(/^(?:rating|avg\.?\s*rating)[:\s]*([\d.]+)/i);
+      const codeLine  = stripped.match(/^(?:code|sku|product\s*code)[:\s]*([A-Za-z0-9_-]+)/i);
+      if (priceLine)  { currentProduct.price  = priceLine[1]; continue; }
+      if (stockLine)  { currentProduct.stock  = stockLine[1].trim(); continue; }
+      if (ratingLine) { currentProduct.rating = parseFloat(ratingLine[1]); continue; }
+      if (codeLine && !currentProduct.code) { currentProduct.code = codeLine[1]; continue; }
+      if (!currentProduct.price && stripped.match(/^\$[\d,]+\.?\d*$/)) { currentProduct.price = stripped; continue; }
+      if (trimmed === '') continue;
+      let hasMore = false;
+      for (let j = i; j < lines.length; j++) {
+        if (lines[j].trim().match(/^\d+[\.\)]\s+/)) { hasMore = true; break; }
+      }
+      if (!hasMore) {
+        products.push(currentProduct); currentProduct = null;
+        doneProducts = true; outroLines.push(lines[i]); continue;
+      }
+    }
+    if (doneProducts) outroLines.push(lines[i]);
+    else if (!inProducts) introLines.push(lines[i]);
+  }
+  if (currentProduct) products.push(currentProduct);
+  return { intro: introLines.join('\n').trim(), products, outro: outroLines.join('\n').trim() };
+}
 
-    if (currentProduct) products.push(currentProduct);
+function buildProductCardsHTML(intro, products, outro) {
+  let html = '';
+  if (intro) html += `<div class="product-cards-intro">${formatText(intro)}</div>`;
+  html += '<div class="product-cards-wrap"><div class="product-cards">';
+  products.forEach(p => {
+    const stockClass = getStockClass(p.stock);
+    const stockLabel = getStockLabel(p.stock);
+    const ratingHTML = p.rating ? buildRatingHTML(p.rating) : '';
+    const safeName = esc(p.name).replace(/'/g, "\\'");
+    const addMsg = p.code ? `Add product ${esc(p.code)} to my cart` : `Add ${safeName} to my cart`;
+    const detailMsg = p.code ? `Show details for product ${esc(p.code)}` : `Show me details for ${safeName}`;
+    html += `<div class="product-card">
+      <div class="product-card-name">${esc(p.name)}</div>
+      ${p.code ? `<div class="product-card-code">${esc(p.code)}</div>` : ''}
+      ${p.price ? `<div class="product-card-price">${esc(p.price)}</div>` : ''}
+      <div class="product-card-meta">
+        ${stockLabel ? `<span class="product-card-stock ${stockClass}">${stockLabel}</span>` : ''}
+        ${ratingHTML}
+      </div>
+      <div class="product-card-actions">
+        <button class="product-card-btn add-cart" onclick="sendQuick('${addMsg}')">Add to Cart</button>
+        <button class="product-card-btn details" onclick="sendQuick('${detailMsg}')">Details</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  if (products.length > 2) html += '<div class="product-scroll-hint">← scroll for more →</div>';
+  html += '</div>';
+  if (outro) html += `<div style="margin-top:7px">${formatText(outro)}</div>`;
+  return html;
+}
 
-    return {
-      intro: introLines.join('\n').trim(),
-      products,
-      outro: outroLines.join('\n').trim(),
-    };
+function getStockClass(stock) {
+  if (!stock) return '';
+  const s = stock.toLowerCase();
+  if (s.includes('instock') || s.includes('in stock')) return 'in-stock';
+  if (s.includes('low') || s.includes('limited')) return 'low-stock';
+  if (s.includes('out') || s.includes('unavailable')) return 'out-of-stock';
+  return 'in-stock';
+}
+function getStockLabel(stock) {
+  if (!stock) return '';
+  const s = stock.toLowerCase();
+  if (s.includes('instock') || s === 'instock' || s.includes('in stock')) return 'In Stock';
+  if (s.includes('low') || s.includes('limited')) return 'Low Stock';
+  if (s.includes('out')) return 'Out of Stock';
+  return stock;
+}
+function buildRatingHTML(rating) {
+  const full = Math.floor(rating), half = rating - full >= 0.5 ? 1 : 0, empty = 5 - full - half;
+  let stars = '';
+  for (let i = 0; i < full; i++)  stars += '★';
+  for (let i = 0; i < half; i++)  stars += '★';
+  for (let i = 0; i < empty; i++) stars += '☆';
+  return `<span class="product-card-rating"><span class="stars">${stars}</span><span class="val">${rating.toFixed(1)}</span></span>`;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = `<div class="avatar">AI</div>
+    <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+function appendError(msg) {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = `<div class="avatar">AI</div><div class="error-bubble">${esc(msg)}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function formatText(text) {
+  let html = esc(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/`([^`]+)`/g,
+    '<code style="font-family:var(--mono);font-size:11px;background:var(--surface-2);padding:2px 5px;border-radius:4px;border:1px solid var(--border)">$1</code>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+function setLoading(v) {
+  isLoading = v;
+  document.getElementById('sendBtn').disabled   = v;
+  document.getElementById('userInput').disabled = v;
+  if (!v) document.getElementById('userInput').focus();
+}
+function updateSidebar(d) {
+  document.getElementById('sessionId').textContent =
+    d.session_id ? d.session_id.slice(0,8) + '…' : '—';
+  document.getElementById('sideTurns').textContent = turnCount;
+  totalTokens = d.tokens_used || totalTokens;
+  document.getElementById('tokenBadge').textContent = `${totalTokens.toLocaleString()} tokens`;
+  const r = (d.reply || '').toLowerCase();
+  if (r.includes('found') || r.includes('product') || r.includes('result')) markStep('step-search','done');
+  if (d.cart_id) markStep('step-cart','done');
+  if (r.includes('delivery address') || r.includes('shipping address')) markStep('step-address','active');
+  if (r.includes('address') && r.includes('set')) { markStep('step-address','done'); markStep('step-payment','active'); }
+  if (r.includes('payment') && r.includes('set')) { markStep('step-payment','done'); markStep('step-order','active'); }
+  if (d.order_code) markStep('step-order','done');
+}
+function markStep(id, state) {
+  const el = document.getElementById(id);
+  if (el) el.className = `step ${state}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RECOMMENDATION STRIP ENGINE
+   Calls GET /recommendations?username=X&query=Y&top_k=5
+   Renders CF+CBF hybrid recommendation cards above the input bar.
+══════════════════════════════════════════════════════════════════════ */
+const RecStrip = (() => {
+  const ENDPOINT     = '/recommendations';
+  const TOP_K        = 5;
+  const DEBOUNCE_MS  = 500;
+  const CF_THRESHOLD = 3;
+
+  let _username = null;
+  let _timer    = null;
+  let _busy     = false;
+
+  const $strip   = () => document.getElementById('rec-strip');
+  const $track   = () => document.getElementById('rec-track');
+  const $sublbl  = () => document.getElementById('rec-sublabel');
+  const $algolbl = () => document.getElementById('rec-algo-label');
+  const $hint    = () => document.getElementById('rec-hint');
+
+  function _esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function buildProductCardsHTML(intro, products, outro) {
-    let html = '';
-    if (intro) html += `<div class="product-cards-intro">${formatText(intro)}</div>`;
+  function _skeletons() {
+    $track().innerHTML = Array(TOP_K).fill('<div class="rec-skeleton"></div>').join('');
+    $strip().classList.add('visible');
+  }
 
-    html += '<div class="product-cards-wrap">';
-    html += '<div class="product-cards">';
-    products.forEach(p => {
-      const stockClass = getStockClass(p.stock);
-      const stockLabel = getStockLabel(p.stock);
-      const ratingHTML = p.rating ? buildRatingHTML(p.rating) : '';
+  function _card(rec, maxScore) {
+    const norm   = maxScore > 0 ? (rec.hybrid_score / maxScore) : 0;
+    const pct    = (norm * 100).toFixed(1) + '%';
+    const score  = (rec.hybrid_score * 100).toFixed(0) + '%';
+    const srcCls = rec.source || 'cbf_only';
+    const srcLbl = { hybrid:'Hybrid', cf_only:'Collab', cbf_only:'Content' }[srcCls] || srcCls;
+    const name   = _esc(rec.name || rec.item);
+    const cat    = _esc(rec.category || '');
+    const msg    = rec.item && /^\d/.test(rec.item)
+      ? `Show me details for product ${_esc(rec.item)}`
+      : `Search for ${name}`;
 
-      const safeName = esc(p.name).replace(/'/g, "\\'");
-      const addMsg = p.code
-        ? `Add product ${esc(p.code)} to my cart`
-        : `Add ${safeName} to my cart`;
-      const detailMsg = p.code
-        ? `Show details for product ${esc(p.code)}`
-        : `Show me details for ${safeName}`;
-
-      html += `<div class="product-card">
-        <div class="product-card-name">${esc(p.name)}</div>
-        ${p.code ? `<div class="product-card-code">${esc(p.code)}</div>` : ''}
-        ${p.price ? `<div class="product-card-price">${esc(p.price)}</div>` : ''}
-        <div class="product-card-meta">
-          ${stockLabel ? `<span class="product-card-stock ${stockClass}">${stockLabel}</span>` : ''}
-          ${ratingHTML}
+    const d = document.createElement('div');
+    d.className = 'rec-card';
+    d.setAttribute('role','button');
+    d.setAttribute('tabindex','0');
+    d.setAttribute('aria-label', 'Recommended: ' + (rec.name || rec.item));
+    d.innerHTML = `
+      <div class="rec-card__score">${score}</div>
+      <span class="rec-card__source ${_esc(srcCls)}">${srcLbl}</span>
+      <div class="rec-card__name">${name}</div>
+      ${cat ? `<div class="rec-card__category">${cat}</div>` : ''}
+      <div class="rec-card__bar-wrap">
+        <div class="rec-card__bar">
+          <div class="rec-card__bar-fill" data-target="${pct}"></div>
         </div>
-        <div class="product-card-actions">
-          <button class="product-card-btn add-cart" onclick="sendQuick('${addMsg}')">Add to Cart</button>
-          <button class="product-card-btn details" onclick="sendQuick('${detailMsg}')">Details</button>
-        </div>
-      </div>`;
+        <span class="rec-card__bar-label">match</span>
+      </div>
+      <button class="rec-card__btn"
+        onclick="event.stopPropagation();sendQuick('${msg.replace(/'/g,"\\'")}')"
+      >Explore →</button>`;
+    d.addEventListener('keydown', e => {
+      if (e.key==='Enter'||e.key===' ') sendQuick(msg);
     });
-    html += '</div>';
-    if (products.length > 2) {
-      html += '<div class="product-scroll-hint">&#8592; scroll for more &#8594;</div>';
+    return d;
+  }
+
+  function _render(recs, interactionCount) {
+    const t = $track();
+    t.innerHTML = '';
+    if (!recs || !recs.length) { $strip().classList.remove('visible'); return; }
+
+    const maxScore = Math.max(...recs.map(r => r.hybrid_score || 0), 0.01);
+    recs.forEach(r => t.appendChild(_card(r, maxScore)));
+
+    const hasCF  = recs.some(r => r.source==='hybrid'||r.source==='cf_only');
+    const hasCBF = recs.some(r => r.source==='hybrid'||r.source==='cbf_only');
+    $algolbl().textContent = hasCF && hasCBF ? 'CF+CBF' : hasCF ? 'Collab' : 'Content';
+    $sublbl().textContent  = interactionCount >= CF_THRESHOLD
+      ? `Based on your browsing · ${interactionCount} interactions`
+      : 'Trending picks you might like';
+
+    $strip().classList.add('visible');
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.rec-card__bar-fill').forEach(b => {
+        setTimeout(() => { b.style.width = b.dataset.target; }, 80);
+      });
+      const tr = $track();
+      $hint().style.display = tr.scrollWidth > tr.clientWidth ? 'flex' : 'none';
+    });
+  }
+
+  async function _fetch(username, query) {
+    const p = new URLSearchParams({ username, query: query||'electronics', top_k: TOP_K });
+    const r = await fetch(`${ENDPOINT}?${p}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  async function _load(username, query) {
+    if (_busy) return;
+    _busy = true; _username = username;
+    _skeletons();
+    try {
+      const data = await _fetch(username, query);
+      _render(data.recommendations, data.interaction_count || 0);
+    } catch (err) {
+      console.warn('[RecStrip] fetch error:', err.message);
+      $strip().classList.remove('visible');
+    } finally {
+      _busy = false;
     }
-    html += '</div>';
-
-    if (outro) html += `<div style="margin-top:8px">${formatText(outro)}</div>`;
-    return html;
   }
 
-  function getStockClass(stock) {
-    if (!stock) return '';
-    const s = stock.toLowerCase();
-    if (s.includes('instock') || s.includes('in stock') || s === 'instock') return 'in-stock';
-    if (s.includes('low') || s.includes('limited')) return 'low-stock';
-    if (s.includes('out') || s.includes('unavailable')) return 'out-of-stock';
-    return 'in-stock';
-  }
+  return {
+    init(username, query) {
+      clearTimeout(_timer);
+      _timer = setTimeout(() => _load(username, query), DEBOUNCE_MS);
+    },
+    refresh(query) { if (_username) this.init(_username, query); },
+    hide() { $strip().classList.remove('visible'); },
+  };
+})();
 
-  function getStockLabel(stock) {
-    if (!stock) return '';
-    const s = stock.toLowerCase();
-    if (s.includes('instock') || s === 'instock') return 'In Stock';
-    if (s.includes('in stock')) return 'In Stock';
-    if (s.includes('low') || s.includes('limited')) return 'Low Stock';
-    if (s.includes('out')) return 'Out of Stock';
-    return stock;
-  }
-
-  function buildRatingHTML(rating) {
-    const full = Math.floor(rating);
-    const half = rating - full >= 0.5 ? 1 : 0;
-    const empty = 5 - full - half;
-    let stars = '';
-    for (let i = 0; i < full; i++) stars += '&#9733;';
-    for (let i = 0; i < half; i++) stars += '&#9733;';
-    for (let i = 0; i < empty; i++) stars += '&#9734;';
-    return `<span class="product-card-rating"><span class="stars">${stars}</span><span class="val">${rating.toFixed(1)}</span></span>`;
-  }
-
-  function appendTyping() {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg agent';
-    div.innerHTML = `<div class="avatar">AI</div>
-      <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    return div;
-  }
-
-  function appendError(msg) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg agent';
-    div.innerHTML  = `<div class="avatar">AI</div><div class="error-bubble">${esc(msg)}</div>`;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  function formatText(text) {
-    let html = esc(text);
-    // Bold
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Inline code
-    html = html.replace(/`([^`]+)`/g,
-      '<code style="font-family:var(--font-mono);font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">$1</code>');
-    // Line breaks
-    html = html.replace(/\n/g, '<br>');
-    return html;
-  }
-
-  function setLoading(v) {
-    isLoading = v;
-    document.getElementById('sendBtn').disabled   = v;
-    document.getElementById('userInput').disabled = v;
-    if (!v) document.getElementById('userInput').focus();
-  }
-
-  function updateSidebar(d) {
-    document.getElementById('sessionId').textContent =
-      d.session_id ? d.session_id.slice(0,8) + '...' : '\u2014';
-    document.getElementById('sideTurns').textContent = turnCount;
-    totalTokens = d.tokens_used || totalTokens;
-    document.getElementById('tokenBadge').textContent = `${totalTokens.toLocaleString()} tokens`;
-
-    const r = (d.reply || '').toLowerCase();
-    if (r.includes('found') || r.includes('product') || r.includes('result') || r.includes('here'))
-      markStep('step-search','done');
-    if (d.cart_id) markStep('step-cart','done');
-    if (r.includes('delivery address') || r.includes('shipping address'))
-      markStep('step-address','active');
-    if (r.includes('address') && r.includes('set'))
-      markStep('step-address','done'), markStep('step-payment','active');
-    if (r.includes('payment') && r.includes('set'))
-      markStep('step-payment','done'), markStep('step-order','active');
-    if (d.order_code)
-      markStep('step-order','done');
-  }
-
-  function markStep(id, state) {
-    const el = document.getElementById(id);
-    if (el) el.className = `step ${state}`;
-  }
 </script>
 </body>
 </html>

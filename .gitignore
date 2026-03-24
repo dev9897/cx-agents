@@ -1,6 +1,26 @@
+# Virtual env
 venv/
 .env
+
+# Python
 __pycache__/
 *.pyc
+
+# IDE
 .idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Model / AI cache (VERY IMPORTANT)
+model_cache/
+*.bin
+*.pt
+*.onnx
+
+# Logs
+*.log
+
+# Misc
 start_agent.sh.md

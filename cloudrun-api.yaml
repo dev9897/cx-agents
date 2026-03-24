@@ -1,3 +1,92 @@
+# apiVersion: serving.knative.dev/v1
+# kind: Service
+# metadata:
+#   name: cx-agents-api
+#   labels:
+#     cloud.googleapis.com/location: europe-west3
+#   annotations:
+#     run.googleapis.com/ingress: all
+# spec:
+#   template:
+#     metadata:
+#       annotations:
+#         autoscaling.knative.dev/minScale: "0"
+#         autoscaling.knative.dev/maxScale: "10"
+#         run.googleapis.com/cpu-throttling: "true"
+#     spec:
+#       containerConcurrency: 80
+#       containers:
+#         - image: europe-west3-docker.pkg.dev/project-5ad1588d-1a84-4bf9-9ff/cx-agents-repo/cx-agents-api:latest
+#           resources:
+#             limits:
+#               cpu: "1"
+#               memory: 2Gi
+#           env:
+#             # ── App ────────────────────────────────────────────────────────
+#             - name: ENVIRONMENT
+#               value: "production"
+#             - name: GEMINI_MODEL
+#               value: "gemini-2.0-flash"
+
+#             # ── SAP Commerce ───────────────────────────────────────────────
+#             - name: SAP_BASE_URL
+#               value: "https://ximena-excurved-sallowly.ngrok-free.dev/occ/v2"
+#             - name: SAP_OCC_PREFIX
+#               value: "/occ/v2"
+#             - name: SAP_SITE_ID
+#               value: "electronics"
+#             - name: SAP_CLIENT_ID
+#               value: "personalizationSetupClient"
+#             - name: SAP_SSL_VERIFY
+#               value: "false"
+
+#             # ── Secrets from Google Secret Manager ─────────────────────────
+#             - name: GOOGLE_API_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: google-api-key    # secret name in Secret Manager
+#                   key: latest
+#             - name: SAP_CLIENT_SECRET
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: sap-client-secret    # secret name in Secret Manager
+#                   key: latest
+#             - name: SAP_STATIC_TOKEN
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: sap-static-token     # secret name in Secret Manager
+#                   key: latest
+
+#             # ── Qdrant ────────────────────────────────────────────────────────
+#             - name: QDRANT_API_KEY
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: qdrant-api-key
+#                   key: latest
+#             - name: QDRANT_HOST
+#               valueFrom:
+#                 secretKeyRef:
+#                   name: qdrant-host
+#                   key: latest
+#             # ── Observability (optional) ───────────────────────────────────
+#             - name: LANGCHAIN_TRACING_V2
+#               value: "false"
+#             # - name: LANGSMITH_API_KEY
+#             #   valueFrom:
+#             #     secretKeyRef:
+#             #       name: langsmith-api-key
+#             #       key: latest
+
+
+
+
+
+
+
+
+
+
+
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:

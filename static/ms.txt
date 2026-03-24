@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAP Commerce Shopping Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f5f6fa;
+    --surface:   #ffffff;
+    --border:    #e2e5ef;
+    --accent:    #0070d2;
+    --accent-light: #e8f2fd;
+    --accent-hover: #005bb5;
+    --success:   #2e844a;
+    --success-bg:#e6f5ec;
+    --danger:    #c23934;
+    --danger-bg: #fde8e8;
+    --warning:   #dd7a01;
+    --warning-bg:#fef3e0;
+    --text:      #1b2537;
+    --text-secondary: #596577;
+    --muted:     #8993a4;
+    --user-bg:   #0070d2;
+    --user-text: #ffffff;
+    --agent-bg:  #ffffff;
+    --sidebar-bg:#ffffff;
+    --font-ui:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+    --radius:    10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #0070d2, #00b4d8);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 16px; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,112,210,.3);
+  }
+  .logo span.brand-sap { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted);
+    padding: 4px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    transition: all .3s;
+  }
+  .status-pill.online { color: var(--success); border-color: rgba(46,132,74,.25); background: var(--success-bg); }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .token-badge {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted); padding: 4px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border); border-radius: 100px;
+  }
+
+  #authBtn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 16px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text); font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  #authBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  #authBtn.logged-in { border-color: var(--success); color: var(--success); background: var(--success-bg); }
+  #authBtn .auth-icon { font-size: 14px; }
+
+  /* ── Layout ── */
+  .layout {
+    position: relative; z-index: 1;
+    flex: 1; display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 260px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 16px 0;
+    background: var(--sidebar-bg);
+    overflow-y: auto;
+  }
+
+  .sidebar-section { padding: 0 16px 20px; }
+  .sidebar-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--muted); letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 10px; padding: 0 4px;
+  }
+
+  .session-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .session-card .row {
+    display: flex; justify-content: space-between;
+    padding: 4px 0; color: var(--text-secondary);
+  }
+  .session-card .row span:last-child { color: var(--text); font-weight: 500; }
+  .session-card .row span.active { color: var(--success); font-weight: 600; }
+
+  /* ── Cart panel in sidebar ── */
+  .cart-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .cart-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 600;
+  }
+  .cart-header .cart-count {
+    background: var(--accent);
+    color: white; font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 100px;
+    min-width: 20px; text-align: center;
+  }
+  .cart-items { padding: 8px 10px; max-height: 180px; overflow-y: auto; }
+  .cart-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 4px; font-size: 12px;
+    border-bottom: 1px solid rgba(0,0,0,.04);
+  }
+  .cart-item:last-child { border-bottom: none; }
+  .cart-item-name { flex: 1; color: var(--text); font-weight: 500; }
+  .cart-item-qty { color: var(--muted); font-family: var(--font-mono); font-size: 11px; margin: 0 8px; }
+  .cart-item-price { color: var(--text); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
+  .cart-empty { padding: 16px 10px; text-align: center; color: var(--muted); font-size: 12px; }
+  .cart-total {
+    display: flex; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 13px; font-weight: 600;
+  }
+  .cart-total .price { color: var(--accent); font-family: var(--font-mono); }
+
+  .quick-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 8px 12px;
+    border: none; border-radius: 8px;
+    background: transparent; color: var(--text-secondary);
+    font-family: var(--font-ui); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+    text-align: left; margin-bottom: 2px;
+  }
+  .quick-btn:hover { background: var(--accent-light); color: var(--accent); }
+  .quick-btn .icon { font-size: 15px; width: 22px; text-align: center; }
+
+  .flow-steps { padding: 0 16px; }
+  .step {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 4px; position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute; left: 13px; top: 28px;
+    width: 1.5px; height: calc(100% - 12px);
+    background: var(--border);
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    color: var(--muted); flex-shrink: 0;
+    background: var(--surface); transition: all .3s;
+  }
+  .step.done .step-num   { border-color: var(--success); color: white; background: var(--success); }
+  .step.active .step-num { border-color: var(--accent);  color: white; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  .step-text { font-size: 12px; color: var(--muted); padding-top: 2px; line-height: 1.4; }
+  .step.done .step-text   { color: var(--text); }
+  .step.active .step-text { color: var(--text); font-weight: 500; }
+
+  /* ── Chat ── */
+  .chat-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+  #messages {
+    flex: 1; overflow-y: auto;
+    padding: 28px 32px;
+    display: flex; flex-direction: column; gap: 16px;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 5px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .welcome {
+    margin: auto; text-align: center; max-width: 520px;
+    animation: fadeUp .4s ease both;
+  }
+  .welcome-icon {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: linear-gradient(135deg, var(--accent-light), #dbeafe);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; margin: 0 auto 20px;
+    box-shadow: var(--shadow-md);
+  }
+  .welcome h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .welcome p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
+  .chip {
+    padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all .15s;
+    background: var(--surface); box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .chip .chip-icon { font-size: 18px; }
+
+  .msg { display: flex; gap: 10px; max-width: 780px; animation: fadeUp .2s ease both; }
+  .msg.user { flex-direction: row-reverse; margin-left: auto; }
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(8px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .avatar {
+    width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .msg.agent .avatar { background: var(--accent-light); color: var(--accent); }
+  .msg.user  .avatar { background: var(--user-bg); color: var(--user-text); }
+
+  .bubble {
+    padding: 12px 16px; border-radius: 12px;
+    font-size: 14px; line-height: 1.7; max-width: 620px;
+  }
+  .msg.agent .bubble {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top-left-radius: 3px; box-shadow: var(--shadow-sm);
+    color: var(--text);
+  }
+  .msg.user .bubble {
+    background: var(--user-bg); color: var(--user-text);
+    border-top-right-radius: 3px; box-shadow: var(--shadow-sm);
+  }
+
+  /* Product cards inside agent bubbles */
+  .bubble .product-line { margin: 4px 0; }
+
+  .typing { display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); opacity: .4;
+    animation: blink 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink {
+    0%,80%,100% { opacity:.2; transform:scale(1); }
+    40%          { opacity:1;  transform:scale(1.15); }
+  }
+
+  .confirm-banner {
+    margin: 10px 0 0; padding: 14px 16px;
+    background: var(--warning-bg); border: 1px solid rgba(221,122,1,.3);
+    border-radius: var(--radius); font-size: 13px;
+  }
+  .confirm-banner strong { color: var(--warning); }
+  .confirm-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-confirm {
+    padding: 8px 20px; border-radius: 8px; font-size: 13px;
+    font-family: var(--font-ui); font-weight: 600;
+    cursor: pointer; transition: all .15s; border: none;
+  }
+  .btn-confirm.yes { background: var(--success); color: white; }
+  .btn-confirm.yes:hover { background: #256d3b; }
+  .btn-confirm.no  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-confirm.no:hover { background: var(--border); }
+
+  .error-bubble {
+    padding: 12px 16px;
+    background: var(--danger-bg); border: 1px solid rgba(194,57,52,.2);
+    border-radius: var(--radius); font-size: 13px; color: var(--danger);
+  }
+
+  /* ── Input bar ── */
+  .input-bar {
+    border-top: 1px solid var(--border);
+    padding: 16px 32px 20px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .input-wrap {
+    display: flex; align-items: flex-end; gap: 10px;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 12px; padding: 10px 14px; transition: all .2s;
+  }
+  .input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+  #userInput {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    resize: none; max-height: 140px; min-height: 24px; line-height: 1.5;
+  }
+  #userInput::placeholder { color: var(--muted); }
+
+  #sendBtn {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    background: var(--accent); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s; color: white; font-size: 16px;
+  }
+  #sendBtn:hover { background: var(--accent-hover); transform: scale(1.05); }
+  #sendBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--muted); margin-top: 8px; padding: 0 4px;
+  }
+  .input-hint kbd {
+    padding: 1px 5px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; font-family: var(--font-mono); font-size: 10px;
+  }
+
+  /* ── Login modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,.4);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: 100%; max-width: 400px;
+    position: relative;
+    transform: translateY(12px);
+    transition: transform .25s;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none;
+    color: var(--muted); font-size: 20px;
+    cursor: pointer; line-height: 1; transition: color .15s;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: var(--accent-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 20px;
+  }
+  .modal h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .modal .modal-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5; }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 13px; font-weight: 500;
+    color: var(--text); margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    font-family: var(--font-ui); font-size: 14px;
+    outline: none; transition: all .2s;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  .field input::placeholder { color: var(--muted); }
+
+  .modal-error {
+    padding: 10px 14px; margin-bottom: 16px;
+    background: var(--danger-bg); border: 1px solid rgba(194,57,52,.2);
+    border-radius: 8px; font-size: 13px; color: var(--danger);
+    display: none;
+  }
+  .modal-error.show { display: block; }
+
+  #loginBtn {
+    width: 100%; padding: 12px;
+    background: var(--accent); color: white;
+    border: none; border-radius: 8px;
+    font-family: var(--font-ui); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #loginBtn:hover { background: var(--accent-hover); }
+  #loginBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .login-spinner {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: white;
+    animation: spin .6s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .modal-divider {
+    text-align: center; font-size: 12px; color: var(--muted);
+    margin: 20px 0 16px; position: relative;
+  }
+  .modal-divider::before, .modal-divider::after {
+    content: ''; position: absolute; top: 50%; width: calc(50% - 28px);
+    height: 1px; background: var(--border);
+  }
+  .modal-divider::before { left: 0; }
+  .modal-divider::after  { right: 0; }
+
+  #guestBtn {
+    width: 100%; padding: 10px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--font-ui); font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  #guestBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: var(--radius);
+    background: var(--success-bg);
+    border: 1px solid rgba(46,132,74,.2);
+    font-size: 13px; color: var(--success);
+    margin: 0 16px 16px;
+  }
+  .user-pill .uname { font-weight: 600; flex: 1; }
+  .user-pill .logout-link {
+    font-size: 11px; color: var(--muted);
+    cursor: pointer; text-decoration: underline;
+  }
+  .user-pill .logout-link:hover { color: var(--danger); }
+
+  /* ── Product Cards ── */
+  .product-cards-wrap {
+    margin: 12px -4px 4px;
+  }
+  .product-cards-intro {
+    font-size: 14px; line-height: 1.7; margin-bottom: 10px;
+  }
+  .product-cards {
+    display: flex; gap: 12px;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 4px 4px 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .product-cards::-webkit-scrollbar { height: 5px; }
+  .product-cards::-webkit-scrollbar-track { background: transparent; }
+  .product-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .product-card {
+    flex: 0 0 220px; scroll-snap-align: start;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column;
+    transition: all .2s; position: relative;
+  }
+  .product-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+  .product-card-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    line-height: 1.4; margin-bottom: 8px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 36px;
+  }
+  .product-card-code {
+    font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .product-card-price {
+    font-size: 18px; font-weight: 700; color: var(--accent);
+    font-family: var(--font-mono); margin-bottom: 6px;
+  }
+  .product-card-meta {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .product-card-stock {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .product-card-stock.in-stock { background: var(--success-bg); color: var(--success); }
+  .product-card-stock.out-of-stock { background: var(--danger-bg); color: var(--danger); }
+  .product-card-stock.low-stock { background: var(--warning-bg); color: var(--warning); }
+  .product-card-rating {
+    font-size: 11px; color: var(--warning);
+    display: flex; align-items: center; gap: 3px;
+  }
+  .product-card-rating .stars { letter-spacing: -1px; }
+  .product-card-rating .val { color: var(--text-secondary); font-family: var(--font-mono); }
+
+  .product-card-actions { margin-top: auto; display: flex; gap: 6px; }
+  .product-card-btn {
+    flex: 1; padding: 7px 10px; border-radius: 6px; font-size: 12px;
+    font-family: var(--font-ui); font-weight: 600;
+    cursor: pointer; transition: all .15s; border: none; text-align: center;
+  }
+  .product-card-btn.add-cart {
+    background: var(--accent); color: white;
+  }
+  .product-card-btn.add-cart:hover { background: var(--accent-hover); }
+  .product-card-btn.details {
+    background: transparent; color: var(--accent); border: 1px solid var(--border);
+  }
+  .product-card-btn.details:hover { border-color: var(--accent); background: var(--accent-light); }
+
+  .product-scroll-hint {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* Widen bubble when it has product cards */
+  .bubble:has(.product-cards-wrap) { max-width: 720px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    #messages { padding: 20px 16px; }
+    .input-bar { padding: 12px 16px 16px; }
+    header { padding: 0 16px; }
+    .token-badge { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">S</div>
+    <span><span class="brand-sap">SAP</span> Commerce Assistant</span>
+  </div>
+  <div class="header-right">
+    <div class="token-badge" id="tokenBadge">0 tokens</div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot"></div>
+      <span>connecting</span>
+    </div>
+    <button id="authBtn" onclick="openLogin()">
+      <span class="auth-icon">&#128100;</span>
+      <span id="authBtnLabel">Sign In</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <aside class="sidebar">
+    <div id="userPill" class="user-pill" style="display:none">
+      <span>&#10003;</span>
+      <span class="uname" id="userPillName"></span>
+      <span class="logout-link" onclick="doLogout()">logout</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Session</div>
+      <div class="session-card">
+        <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
+        <div class="row"><span>User</span><span id="sideUser">guest</span></div>
+        <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Shopping Cart</div>
+      <div class="cart-panel">
+        <div class="cart-header">
+          <span>Cart</span>
+          <span class="cart-count" id="cartCount">0</span>
+        </div>
+        <div class="cart-items" id="cartItems">
+          <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
+        </div>
+        <div class="cart-total" id="cartTotal" style="display:none">
+          <span>Total</span>
+          <span class="price" id="cartTotalPrice">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Actions</div>
+      <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
+      <button class="quick-btn" onclick="sendQuick('Search for headphones')"><span class="icon">&#127911;</span> Find headphones</button>
+      <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
+      <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+    </div>
+
+    <div class="flow-steps">
+      <div class="sidebar-label">Checkout Progress</div>
+      <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
+      <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
+      <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
+      <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
+      <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
+    </div>
+  </aside>
+
+  <div class="chat-wrap">
+    <div id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">&#128722;</div>
+        <h2>SAP Commerce Electronics Store</h2>
+        <p>Your AI-powered shopping assistant. Browse the electronics catalog, manage your cart, and place orders with conversational ease.</p>
+        <div class="chips">
+          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon EOS Cameras</div>
+          <div class="chip" onclick="sendQuick('Search for Sony headphones')"><span class="chip-icon">&#127911;</span> Sony Headphones</div>
+          <div class="chip" onclick="sendQuick('What power drills do you have?')"><span class="chip-icon">&#128295;</span> Power Drills</div>
+          <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
+          <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">&#128248;</span> Camera Lenses</div>
+          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods & Accessories</div>
+          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries & Chargers</div>
+          <div class="chip" onclick="sendQuick('Show me webcams and video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart..."></textarea>
+        <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
+      </div>
+      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Login Modal ── -->
+<div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeLogin()">&#10005;</button>
+    <div class="modal-icon">&#128100;</div>
+    <h2>Sign In</h2>
+    <p class="modal-sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
+    <div class="modal-error" id="loginError"></div>
+    <div class="field">
+      <label>Username / Email</label>
+      <input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"/>
+    </div>
+    <button id="loginBtn" onclick="doLogin()">
+      <div class="login-spinner" id="loginSpinner"></div>
+      <span id="loginBtnLabel">Sign In</span>
+    </button>
+    <div class="modal-divider">or</div>
+    <button id="guestBtn" onclick="closeLogin()">Continue as Guest</button>
+  </div>
+</div>
+
+<script>
+  const API = '';
+  let sessionId    = null;
+  let totalTokens  = 0;
+  let turnCount    = 0;
+  let isLoading    = false;
+  let currentUser  = null;
+  let cartData     = { items: [], total: null, id: null, orderCode: null };
+
+  // ── Health check ──
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const d = await r.json();
+      setStatus(d.status === 'ok' && d.circuit_breaker === 'closed');
+    } catch { setStatus(false); }
+  }
+  function setStatus(online) {
+    const pill = document.getElementById('statusPill');
+    pill.className = 'status-pill' + (online ? ' online' : '');
+    pill.querySelector('span').textContent = online ? 'connected' : 'offline';
+  }
+  checkHealth();
+  setInterval(checkHealth, 30000);
+
+  // ── Auto-resize textarea ──
+  const input = document.getElementById('userInput');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  // ── Login modal ──
+  function openLogin() {
+    if (currentUser) {
+      if (confirm(`Sign out of ${currentUser}?`)) doLogout();
+      return;
+    }
+    document.getElementById('loginError').classList.remove('show');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginModal').classList.add('open');
+    setTimeout(() => document.getElementById('loginUser').focus(), 250);
+  }
+  function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
+  function handleOverlayClick(e) { if (e.target === document.getElementById('loginModal')) closeLogin(); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogin(); });
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  async function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    const btn      = document.getElementById('loginBtn');
+    const spinner  = document.getElementById('loginSpinner');
+    const label    = document.getElementById('loginBtnLabel');
+
+    if (!username || !password) { showLoginError('Please enter your username and password.'); return; }
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    label.textContent = 'Signing in...';
+    document.getElementById('loginError').classList.remove('show');
+
+    try {
+      const body = { username, password };
+      if (sessionId) body.session_id = sessionId;
+      const r = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) { showLoginError(d.detail || 'Login failed. Please check your credentials.'); return; }
+
+      sessionId   = d.session_id;
+      currentUser = d.username;
+      closeLogin();
+      updateAuthUI(d.username);
+      appendMsg('agent', `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, headphones, or any electronics from the catalog.`);
+      updateSidebarUser(d.username);
+    } catch (err) {
+      showLoginError('Could not reach the server. Please try again.');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      label.textContent = 'Sign In';
+      document.getElementById('loginPass').value = '';
+    }
+  }
+
+  async function doLogout() {
+    if (!sessionId) return;
+    try { await fetch(`${API}/auth/logout?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' }); } catch {}
+    currentUser = null;
+    updateAuthUI(null);
+    updateSidebarUser(null);
+    appendMsg('agent', 'You have been signed out. You can continue browsing the electronics catalog as a guest.');
+  }
+
+  function showLoginError(msg) {
+    const el = document.getElementById('loginError');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function updateAuthUI(username) {
+    const btn   = document.getElementById('authBtn');
+    const label = document.getElementById('authBtnLabel');
+    const pill  = document.getElementById('userPill');
+    const name  = document.getElementById('userPillName');
+    if (username) {
+      btn.classList.add('logged-in');
+      label.textContent = username;
+      pill.style.display = 'flex';
+      name.textContent   = username;
+    } else {
+      btn.classList.remove('logged-in');
+      label.textContent  = 'Sign In';
+      pill.style.display = 'none';
+    }
+  }
+
+  function updateSidebarUser(username) {
+    document.getElementById('sideUser').textContent = username || 'guest';
+  }
+
+  // ── Chat ──
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text || isLoading) return;
+    input.value = ''; input.style.height = 'auto';
+    doSend(text);
+  }
+  function sendQuick(text) { if (!isLoading) doSend(text); }
+
+  async function doSend(text) {
+    hideWelcome();
+    appendMsg('user', text);
+    setLoading(true);
+    const typing = appendTyping();
+
+    try {
+      const body = { message: text, user_id: currentUser || 'anonymous' };
+      if (sessionId) body.session_id = sessionId;
+      const r = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      typing.remove();
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: 'Server error' }));
+        appendError(err.detail || `HTTP ${r.status}`);
+        return;
+      }
+
+      const d = await r.json();
+      sessionId    = d.session_id;
+      totalTokens += d.tokens_used || 0;
+      turnCount    = d.turn || turnCount + 1;
+
+      appendMsg('agent', d.reply);
+      updateSidebar(d);
+      parseCartFromReply(d);
+
+      // Sync auth state from server (covers static token / pre-authenticated sessions)
+      if (d.authenticated && d.username && !currentUser) {
+        currentUser = d.username;
+        updateAuthUI(d.username);
+        updateSidebarUser(d.username);
+      }
+
+      if (d.awaiting_approval) showOrderConfirm(d.session_id);
+    } catch (err) {
+      typing.remove();
+      appendError('Could not reach the agent. Is the server running?');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Cart parsing from agent reply ──
+  function parseCartFromReply(d) {
+    if (d.cart_id && d.cart_id !== cartData.id) {
+      cartData.id = d.cart_id;
+    }
+    if (d.order_code) {
+      cartData.orderCode = d.order_code;
+    }
+  }
+
+  function updateCartUI() {
+    const countEl = document.getElementById('cartCount');
+    const itemsEl = document.getElementById('cartItems');
+    const emptyEl = document.getElementById('cartEmpty');
+    const totalEl = document.getElementById('cartTotal');
+    const priceEl = document.getElementById('cartTotalPrice');
+
+    countEl.textContent = cartData.items.length;
+
+    if (cartData.items.length === 0) {
+      emptyEl.style.display = 'block';
+      totalEl.style.display = 'none';
+      itemsEl.innerHTML = '';
+      itemsEl.appendChild(emptyEl);
+    } else {
+      emptyEl.style.display = 'none';
+      itemsEl.innerHTML = '';
+      cartData.items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.innerHTML = `<span class="cart-item-name">${esc(item.name)}</span>
+          <span class="cart-item-qty">x${item.qty}</span>
+          <span class="cart-item-price">${esc(item.price)}</span>`;
+        itemsEl.appendChild(div);
+      });
+      if (cartData.total) {
+        totalEl.style.display = 'flex';
+        priceEl.textContent = cartData.total;
+      }
+    }
+  }
+
+  // ── Order confirmation ──
+  function showOrderConfirm(sid) {
+    const last = document.querySelector('#messages .msg.agent:last-child .bubble');
+    if (!last) return;
+    const banner = document.createElement('div');
+    banner.className = 'confirm-banner';
+    banner.innerHTML = `
+      <strong>Order Confirmation Required</strong><br>
+      Please confirm you want to place this order. This action cannot be undone.
+      <div class="confirm-actions">
+        <button class="btn-confirm yes" onclick="approveOrder(true, this)">Confirm & Place Order</button>
+        <button class="btn-confirm no"  onclick="approveOrder(false, this)">Cancel</button>
+      </div>`;
+    last.appendChild(banner);
+  }
+
+  async function approveOrder(approved, btn) {
+    btn.closest('.confirm-banner').querySelectorAll('button').forEach(b => b.disabled = true);
+    const typing = appendTyping();
+    try {
+      const r = await fetch(`${API}/chat/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, approved }),
+      });
+      typing.remove();
+      const d = await r.json();
+      appendMsg('agent', d.reply);
+      if (d.order_code) {
+        cartData.orderCode = d.order_code;
+        markStep('step-order', 'done');
+      }
+    } catch {
+      typing.remove();
+      appendError('Approval request failed. Please try again.');
+    }
+  }
+
+  // ── DOM helpers ──
+  function hideWelcome() {
+    const w = document.getElementById('welcome');
+    if (w) w.remove();
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function appendMsg(role, text) {
+    const msgs   = document.getElementById('messages');
+    const div    = document.createElement('div');
+    div.className = `msg ${role}`;
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = role === 'agent' ? 'AI' : 'U';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (role === 'agent' && isProductSearchReply(text)) {
+      const parsed = parseProductsFromText(text);
+      if (parsed.products.length > 0) {
+        bubble.innerHTML = buildProductCardsHTML(parsed.intro, parsed.products, parsed.outro);
+      } else {
+        bubble.innerHTML = formatText(text);
+      }
+    } else {
+      bubble.innerHTML = formatText(text);
+    }
+
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  // ── Detect if reply is a product search result ──
+  function isProductSearchReply(text) {
+    const lower = text.toLowerCase();
+    // Must NOT be a cart, checkout, order, or detail response
+    const isCartOrOrder = /added to (your )?cart|cart (contents|total|summary)|order (placed|confirmed|#|code)|checkout|delivery (address|mode)|payment|shipping|entry.?number|your order|has been added/i.test(lower);
+    if (isCartOrOrder) return false;
+
+    // Must look like a search/browse result
+    const hasSearchContext = /found|result|here are|available|match|showing|products? (for|i found|in)|catalog|search|top result|browse/i.test(lower);
+    if (!hasSearchContext) return false;
+
+    // Must have a product table OR a numbered list with price/code details
+    const hasProductTable = /\|\s*(product|name)\s*\|/i.test(text);
+    const hasNumberedProducts = /^\s*\d+[\.\)]\s*.+/m.test(text) && /price|stock|\$\d/im.test(text);
+    const hasBoldProducts = /\*\*.+?\*\*/.test(text) && /price|stock|\$\d/im.test(text);
+
+    return hasProductTable || hasNumberedProducts || hasBoldProducts;
+  }
+
+  // ── Product parsing from agent text ──
+  function parseProductsFromText(text) {
+    // Try markdown table first, then fall back to bold-name list
+    const tableResult = parseMarkdownTable(text);
+    if (tableResult.products.length > 0) return tableResult;
+    return parseBoldList(text);
+  }
+
+  // Parse markdown table format:
+  // | Product | Price | Stock | Rating |
+  // |---------|-------|-------|--------|
+  // | Name    | $X.XX | ...   | ...    |
+  function parseMarkdownTable(text) {
+    const lines = text.split('\n');
+    const introLines = [];
+    const outroLines = [];
+    const products = [];
+    let headerIdx = -1;
+    let colMap = {};  // column name → index
+
+    // Find the header row (contains | Product | or | Name |)
+    for (let i = 0; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (t.startsWith('|') && t.endsWith('|')) {
+        const cells = t.split('|').map(c => c.trim()).filter(c => c);
+        const lower = cells.map(c => c.toLowerCase());
+        if (lower.some(c => c === 'product' || c === 'name')) {
+          headerIdx = i;
+          cells.forEach((c, idx) => { colMap[c.toLowerCase()] = idx; });
+          break;
+        }
+      }
+    }
+
+    if (headerIdx === -1) return { intro: '', products: [], outro: '' };
+
+    // Collect intro (everything before header)
+    for (let i = 0; i < headerIdx; i++) introLines.push(lines[i]);
+
+    // Skip header and separator rows, parse data rows
+    let dataStart = headerIdx + 1;
+    // Skip separator line like |---|---|---|
+    if (dataStart < lines.length && lines[dataStart].trim().match(/^\|[\s\-:|]+\|$/)) {
+      dataStart++;
+    }
+
+    let dataEnd = dataStart;
+    for (let i = dataStart; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (t.startsWith('|') && t.endsWith('|')) {
+        const cells = t.split('|').map(c => c.trim()).filter(c => c);
+        if (cells.length < 2 || cells.every(c => c.match(/^[-:]+$/))) continue;
+
+        const nameIdx = colMap['product'] ?? colMap['name'] ?? 0;
+        const priceIdx = colMap['price'] ?? 1;
+        const stockIdx = colMap['stock'] ?? 2;
+        const ratingIdx = colMap['rating'] ?? 3;
+
+        const name = (cells[nameIdx] || '').replace(/\*\*/g, '').trim();
+        const price = (cells[priceIdx] || '').replace(/\*\*/g, '').trim();
+        const stock = (cells[stockIdx] || '').trim();
+        const ratingRaw = (cells[ratingIdx] || '').replace(/[^0-9.]/g, '').trim();
+        const rating = ratingRaw ? parseFloat(ratingRaw) : null;
+
+        if (name && name !== '---') {
+          products.push({ name, price: price || null, code: null, stock: stock || null, rating });
+        }
+        dataEnd = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    // Collect outro (everything after table)
+    for (let i = dataEnd; i < lines.length; i++) outroLines.push(lines[i]);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      products,
+      outro: outroLines.join('\n').trim(),
+    };
+  }
+
+  // Fallback: parse numbered/bulleted product list
+  // Handles both:
+  //   1. **Product Name** - $XX.XX
+  //   1. Product Name (Code: 1312564)
+  //      - Price: $7.61
+  //      - Stock: In Stock
+  function parseBoldList(text) {
+    const lines = text.split('\n');
+    const products = [];
+    const introLines = [];
+    const outroLines = [];
+    let inProducts = false;
+    let doneProducts = false;
+    let currentProduct = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // Skip markdown headings (### Battery Chargers)
+      if (trimmed.match(/^#{1,4}\s+/)) {
+        if (!inProducts) introLines.push(lines[i]);
+        continue;
+      }
+
+      // Match numbered product line: "1. Name (Code: xxx)" or "1. **Name** - $price"
+      const boldMatch = trimmed.match(
+        /^(\d+)[\.\)]\s+\*\*(.+?)\*\*\s*(?:[-–—]\s*)?(.*)$/
+      );
+      const plainMatch = trimmed.match(
+        /^(\d+)[\.\)]\s+(.+?)(?:\s*\((?:Code|SKU)[:\s]*([A-Za-z0-9_-]+)\))?\s*$/
+      );
+
+      if (boldMatch) {
+        if (currentProduct) products.push(currentProduct);
+        inProducts = true;
+        const name = boldMatch[2].trim();
+        const rest = boldMatch[3].trim();
+        const priceMatch = rest.match(/\$[\d,]+\.?\d*/);
+        currentProduct = { name, price: priceMatch ? priceMatch[0] : null, code: null, stock: null, rating: null };
+        const codeInline = rest.match(/(?:code|sku)[:\s]*([A-Za-z0-9_-]+)/i);
+        if (codeInline) currentProduct.code = codeInline[1];
+        continue;
+      }
+
+      if (plainMatch && !plainMatch[2].match(/^[-•]/)) {
+        // Avoid matching detail sub-lines like "- Price: $7.61"
+        if (currentProduct) products.push(currentProduct);
+        inProducts = true;
+        const name = plainMatch[2].trim();
+        const code = plainMatch[3] || null;
+        currentProduct = { name, price: null, code, stock: null, rating: null };
+        continue;
+      }
+
+      // Detail lines for current product (with or without leading dash/bullet)
+      if (currentProduct && !doneProducts) {
+        const stripped = trimmed.replace(/^[-•*]\s*/, '');
+
+        const priceLine = stripped.match(/^price[:\s]*(\$[\d,]+\.?\d*)/i);
+        const stockLine = stripped.match(/^stock[:\s]*(.*)/i);
+        const ratingLine = stripped.match(/^(?:rating|avg\.?\s*rating)[:\s]*([\d.]+)/i);
+        const codeLine = stripped.match(/^(?:code|sku|product\s*code)[:\s]*([A-Za-z0-9_-]+)/i);
+
+        if (priceLine) { currentProduct.price = priceLine[1]; continue; }
+        if (stockLine) { currentProduct.stock = stockLine[1].trim(); continue; }
+        if (ratingLine) { currentProduct.rating = parseFloat(ratingLine[1]); continue; }
+        if (codeLine && !currentProduct.code) { currentProduct.code = codeLine[1]; continue; }
+
+        // Standalone price "$7.61"
+        if (!currentProduct.price && stripped.match(/^\$[\d,]+\.?\d*$/)) {
+          currentProduct.price = stripped; continue;
+        }
+
+        if (trimmed === '') continue;
+
+        // Check if upcoming lines have more numbered products
+        let hasMore = false;
+        for (let j = i; j < lines.length; j++) {
+          if (lines[j].trim().match(/^\d+[\.\)]\s+/)) { hasMore = true; break; }
+        }
+        if (!hasMore) {
+          products.push(currentProduct); currentProduct = null;
+          doneProducts = true; outroLines.push(lines[i]); continue;
+        }
+      }
+
+      if (doneProducts) outroLines.push(lines[i]);
+      else if (!inProducts) introLines.push(lines[i]);
+    }
+
+    if (currentProduct) products.push(currentProduct);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      products,
+      outro: outroLines.join('\n').trim(),
+    };
+  }
+
+  function buildProductCardsHTML(intro, products, outro) {
+    let html = '';
+    if (intro) html += `<div class="product-cards-intro">${formatText(intro)}</div>`;
+
+    html += '<div class="product-cards-wrap">';
+    html += '<div class="product-cards">';
+    products.forEach(p => {
+      const stockClass = getStockClass(p.stock);
+      const stockLabel = getStockLabel(p.stock);
+      const ratingHTML = p.rating ? buildRatingHTML(p.rating) : '';
+
+      const safeName = esc(p.name).replace(/'/g, "\\'");
+      const addMsg = p.code
+        ? `Add product ${esc(p.code)} to my cart`
+        : `Add ${safeName} to my cart`;
+      const detailMsg = p.code
+        ? `Show details for product ${esc(p.code)}`
+        : `Show me details for ${safeName}`;
+
+      html += `<div class="product-card">
+        <div class="product-card-name">${esc(p.name)}</div>
+        ${p.code ? `<div class="product-card-code">${esc(p.code)}</div>` : ''}
+        ${p.price ? `<div class="product-card-price">${esc(p.price)}</div>` : ''}
+        <div class="product-card-meta">
+          ${stockLabel ? `<span class="product-card-stock ${stockClass}">${stockLabel}</span>` : ''}
+          ${ratingHTML}
+        </div>
+        <div class="product-card-actions">
+          <button class="product-card-btn add-cart" onclick="sendQuick('${addMsg}')">Add to Cart</button>
+          <button class="product-card-btn details" onclick="sendQuick('${detailMsg}')">Details</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    if (products.length > 2) {
+      html += '<div class="product-scroll-hint">&#8592; scroll for more &#8594;</div>';
+    }
+    html += '</div>';
+
+    if (outro) html += `<div style="margin-top:8px">${formatText(outro)}</div>`;
+    return html;
+  }
+
+  function getStockClass(stock) {
+    if (!stock) return '';
+    const s = stock.toLowerCase();
+    if (s.includes('instock') || s.includes('in stock') || s === 'instock') return 'in-stock';
+    if (s.includes('low') || s.includes('limited')) return 'low-stock';
+    if (s.includes('out') || s.includes('unavailable')) return 'out-of-stock';
+    return 'in-stock';
+  }
+
+  function getStockLabel(stock) {
+    if (!stock) return '';
+    const s = stock.toLowerCase();
+    if (s.includes('instock') || s === 'instock') return 'In Stock';
+    if (s.includes('in stock')) return 'In Stock';
+    if (s.includes('low') || s.includes('limited')) return 'Low Stock';
+    if (s.includes('out')) return 'Out of Stock';
+    return stock;
+  }
+
+  function buildRatingHTML(rating) {
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+    let stars = '';
+    for (let i = 0; i < full; i++) stars += '&#9733;';
+    for (let i = 0; i < half; i++) stars += '&#9733;';
+    for (let i = 0; i < empty; i++) stars += '&#9734;';
+    return `<span class="product-card-rating"><span class="stars">${stars}</span><span class="val">${rating.toFixed(1)}</span></span>`;
+  }
+
+  function appendTyping() {
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.className = 'msg agent';
+    div.innerHTML = `<div class="avatar">AI</div>
+      <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function appendError(msg) {
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.className = 'msg agent';
+    div.innerHTML  = `<div class="avatar">AI</div><div class="error-bubble">${esc(msg)}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function formatText(text) {
+    let html = esc(text);
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g,
+      '<code style="font-family:var(--font-mono);font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">$1</code>');
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  function setLoading(v) {
+    isLoading = v;
+    document.getElementById('sendBtn').disabled   = v;
+    document.getElementById('userInput').disabled = v;
+    if (!v) document.getElementById('userInput').focus();
+  }
+
+  function updateSidebar(d) {
+    document.getElementById('sessionId').textContent =
+      d.session_id ? d.session_id.slice(0,8) + '...' : '\u2014';
+    document.getElementById('sideTurns').textContent = turnCount;
+    totalTokens = d.tokens_used || totalTokens;
+    document.getElementById('tokenBadge').textContent = `${totalTokens.toLocaleString()} tokens`;
+
+    const r = (d.reply || '').toLowerCase();
+    if (r.includes('found') || r.includes('product') || r.includes('result') || r.includes('here'))
+      markStep('step-search','done');
+    if (d.cart_id) markStep('step-cart','done');
+    if (r.includes('delivery address') || r.includes('shipping address'))
+      markStep('step-address','active');
+    if (r.includes('address') && r.includes('set'))
+      markStep('step-address','done'), markStep('step-payment','active');
+    if (r.includes('payment') && r.includes('set'))
+      markStep('step-payment','done'), markStep('step-order','active');
+    if (d.order_code)
+      markStep('step-order','done');
+  }
+
+  function markStep(id, state) {
+    const el = document.getElementById(id);
+    if (el) el.className = `step ${state}`;
+  }
+</script>
+</body>
+</html>
