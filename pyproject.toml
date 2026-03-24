@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cxagent"
-version = "0.1.0"
+version = "0.2.0"
 description = "SAP Commerce Cloud AI Shopping Agent"
 readme = "README.md"
 license = "LicenseRef-BSL-1.1"
@@ -81,7 +81,7 @@ cxagent = "main:main"
 
 [tool.setuptools]
 packages = { find = { include = ["app*", "acp*", "impex*"] } }
-py-modules = ["main", "sap_commerce_mcp_server", "token_vault", "load_products_to_qdrant", "reset_and_load_qdrant"]
+py-modules = ["main", "sap_commerce_mcp_server", "token_vault", "load_products_to_qdrant", "load_product_images_to_qdrant", "reset_and_load_qdrant"]
 
 [tool.setuptools.package-data]
 app = ["static/**/*"]

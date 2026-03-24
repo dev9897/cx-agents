@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, chat, checkout, health, payment, websocket
+from app.api import admin, auth, chat, checkout, health, payment, storefront, websocket
 from app.agent.state import ShoppingState
 
 logger = logging.getLogger("sap_agent.app")
@@ -72,6 +72,7 @@ def create_app() -> FastAPI:
     )
 
     # Inject shared session store into all routers
+    admin.set_session_store(_sessions)
     auth.set_session_store(_sessions)
     chat.set_session_store(_sessions)
     checkout.set_session_store(_sessions)
@@ -80,10 +81,12 @@ def create_app() -> FastAPI:
 
     # Register routers
     app.include_router(health.router)
+    app.include_router(admin.router)
     app.include_router(auth.router)
     app.include_router(chat.router)
     app.include_router(checkout.router)
     app.include_router(payment.router)
+    app.include_router(storefront.router)
     app.include_router(websocket.router)
 
     # Try to load ACP router (optional)
@@ -98,12 +101,20 @@ def create_app() -> FastAPI:
 
     # Static files / UI
     _STATIC_DIR = Path(__file__).parent / "static"
+    _ADMIN_DIR = _STATIC_DIR / "admin"
     if _STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
+    @app.get("/admin/ui", include_in_schema=False)
+    @app.get("/admin/ui/{path:path}", include_in_schema=False)
+    def admin_ui(path: str = ""):
+        index = _ADMIN_DIR / "index.html"
+        if index.exists():
+            return FileResponse(str(index), media_type="text/html")
+        return HTMLResponse("<h2>Admin panel not found</h2>", status_code=404)
+
     @app.get("/", include_in_schema=False)
     def root():
-        # Try new static dir first, then legacy
         for static_dir in [_STATIC_DIR, Path(__file__).parent.parent / "static"]:
             index = static_dir / "index.html"
             if index.exists():

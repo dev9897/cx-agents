@@ -15,8 +15,13 @@
 <header>
   <div class="logo">
     <div class="logo-icon">S</div>
-    <span><span class="brand-sap">SAP</span> Commerce Assistant</span>
+    <span><span class="brand-sap">SAP</span> Commerce Electronics</span>
   </div>
+  <nav class="main-nav">
+    <a class="nav-link" data-view="store" onclick="switchView('store')">&#127968; Store</a>
+    <a class="nav-link active" data-view="chat" onclick="switchView('chat')">&#128172; Agent Chat</a>
+    <a class="nav-link" data-view="cart-page" onclick="switchView('cart-page')">&#128722; Cart <span class="nav-cart-count" id="navCartCount">0</span></a>
+  </nav>
   <div class="header-right">
     <div class="token-badge" id="tokenBadge">0 tokens</div>
     <div class="status-pill" id="statusPill">
@@ -33,8 +38,65 @@
   </div>
 </header>
 
-<!-- ── Layout ── -->
-<div class="layout">
+<!-- ── Store View ── -->
+<div class="store-view" id="view-store" style="display:none">
+  <div class="store-container">
+
+    <!-- Search bar -->
+    <div class="store-search-bar">
+      <input type="text" id="storeSearchInput" placeholder="Search electronics catalog..." onkeydown="if(event.key==='Enter')storeSearch()">
+      <button class="store-search-btn" onclick="storeSearch()">&#128269; Search</button>
+    </div>
+
+    <!-- Category chips -->
+    <div class="store-categories" id="storeCategories">
+      <button class="store-chip active" onclick="storeSearchCategory('')">All Products</button>
+      <button class="store-chip" onclick="storeSearchCategory('camera')">Cameras</button>
+      <button class="store-chip" onclick="storeSearchCategory('lens')">Lenses</button>
+      <button class="store-chip" onclick="storeSearchCategory('memory card')">Memory Cards</button>
+      <button class="store-chip" onclick="storeSearchCategory('tripod')">Tripods</button>
+      <button class="store-chip" onclick="storeSearchCategory('battery')">Batteries</button>
+      <button class="store-chip" onclick="storeSearchCategory('flash')">Flash</button>
+      <button class="store-chip" onclick="storeSearchCategory('bag')">Bags</button>
+    </div>
+
+    <!-- Product grid -->
+    <div class="store-results-info" id="storeResultsInfo"></div>
+    <div class="product-grid" id="productGrid">
+      <div class="store-loading" id="storeLoading">Loading products...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="store-pagination" id="storePagination"></div>
+  </div>
+
+  <!-- Product detail overlay -->
+  <div class="product-detail-overlay" id="productDetailOverlay" style="display:none" onclick="if(event.target===this)closeProductDetail()">
+    <div class="product-detail-modal">
+      <button class="product-detail-close" onclick="closeProductDetail()">&#10005;</button>
+      <div id="productDetailContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cart Page View ── -->
+<div class="cart-page-view" id="view-cart-page" style="display:none">
+  <div class="cart-page-container">
+    <h2>&#128722; Shopping Cart</h2>
+    <p class="cart-page-subtitle">Manage your cart items below or use the Agent Chat to complete checkout.</p>
+    <div id="cartPageContent">
+      <div class="cart-page-empty">
+        <div style="font-size:48px;margin-bottom:16px">&#128722;</div>
+        <h3>Your cart is empty</h3>
+        <p>Browse the store and add some products to get started.</p>
+        <button class="store-search-btn" onclick="switchView('store')" style="margin-top:16px">Browse Store</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Chat View (existing layout) ── -->
+<div class="layout" id="view-chat">
 
   <aside class="sidebar">
     <div id="userPill" class="user-pill" style="display:none">
@@ -277,6 +339,7 @@
 <script src="/static/js/image_search.js?v=9"></script>
 <script src="/static/js/audio_search.js?v=9"></script>
 <script src="/static/js/recommendations.js?v=9"></script>
+<script src="/static/js/storefront.js?v=1"></script>
 
 </body>
 </html>

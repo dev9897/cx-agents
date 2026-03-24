@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Admin Panel</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+<body>
+
+<!-- Auth overlay -->
+<div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+        <h2>Agent Admin Panel</h2>
+        <p>Enter your admin API key to continue.</p>
+        <div class="auth-error" id="authError" style="display:none"></div>
+        <input type="password" id="adminKeyInput" placeholder="Admin API Key" autofocus>
+        <button class="btn primary" onclick="adminAuth.login()">Sign In</button>
+    </div>
+</div>
+
+<!-- Main layout -->
+<div class="admin-layout" id="adminLayout" style="display:none">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>CX Agent Admin</h1>
+            <div class="subtitle">Management Console</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-label">Overview</div>
+                <a class="nav-item active" data-page="dashboard">
+                    <span class="icon">&#9632;</span> Dashboard
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-label">Monitor</div>
+                <a class="nav-item" data-page="sessions">
+                    <span class="icon">&#9778;</span> Sessions
+                </a>
+                <a class="nav-item" data-page="graph">
+                    <span class="icon">&#9672;</span> Graph
+                </a>
+                <a class="nav-item" data-page="tokens">
+                    <span class="icon">&#9733;</span> Tokens &amp; Cost
+                </a>
+                <a class="nav-item" data-page="logs">
+                    <span class="icon">&#9776;</span> Logs
+                </a>
+                <a class="nav-item" data-page="audit">
+                    <span class="icon">&#9888;</span> Audit
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-label">Configure</div>
+                <a class="nav-item" data-page="tools">
+                    <span class="icon">&#9881;</span> Tools
+                </a>
+                <a class="nav-item" data-page="features">
+                    <span class="icon">&#9878;</span> Features
+                </a>
+                <a class="nav-item" data-page="controls">
+                    <span class="icon">&#9881;</span> Controls
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="status-dot online" id="statusDot"></span>
+            <span style="font-size:12px;color:var(--text-secondary)" id="statusText">Connected</span>
+        </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="main-content">
+
+        <!-- Dashboard -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-header">
+                <h2>Dashboard</h2>
+                <div class="description">Real-time agent overview</div>
+            </div>
+            <div class="stats-grid" id="dashboardStats"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Recent Audit Events</h3>
+                    <button class="btn sm" onclick="pages.dashboard.load()">Refresh</button>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <thead><tr><th>Time</th><th>Event</th><th>User</th><th>Details</th></tr></thead>
+                        <tbody id="dashboardAudit"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions -->
+        <div class="page" id="page-sessions">
+            <div class="page-header">
+                <h2>Sessions</h2>
+                <div class="description">Active agent conversations</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Active Sessions</h3>
+                    <button class="btn sm" onclick="pages.sessions.load()">Refresh</button>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <thead><tr><th>Session ID</th><th>User</th><th>Turns</th><th>Tokens In</th><th>Tokens Out</th><th>Cart</th><th>Error</th><th>Actions</th></tr></thead>
+                        <tbody id="sessionsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel" id="sessionDetailPanel" style="display:none">
+                <div class="panel-header">
+                    <h3>Session Detail</h3>
+                    <button class="btn sm" onclick="document.getElementById('sessionDetailPanel').style.display='none'">Close</button>
+                </div>
+                <div class="panel-body">
+                    <pre id="sessionDetail" style="font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;max-height:500px;overflow:auto;color:var(--text-secondary)"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graph -->
+        <div class="page" id="page-graph">
+            <div class="page-header">
+                <h2>Agent Graph</h2>
+                <div class="description">LangGraph node and edge visualization</div>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Execution Flow</h3>
+                </div>
+                <div class="graph-container">
+                    <canvas id="graphCanvas" width="800" height="500"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tokens & Cost -->
+        <div class="page" id="page-tokens">
+            <div class="page-header">
+                <h2>Token Usage &amp; Cost</h2>
+                <div class="description">Per-session token breakdown and cost estimation</div>
+            </div>
+            <div class="stats-grid" id="tokenStats"></div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Per-Session Breakdown</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <thead><tr><th>Session</th><th>User</th><th>Turns</th><th>Input Tokens</th><th>Output Tokens</th><th>Est. Cost</th></tr></thead>
+                        <tbody id="tokenTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="page" id="page-logs">
+            <div class="page-header">
+                <h2>Live Logs</h2>
+                <div class="description">Real-time log streaming from the agent</div>
+            </div>
+            <div class="control-row">
+                <label>Min Level:</label>
+                <select id="logLevel" onchange="pages.logs.reconnect()">
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="INFO" selected>INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+                <button class="btn sm" onclick="pages.logs.clear()">Clear</button>
+                <label><input type="checkbox" id="logAutoScroll" checked> Auto-scroll</label>
+            </div>
+            <div class="log-viewer" id="logViewer"></div>
+        </div>
+
+        <!-- Audit -->
+        <div class="page" id="page-audit">
+            <div class="page-header">
+                <h2>Audit Log</h2>
+                <div class="description">Security and compliance event trail</div>
+            </div>
+            <div class="control-row">
+                <label>Event type:</label>
+                <select id="auditEventFilter" onchange="pages.audit.load()">
+                    <option value="">All</option>
+                    <option value="SESSION_START">SESSION_START</option>
+                    <option value="TURN_COMPLETE">TURN_COMPLETE</option>
+                    <option value="ORDER_APPROVED">ORDER_APPROVED</option>
+                    <option value="ORDER_REJECTED">ORDER_REJECTED</option>
+                    <option value="INJECTION_BLOCKED">INJECTION_BLOCKED</option>
+                    <option value="RATE_LIMITED">RATE_LIMITED</option>
+                    <option value="API_ERROR">API_ERROR</option>
+                </select>
+                <button class="btn sm" onclick="pages.audit.load()">Refresh</button>
+            </div>
+            <div class="panel">
+                <div class="panel-body">
+                    <table class="data-table">
+                        <thead><tr><th>Timestamp</th><th>Event</th><th>User Hash</th><th>Details</th></tr></thead>
+                        <tbody id="auditTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools -->
+        <div class="page" id="page-tools">
+            <div class="page-header">
+                <h2>Registered Tools</h2>
+                <div class="description">All tools available to the agent</div>
+            </div>
+            <div id="toolsList"></div>
+        </div>
+
+        <!-- Features -->
+        <div class="page" id="page-features">
+            <div class="page-header">
+                <h2>Features</h2>
+                <div class="description">Pluggable feature registry status</div>
+            </div>
+            <div id="featuresList"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="page" id="page-controls">
+            <div class="page-header">
+                <h2>Agent Controls</h2>
+                <div class="description">Runtime configuration and management</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><h3>Runtime Config</h3></div>
+                <div class="panel-body" id="configPanel"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><h3>Cache Management</h3></div>
+                <div class="panel-body">
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+                        Clear all tool result cache entries (Redis/in-memory).
+                    </p>
+                    <button class="btn danger" onclick="pages.controls.clearCache()">Clear Tool Cache</button>
+                    <span id="cacheResult" style="margin-left:12px;font-size:13px"></span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header"><h3>Current Config</h3></div>
+                <div class="panel-body">
+                    <pre id="fullConfig" style="font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;color:var(--text-secondary);max-height:400px;overflow:auto"></pre>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="/static/admin/js/admin.js"></script>
+</body>
+</html>
