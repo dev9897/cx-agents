@@ -99,3 +99,46 @@ function _getReasonLabel(reason) {
     default: return '';
   }
 }
+
+// ── Store page recommendations ──────────────────────────────────────────────
+
+async function fetchStoreRecommendations() {
+  if (!App.sessionId || !App.currentUser) return;
+
+  const section = document.getElementById('storeRecoSection');
+  const carousel = document.getElementById('storeRecoCarousel');
+  if (!section || !carousel) return;
+
+  try {
+    const r = await fetch(`${API}/recommendations?session_id=${encodeURIComponent(App.sessionId)}`);
+    if (!r.ok) return;
+
+    const data = await r.json();
+    if (!data.success || !data.recommendations || data.recommendations.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    carousel.innerHTML = data.recommendations.map(rec => {
+      const name = escapeHtml(rec.name || '');
+      const reasonLabel = _getReasonLabel(rec.reason);
+      return `
+        <div class="store-reco-card" onclick="openProductDetail('${rec.code}')">
+          <div class="store-reco-card-img">
+            ${rec.image_url
+              ? `<img src="${escapeHtml(rec.image_url)}" alt="${name}" loading="lazy" onerror="this.parentElement.innerHTML='&#128247;'">`
+              : '&#128247;'}
+          </div>
+          <div class="store-reco-card-body">
+            <div class="store-reco-card-name">${name}</div>
+            ${rec.price ? `<div class="store-reco-card-price">${escapeHtml(rec.price)}</div>` : ''}
+            ${reasonLabel ? `<div class="store-reco-card-reason">${escapeHtml(reasonLabel)}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    section.style.display = 'block';
+  } catch (e) {
+    console.warn('Store recommendations fetch failed:', e);
+  }
+}

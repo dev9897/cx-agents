@@ -59,6 +59,16 @@
       <button class="store-chip" onclick="storeSearchCategory('bag')">Bags</button>
     </div>
 
+    <!-- Recommendations row (visible after login) -->
+    <div class="store-reco-section" id="storeRecoSection" style="display:none">
+      <div class="store-reco-header">
+        <span class="store-reco-icon">&#9733;</span>
+        <span class="store-reco-title">Recommended for You</span>
+        <span class="store-reco-subtitle">Based on your purchase history</span>
+      </div>
+      <div class="store-reco-carousel" id="storeRecoCarousel"></div>
+    </div>
+
     <!-- Product grid -->
     <div class="store-results-info" id="storeResultsInfo"></div>
     <div class="product-grid" id="productGrid">

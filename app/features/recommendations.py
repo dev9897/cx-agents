@@ -333,21 +333,27 @@ def get_recommendations(session_id: str = Query(...)):
     """Get recommendations for the current user session."""
     state = _sessions.get(session_id)
     if not state:
+        logger.warning("Recommendation request for unknown session: %s", session_id)
         raise HTTPException(status_code=404, detail="Session not found")
 
     access_token = state.get("access_token", "")
-    user_email = state.get("user_email", "")
+    user_email = state.get("user_email") or state.get("username", "")
 
     if not access_token or not user_email:
+        logger.info("Recommendations skipped — missing auth | email=%s token=%s",
+                     bool(user_email), bool(access_token))
         return RecommendationResponse(
             success=True, recommendations=[],
             message="Please sign in to get personalized recommendations.")
 
+    logger.info("Fetching recommendations | user=%s session=%s", user_email, session_id[:8])
     try:
         result = get_personalized_recommendations.invoke({
             "user_email": user_email,
             "access_token": access_token,
         })
+        logger.info("Recommendations returned %d items for %s",
+                     len(result.get("recommendations", [])), user_email)
         return RecommendationResponse(**result)
     except Exception as e:
         logger.exception("Recommendation API failed")

@@ -97,9 +97,12 @@ async function doLogin() {
     );
     updateSidebarUser(d.username);
 
-    // Fetch personalized recommendations after login
+    // Fetch personalized recommendations after login (both chat and store)
     if (typeof fetchRecommendations === 'function') {
       setTimeout(() => fetchRecommendations(), 500);
+    }
+    if (typeof fetchStoreRecommendations === 'function') {
+      setTimeout(() => fetchStoreRecommendations(), 600);
     }
   } catch {
     showLoginError('Could not reach the server. Please try again.');
@@ -123,6 +126,9 @@ async function doLogout() {
   App.currentUserEmail = null;
   updateAuthUI(null);
   updateSidebarUser(null);
+  // Hide store recommendations on logout
+  const recoSection = document.getElementById('storeRecoSection');
+  if (recoSection) recoSection.style.display = 'none';
   appendMsg('agent', 'You have been signed out. You can continue browsing the electronics catalog as a guest.');
 }
 
