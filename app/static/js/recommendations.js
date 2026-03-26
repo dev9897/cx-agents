@@ -47,7 +47,7 @@ function renderRecommendationCarousel(recommendations) {
   let html = '<div class="reco-section">';
   html += '<div class="reco-header">';
   html += '<span class="reco-header-icon">&#9733;</span>';
-  html += '<span class="reco-header-title">Recommended for You</span>';
+  html += '<span class="reco-header-title">Top Picks for You</span>';
   html += `<span class="reco-header-subtitle">Based on your purchase history</span>`;
   html += '</div>';
 

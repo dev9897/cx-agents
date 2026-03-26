@@ -145,6 +145,7 @@ def get_content_recommendations(user_id: str, purchased_codes: list[str],
                 "price": hit.payload.get("price", ""),
                 "stock": hit.payload.get("stock", ""),
                 "summary": hit.payload.get("summary", "")[:150],
+                "image_url": hit.payload.get("image_url", ""),
                 "score": round(hit.score, 3),
                 "reason": "content",
             })
@@ -200,6 +201,7 @@ def get_collaborative_recommendations(user_id: str,
             "price": point.payload.get("price", ""),
             "stock": point.payload.get("stock", ""),
             "summary": point.payload.get("summary", "")[:150],
+            "image_url": point.payload.get("image_url", ""),
             "score": 0.8,  # collaborative score placeholder
             "reason": "collaborative",
         })

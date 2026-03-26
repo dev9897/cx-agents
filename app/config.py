@@ -15,8 +15,8 @@ load_dotenv()
 @dataclass
 class ClaudeConfig:
     model: str = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5")
-    max_tokens: int = int(os.getenv("CLAUDE_MAX_TOKENS", "1024"))
-    max_input_tokens: int = int(os.getenv("CLAUDE_MAX_INPUT_TOKENS", "4000"))
+    max_tokens: int = int(os.getenv("CLAUDE_MAX_TOKENS", "2048"))
+    max_input_tokens: int = int(os.getenv("CLAUDE_MAX_INPUT_TOKENS", "16000"))
     enable_prompt_caching: bool = True
     streaming: bool = True
     max_retries: int = 3
@@ -60,7 +60,7 @@ class ResilienceConfig:
     api_max_retries: int = 3
     api_backoff_factor: float = 0.5
     enable_llm_fallback: bool = True
-    max_messages_in_context: int = 50
+    max_messages_in_context: int = 30
     context_trim_strategy: Literal["oldest_first", "keep_system"] = "oldest_first"
     max_tool_loops_per_turn: int = int(os.getenv("MAX_TOOL_LOOPS_PER_TURN", "5"))
 

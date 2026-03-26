@@ -99,6 +99,13 @@ def create_app() -> FastAPI:
     # Register pluggable features (recommendations, image search, audio search)
     _register_features(app)
 
+    # Pre-warm Qdrant + embedding model for fast first search
+    try:
+        from app.integrations.qdrant_client import warmup as qdrant_warmup
+        qdrant_warmup()
+    except Exception as e:
+        logger.info("Qdrant warmup skipped: %s", e)
+
     # Static files / UI
     _STATIC_DIR = Path(__file__).parent / "static"
     _ADMIN_DIR = _STATIC_DIR / "admin"

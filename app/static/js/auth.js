@@ -86,6 +86,11 @@ async function doLogin() {
     App.stripeCards = d.stripe_cards || [];
     closeLogin();
     updateAuthUI(d.username);
+
+    // Open chat widget so user sees welcome + recommendations
+    if (typeof openChatWidget === 'function') openChatWidget();
+    if (typeof switchCwTab === 'function') switchCwTab('chat');
+
     appendMsg(
       'agent',
       `Welcome back, **${d.username}**! You're now signed in. How can I help you today? You can browse cameras, memory cards, accessories, or any electronics from the catalog.`

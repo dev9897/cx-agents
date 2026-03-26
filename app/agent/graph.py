@@ -89,20 +89,52 @@ _llm_with_tools = _llm_factory.bind_tools(ALL_TOOLS)
 
 # ── Context Trimming ─────────────────────────────────────────────────────────
 
+def _estimate_tokens(msg: BaseMessage) -> int:
+    """Rough token estimate: ~4 chars per token for English text."""
+    content = msg.content
+    if isinstance(content, str):
+        chars = len(content)
+    elif isinstance(content, list):
+        chars = sum(len(str(b)) for b in content)
+    else:
+        chars = len(str(content))
+    # Add overhead for tool calls
+    if isinstance(msg, AIMessage) and msg.tool_calls:
+        chars += sum(len(str(tc.get("args", {}))) for tc in msg.tool_calls)
+    return max(chars // 4, 1)
+
+
 def _trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
     max_msgs = CONFIG.resilience.max_messages_in_context
-    if len(messages) <= max_msgs:
-        return _validate_tool_message_pairs(messages)
+    # Reserve ~3000 tokens for system prompt + dynamic context + output buffer
+    max_context_tokens = CONFIG.claude.max_input_tokens - 3000
 
-    trimmed = messages[-max_msgs:]
-    for i, msg in enumerate(trimmed):
+    # First: trim by message count
+    if len(messages) > max_msgs:
+        messages = messages[-max_msgs:]
+
+    # Second: trim by estimated token count (drop oldest messages)
+    total_tokens = sum(_estimate_tokens(m) for m in messages)
+    while total_tokens > max_context_tokens and len(messages) > 4:
+        dropped = _estimate_tokens(messages[0])
+        messages = messages[1:]
+        total_tokens -= dropped
+
+    # Realign to start with HumanMessage
+    for i, msg in enumerate(messages):
         if isinstance(msg, HumanMessage):
-            trimmed = trimmed[i:]
+            messages = messages[i:]
             break
-    while trimmed and isinstance(trimmed[0], ToolMessage):
-        trimmed = trimmed[1:]
 
-    return _validate_tool_message_pairs(trimmed)
+    # Drop leading orphaned ToolMessages
+    while messages and isinstance(messages[0], ToolMessage):
+        messages = messages[1:]
+
+    if total_tokens > max_context_tokens:
+        logger.warning("context_trim | still %d est. tokens after trim (limit %d)",
+                       total_tokens, max_context_tokens)
+
+    return _validate_tool_message_pairs(messages)
 
 
 def _validate_tool_message_pairs(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -449,6 +481,9 @@ def state_sync_node(state: ShoppingState) -> dict:
         # Capture product search results for structured API response
         if "products" in result and isinstance(result["products"], list):
             updates["last_search_results"] = result["products"]
+        # Capture recommendation results as search results for product card rendering
+        if "recommendations" in result and isinstance(result["recommendations"], list):
+            updates["last_search_results"] = result["recommendations"]
         # Capture full cart data for structured cart card rendering
         if "entries" in result and isinstance(result["entries"], list):
             updates["last_cart_data"] = result
@@ -502,13 +537,16 @@ def tool_node_with_injection(state: ShoppingState) -> dict:
                 tool_call_id=tc["id"],
             ))
 
-    # Non-rejected: inject access_token
+    # Non-rejected: inject access_token + user_email
+    user_email = state.get("user_email") or ""
     patched_calls = []
     for tc in last.tool_calls:
         if tc["id"] not in rejected_tool_calls:
             args = dict(tc.get("args", {}))
             if access_token:
                 args["access_token"] = access_token
+            if user_email and tc["name"] in ("get_personalized_recommendations",):
+                args["user_email"] = user_email
             patched_calls.append({**tc, "args": args})
 
     if not patched_calls:
