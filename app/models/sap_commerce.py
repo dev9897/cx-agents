@@ -178,12 +178,12 @@ def strip_html(text: str) -> str:
 def extract_image_url(images: list, base_media_url: str = "") -> Optional[str]:
     """Extract best product image URL from SAP images array.
 
-    Prefers 'product' format (300px), then 'thumbnail' (96px), then first.
+    Prefers 'zoom' (515px), then 'product' (300px), then 'thumbnail' (96px), then first.
     Resolves relative URLs using base_media_url.
     """
     if not images:
         return None
-    for preferred_format in ("product", "thumbnail"):
+    for preferred_format in ("zoom", "product", "thumbnail"):
         for img in images:
             if img.get("format") == preferred_format and img.get("url"):
                 return _resolve_url(img["url"], base_media_url)

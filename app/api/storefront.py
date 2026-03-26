@@ -51,14 +51,17 @@ def search_products(
 
     products = []
     for p in data.get("products", []):
-        # Extract primary image
+        # Extract best primary image — prefer largest format first
         image_url = ""
-        for img in p.get("images", []):
-            if img.get("imageType") == "PRIMARY" and img.get("format") in ("product", "thumbnail"):
-                url_path = img.get("url", "")
-                if url_path:
-                    image_url = base_media + url_path if url_path.startswith("/") else url_path
-                    break
+        for fmt in ("zoom", "product", "thumbnail"):
+            for img in p.get("images", []):
+                if img.get("imageType") == "PRIMARY" and img.get("format") == fmt:
+                    url_path = img.get("url", "")
+                    if url_path:
+                        image_url = base_media + url_path if url_path.startswith("/") else url_path
+                        break
+            if image_url:
+                break
 
         price = p.get("price", {})
         stock = p.get("stock", {})
