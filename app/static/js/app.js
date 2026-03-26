@@ -97,9 +97,13 @@ function updateSidebar(d) {
 
 function setLoading(v) {
   App.isLoading = v;
-  document.getElementById('sendBtn').disabled   = v;
-  document.getElementById('userInput').disabled = v;
-  if (!v) document.getElementById('userInput').focus();
+  const sendBtn = document.getElementById('sendBtn');
+  const userInput = document.getElementById('userInput');
+  if (sendBtn) sendBtn.disabled = v;
+  if (userInput) {
+    userInput.disabled = v;
+    if (!v) userInput.focus();
+  }
 }
 
 // ── Cart UI ──────────────────────────────────────────────────────────────────
@@ -111,7 +115,14 @@ function updateCartUI() {
   const totalEl = document.getElementById('cartTotal');
   const priceEl = document.getElementById('cartTotalPrice');
 
-  countEl.textContent = App.cartData.items.length;
+  const count = App.cartData.items.length;
+  countEl.textContent = count;
+
+  // Sync widget cart badge and nav cart count
+  const cwBadge = document.getElementById('cwCartBadge');
+  if (cwBadge) cwBadge.textContent = count;
+  const navCount = document.getElementById('navCartCount');
+  if (navCount) navCount.textContent = count;
 
   if (App.cartData.items.length === 0) {
     emptyEl.style.display = 'block';
@@ -171,6 +182,21 @@ function initApp() {
   });
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  // Load store as the default view
+  if (typeof storeSearch === 'function') {
+    storeSearch();
+  }
+
+  // Close widget on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const widget = document.getElementById('chatWidget');
+      if (widget && widget.classList.contains('open')) {
+        toggleChatWidget();
+      }
+    }
   });
 }
 

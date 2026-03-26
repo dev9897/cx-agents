@@ -11,19 +11,22 @@ let storeTotalPages = 0;
 // ── View switching ───────────────────────────────────────────────────────────
 
 function switchView(viewId) {
-    // Hide all views
+    // Hide all page views
     document.getElementById('view-store').style.display = 'none';
-    document.getElementById('view-chat').style.display = 'none';
     document.getElementById('view-cart-page').style.display = 'none';
 
     // Remove active from nav
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
 
+    // If chat requested, open the widget instead
+    if (viewId === 'chat') {
+        openChatWidget();
+        return;
+    }
+
     // Show selected view
     const view = document.getElementById(`view-${viewId}`);
-    if (view) {
-        view.style.display = viewId === 'chat' ? 'flex' : 'block';
-    }
+    if (view) view.style.display = 'block';
 
     // Activate nav link
     const nav = document.querySelector(`.nav-link[data-view="${viewId}"]`);
@@ -36,6 +39,62 @@ function switchView(viewId) {
         }
     } else if (viewId === 'cart-page') {
         loadCartPage();
+    }
+}
+
+// ── Chat Widget Toggle ──────────────────────────────────────────────────────
+
+function toggleChatWidget() {
+    const widget = document.getElementById('chatWidget');
+    const bubble = document.getElementById('chatToggleBubble');
+    const icon = document.getElementById('chatBubbleIcon');
+
+    if (widget.classList.contains('open')) {
+        widget.classList.remove('open');
+        bubble.classList.remove('active');
+        icon.innerHTML = '&#128172;';
+    } else {
+        openChatWidget();
+    }
+}
+
+function openChatWidget() {
+    const widget = document.getElementById('chatWidget');
+    const bubble = document.getElementById('chatToggleBubble');
+    const icon = document.getElementById('chatBubbleIcon');
+
+    widget.classList.add('open');
+    bubble.classList.add('active');
+    icon.innerHTML = '&#10005;';
+
+    // Focus input after animation
+    setTimeout(() => {
+        const input = document.getElementById('userInput');
+        if (input) input.focus();
+    }, 350);
+}
+
+function toggleChatWidgetSize() {
+    const widget = document.getElementById('chatWidget');
+    widget.classList.toggle('expanded');
+}
+
+// ── Widget Tab Switching ────────────────────────────────────────────────────
+
+function switchCwTab(tabId) {
+    document.querySelectorAll('.cw-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cw-panel').forEach(p => p.classList.remove('active'));
+
+    const tab = document.querySelector(`.cw-tab[data-cwtab="${tabId}"]`);
+    const panel = document.getElementById(`cwPanel-${tabId}`);
+    if (tab) tab.classList.add('active');
+    if (panel) panel.classList.add('active');
+
+    if (tabId === 'chat') {
+        setTimeout(() => {
+            const input = document.getElementById('userInput');
+            if (input) input.focus();
+        }, 100);
     }
 }
 
@@ -213,7 +272,8 @@ function closeProductDetail() {
 // ── Add to cart (via agent) ──────────────────────────────────────────────────
 
 function addToCartFromStore(code, name) {
-    switchView('chat');
+    openChatWidget();
+    switchCwTab('chat');
     const input = document.getElementById('userInput');
     input.value = `Add ${name} (${code}) to my cart`;
     sendMessage();
@@ -221,7 +281,8 @@ function addToCartFromStore(code, name) {
 
 function askAgentAbout(name) {
     closeProductDetail();
-    switchView('chat');
+    openChatWidget();
+    switchCwTab('chat');
     const input = document.getElementById('userInput');
     input.value = `Tell me about ${name}`;
     sendMessage();
@@ -256,7 +317,7 @@ function loadCartPage() {
         ${total ? `<div class="cart-page-total"><strong>Total: ${total}</strong></div>` : ''}
         <div class="cart-page-actions">
             <button class="store-search-btn" onclick="switchView('store')">Continue Shopping</button>
-            <button class="pd-add-btn" onclick="switchView('chat');sendQuick('I want to checkout')">
+            <button class="pd-add-btn" onclick="openChatWidget();switchCwTab('chat');sendQuick('I want to checkout')">
                 &#128179; Checkout with Agent
             </button>
         </div>

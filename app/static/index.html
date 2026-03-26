@@ -18,8 +18,7 @@
     <span><span class="brand-sap">SAP</span> Commerce Electronics</span>
   </div>
   <nav class="main-nav">
-    <a class="nav-link" data-view="store" onclick="switchView('store')">&#127968; Store</a>
-    <a class="nav-link active" data-view="chat" onclick="switchView('chat')">&#128172; Agent Chat</a>
+    <a class="nav-link active" data-view="store" onclick="switchView('store')">&#127968; Store</a>
     <a class="nav-link" data-view="cart-page" onclick="switchView('cart-page')">&#128722; Cart <span class="nav-cart-count" id="navCartCount">0</span></a>
   </nav>
   <div class="header-right">
@@ -38,8 +37,8 @@
   </div>
 </header>
 
-<!-- ── Store View ── -->
-<div class="store-view" id="view-store" style="display:none">
+<!-- ── Store View (default) ── -->
+<div class="store-view" id="view-store">
   <div class="store-container">
 
     <!-- Search bar -->
@@ -95,158 +94,162 @@
   </div>
 </div>
 
-<!-- ── Chat View (existing layout) ── -->
-<div class="layout" id="view-chat">
-
-  <aside class="sidebar">
-    <div id="userPill" class="user-pill" style="display:none">
-      <span>&#10003;</span>
-      <span class="uname" id="userPillName"></span>
-      <span class="logout-link" onclick="doLogout()">logout</span>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-label">Session</div>
-      <div class="session-card">
-        <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
-        <div class="row"><span>User</span><span id="sideUser">guest</span></div>
-        <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-label">Shopping Cart</div>
-      <div class="cart-panel">
-        <div class="cart-header">
-          <span>Cart</span>
-          <span class="cart-count" id="cartCount">0</span>
-        </div>
-        <div class="cart-items" id="cartItems">
-          <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
-        </div>
-        <div class="cart-total" id="cartTotal" style="display:none">
-          <span>Total</span>
-          <span class="price" id="cartTotalPrice">&mdash;</span>
+<!-- ── Floating Chat Widget ── -->
+<div class="chat-widget" id="chatWidget">
+  <div class="chat-widget-header">
+    <div class="chat-widget-title">
+      <div class="chat-widget-avatar">AI</div>
+      <div>
+        <div class="chat-widget-name">Shopping Assistant</div>
+        <div class="chat-widget-status">
+          <span class="cw-dot"></span> Ask me anything
         </div>
       </div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-label">Quick Actions</div>
-      <button class="quick-btn" onclick="sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
-      <button class="quick-btn" onclick="sendQuick('Show me what products you have')"><span class="icon">&#128269;</span> Browse catalog</button>
-      <button class="quick-btn" onclick="sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
-      <button class="quick-btn" onclick="sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+    <div class="chat-widget-actions">
+      <button class="cw-header-btn" onclick="toggleChatWidgetSize()" id="cwExpandBtn" title="Expand">
+        &#9634;
+      </button>
+      <button class="cw-header-btn" onclick="toggleChatWidget()" title="Close">
+        &#10005;
+      </button>
     </div>
+  </div>
 
-    <div class="flow-steps">
-      <div class="sidebar-label">Checkout Progress</div>
-      <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
-      <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
-      <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
-      <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
-      <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
-    </div>
-  </aside>
+  <!-- Compact sidebar tabs inside widget -->
+  <div class="cw-tabs">
+    <button class="cw-tab active" data-cwtab="chat" onclick="switchCwTab('chat')">&#128172; Chat</button>
+    <button class="cw-tab" data-cwtab="cart" onclick="switchCwTab('cart')">&#128722; Cart <span class="cw-cart-badge" id="cwCartBadge">0</span></button>
+    <button class="cw-tab" data-cwtab="progress" onclick="switchCwTab('progress')">&#9776; Progress</button>
+  </div>
 
-  <div class="chat-wrap">
-    <div id="messages">
-      <div class="welcome" id="welcome">
-        <div class="welcome-icon">&#128247;</div>
-        <h2>SAP Commerce Electronics Store</h2>
-        <p>Your AI-powered shopping assistant. Search the electronics catalog, manage your cart, and check out &mdash; all through natural conversation.</p>
-        <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">&#128269;</div>
-            <div class="feature-title">Smart Product Search</div>
-            <div class="feature-desc">Find cameras, lenses, memory cards and accessories by name, spec, or price range.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">&#128247;</div>
-            <div class="feature-title">Image Search</div>
-            <div class="feature-desc">Upload a photo or use your camera to find visually similar products instantly.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">&#127908;</div>
-            <div class="feature-title">Voice Search</div>
-            <div class="feature-desc">Speak naturally to search. Your voice is transcribed and matched to products.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">&#128722;</div>
-            <div class="feature-title">Cart &amp; Checkout</div>
-            <div class="feature-desc">Add items, view your cart, set delivery address and payment, then place your order.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">&#9733;</div>
-            <div class="feature-title">AI Recommendations</div>
-            <div class="feature-desc">Sign in to get personalized recommendations powered by collaborative and content filtering.</div>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">&#128100;</div>
-            <div class="feature-title">Account Orders</div>
-            <div class="feature-desc">Sign in to access your order history and manage your account preferences.</div>
+  <!-- Chat tab -->
+  <div class="cw-panel active" id="cwPanel-chat">
+    <div class="chat-wrap">
+      <div id="messages">
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon" style="width:56px;height:56px;border-radius:14px;font-size:28px;margin-bottom:14px">&#128247;</div>
+          <h2 style="font-size:18px">How can I help?</h2>
+          <p style="font-size:13px">Search products, manage your cart, checkout &mdash; all through conversation.</p>
+          <div class="chips" style="margin-top:14px">
+            <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon Cameras</div>
+            <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
+            <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
+            <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Accessories</div>
+            <div class="chip" onclick="sendQuick('I want to checkout')"><span class="chip-icon">&#128179;</span> Checkout</div>
           </div>
         </div>
-        <div class="chips">
-          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon EOS Cameras</div>
-          <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
-          <div class="chip" onclick="sendQuick('Show me video cameras')"><span class="chip-icon">&#127909;</span> Video Cameras</div>
-          <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
-          <div class="chip" onclick="sendQuick('Search for camera lenses')"><span class="chip-icon">&#128248;</span> Camera Lenses</div>
-          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Tripods &amp; Accessories</div>
-          <div class="chip" onclick="sendQuick('What batteries and chargers are available?')"><span class="chip-icon">&#128267;</span> Batteries &amp; Chargers</div>
-          <div class="chip" onclick="sendQuick('Show me camera flashes and lighting')"><span class="chip-icon">&#9889;</span> Flashes &amp; Lighting</div>
+      </div>
+
+      <div class="input-bar">
+        <!-- Image preview bar -->
+        <div class="image-preview-bar" id="imagePreviewBar">
+          <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
+          <div class="image-preview-info">
+            <strong id="imagePreviewName">image.jpg</strong>
+            <span id="imagePreviewSize">0 KB</span>
+          </div>
+          <div class="image-preview-actions">
+            <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
+            <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
+          </div>
         </div>
+
+        <!-- Audio recording bar -->
+        <div class="audio-recording-bar" id="audioRecordingBar">
+          <div class="audio-recording-dot"></div>
+          <span>Recording</span>
+          <div class="audio-waveform">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <span class="audio-recording-timer" id="audioTimer">0:00</span>
+          <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
+        </div>
+
+        <div class="input-wrap">
+          <div class="input-actions">
+            <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Image Search">
+              &#128247;
+              <span class="tooltip">Search by image</span>
+            </button>
+            <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice Search">
+              &#127908;
+              <span class="tooltip">Voice search</span>
+            </button>
+          </div>
+          <textarea id="userInput" rows="1" placeholder="Ask about products, cart, checkout..."></textarea>
+          <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
+        </div>
+        <div class="input-hint"><kbd>Enter</kbd> send &middot; &#128247; Image &middot; &#127908; Voice</div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
+        <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
       </div>
     </div>
+  </div>
 
-    <div class="input-bar">
-      <!-- Image preview bar (shown when image selected) -->
-      <div class="image-preview-bar" id="imagePreviewBar">
-        <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
-        <div class="image-preview-info">
-          <strong id="imagePreviewName">image.jpg</strong>
-          <span id="imagePreviewSize">0 KB</span>
-        </div>
-        <div class="image-preview-actions">
-          <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
-          <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
+  <!-- Cart tab -->
+  <div class="cw-panel" id="cwPanel-cart">
+    <div class="cw-cart-content">
+      <div id="userPill" class="user-pill" style="display:none">
+        <span>&#10003;</span>
+        <span class="uname" id="userPillName"></span>
+        <span class="logout-link" onclick="doLogout()">logout</span>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Shopping Cart</div>
+        <div class="cart-panel">
+          <div class="cart-header">
+            <span>Cart</span>
+            <span class="cart-count" id="cartCount">0</span>
+          </div>
+          <div class="cart-items" id="cartItems">
+            <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
+          </div>
+          <div class="cart-total" id="cartTotal" style="display:none">
+            <span>Total</span>
+            <span class="price" id="cartTotalPrice">&mdash;</span>
+          </div>
         </div>
       </div>
-
-      <!-- Audio recording bar -->
-      <div class="audio-recording-bar" id="audioRecordingBar">
-        <div class="audio-recording-dot"></div>
-        <span>Recording</span>
-        <div class="audio-waveform">
-          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-        </div>
-        <span class="audio-recording-timer" id="audioTimer">0:00</span>
-        <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Quick Actions</div>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
       </div>
+    </div>
+  </div>
 
-      <div class="input-wrap">
-        <div class="input-actions">
-          <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Image Search">
-            &#128247;
-            <span class="tooltip">Search by image</span>
-          </button>
-          <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice Search">
-            &#127908;
-            <span class="tooltip">Voice search</span>
-          </button>
+  <!-- Progress tab -->
+  <div class="cw-panel" id="cwPanel-progress">
+    <div class="cw-progress-content">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Session</div>
+        <div class="session-card">
+          <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
+          <div class="row"><span>User</span><span id="sideUser">guest</span></div>
+          <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
         </div>
-        <textarea id="userInput" rows="1" placeholder="Search for products, ask about specs, add items to cart..."></textarea>
-        <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
       </div>
-      <div class="input-hint"><kbd>Enter</kbd> to send &middot; <kbd>Shift+Enter</kbd> for new line &middot; &#128247; Image &middot; &#127908; Voice</div>
-
-      <!-- Hidden file inputs -->
-      <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
-      <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
+      <div class="flow-steps" style="padding:0 16px">
+        <div class="sidebar-label">Checkout Progress</div>
+        <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
+        <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
+        <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
+        <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
+        <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- ── Chat Toggle Bubble ── -->
+<button class="chat-toggle-bubble" id="chatToggleBubble" onclick="toggleChatWidget()" title="Chat with AI Assistant">
+  <span class="chat-bubble-icon" id="chatBubbleIcon">&#128172;</span>
+  <span class="chat-bubble-pulse"></span>
+</button>
 
 <!-- ── Login Modal ── -->
 <div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
@@ -331,15 +334,15 @@
 </div>
 
 <!-- ── Scripts (order matters: app first, then modules that depend on it) ── -->
-<script src="/static/js/app.js?v=9"></script>
-<script src="/static/js/renderers.js?v=9"></script>
-<script src="/static/js/auth.js?v=9"></script>
-<script src="/static/js/chat.js?v=9"></script>
-<script src="/static/js/settings.js?v=9"></script>
-<script src="/static/js/image_search.js?v=9"></script>
-<script src="/static/js/audio_search.js?v=9"></script>
-<script src="/static/js/recommendations.js?v=9"></script>
-<script src="/static/js/storefront.js?v=1"></script>
+<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/renderers.js?v=10"></script>
+<script src="/static/js/auth.js?v=10"></script>
+<script src="/static/js/chat.js?v=10"></script>
+<script src="/static/js/settings.js?v=10"></script>
+<script src="/static/js/image_search.js?v=10"></script>
+<script src="/static/js/audio_search.js?v=10"></script>
+<script src="/static/js/recommendations.js?v=10"></script>
+<script src="/static/js/storefront.js?v=10"></script>
 
 </body>
 </html>
