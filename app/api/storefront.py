@@ -11,6 +11,8 @@ import os
 import httpx
 from fastapi import APIRouter, Query
 
+from app.models.sap_commerce import strip_html
+
 logger = logging.getLogger("sap_agent.storefront")
 
 router = APIRouter(prefix="/store", tags=["Storefront"])
@@ -67,13 +69,13 @@ def search_products(
         stock = p.get("stock", {})
         products.append({
             "code": p.get("code", ""),
-            "name": p.get("name", ""),
+            "name": strip_html(p.get("name", "")),
             "price": price.get("formattedValue", "N/A") if isinstance(price, dict) else "N/A",
             "priceValue": price.get("value", 0) if isinstance(price, dict) else 0,
             "currency": price.get("currencyIso", "USD") if isinstance(price, dict) else "USD",
             "image": image_url,
             "stock": stock.get("stockLevelStatus", "unknown") if isinstance(stock, dict) else "unknown",
-            "summary": (p.get("summary") or "")[:200],
+            "summary": strip_html((p.get("summary") or ""))[:200],
             "averageRating": p.get("averageRating", 0),
             "numberOfReviews": p.get("numberOfReviews", 0),
         })
@@ -113,9 +115,9 @@ def get_product(code: str):
     stock = data.get("stock", {})
     return {
         "code": data.get("code", ""),
-        "name": data.get("name", ""),
-        "description": data.get("description", ""),
-        "summary": data.get("summary", ""),
+        "name": strip_html(data.get("name", "")),
+        "description": strip_html(data.get("description", "")),
+        "summary": strip_html(data.get("summary", "")),
         "price": price.get("formattedValue", "N/A") if isinstance(price, dict) else "N/A",
         "priceValue": price.get("value", 0) if isinstance(price, dict) else 0,
         "images": images,
