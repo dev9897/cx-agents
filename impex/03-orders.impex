@@ -7,6 +7,7 @@
 $siteUid = electronics
 $currency = USD
 $deliveryMode = standard-gross
+$catalogVersion = electronicsProductCatalog:Online
 
 # ── Orders ───────────────────────────────────────────────────
 # Creates historical orders for each customer with diverse product mix
@@ -16,148 +17,148 @@ $deliveryMode = standard-gross
 #   - Power users buy accessories → cross-sell opportunities
 
 INSERT_UPDATE Order; code[unique = true] ; user(uid)                    ; currency(isocode) ; date[dateformat = dd.MM.yyyy] ; deliveryMode(code)   ; net    ; calculated ; site(uid)   ; store(uid)  ; status(code)
-                   ; ORD-A001            ; alice@electronics.store      ; USD               ; 15.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-A002            ; alice@electronics.store      ; USD               ; 28.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-A003            ; alice@electronics.store      ; USD               ; 10.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-B001            ; bob@electronics.store        ; USD               ; 05.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-B002            ; bob@electronics.store        ; USD               ; 20.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-C001            ; carol@electronics.store      ; USD               ; 12.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-C002            ; carol@electronics.store      ; USD               ; 08.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-D001            ; dave@electronics.store       ; USD               ; 18.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-D002            ; dave@electronics.store       ; USD               ; 14.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-D003            ; dave@electronics.store       ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-E001            ; emma@electronics.store       ; USD               ; 22.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-E002            ; emma@electronics.store       ; USD               ; 05.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-F001            ; frank@electronics.store      ; USD               ; 03.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-G001            ; grace@electronics.store      ; USD               ; 10.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-G002            ; grace@electronics.store      ; USD               ; 15.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-H001            ; henry@electronics.store      ; USD               ; 08.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-H002            ; henry@electronics.store      ; USD               ; 25.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-I001            ; iris@electronics.store       ; USD               ; 15.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-I002            ; iris@electronics.store       ; USD               ; 18.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-J001            ; jack@electronics.store       ; USD               ; 20.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-K001            ; karen@electronics.store      ; USD               ; 28.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-K002            ; karen@electronics.store      ; USD               ; 12.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-L001            ; liam@electronics.store       ; USD               ; 02.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-M001            ; mia@electronics.store        ; USD               ; 07.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-N001            ; noah@electronics.store       ; USD               ; 17.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-O001            ; olivia@electronics.store     ; USD               ; 22.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-P001            ; peter@electronics.store      ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-Q001            ; quinn@electronics.store      ; USD               ; 06.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-R001            ; rachel@electronics.store     ; USD               ; 11.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-S001            ; sam@electronics.store        ; USD               ; 14.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-T001            ; tina@electronics.store       ; USD               ; 17.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-A001            ; alice@email.com      ; USD               ; 15.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-A002            ; alice@email.com      ; USD               ; 28.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-A003            ; alice@email.com      ; USD               ; 10.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-B001            ; bob@email.com        ; USD               ; 05.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-B002            ; bob@email.com        ; USD               ; 20.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-C001            ; carol@email.com      ; USD               ; 12.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-C002            ; carol@email.com      ; USD               ; 08.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-D001            ; dave@email.com       ; USD               ; 18.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-D002            ; dave@email.com       ; USD               ; 14.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-D003            ; dave@email.com       ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-E001            ; emma@email.com       ; USD               ; 22.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-E002            ; emma@email.com       ; USD               ; 05.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-F001            ; frank@email.com      ; USD               ; 03.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-G001            ; grace@email.com      ; USD               ; 10.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-G002            ; grace@email.com      ; USD               ; 15.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-H001            ; henry@email.com      ; USD               ; 08.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-H002            ; henry@email.com      ; USD               ; 25.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-I001            ; iris@email.com       ; USD               ; 15.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-I002            ; iris@email.com       ; USD               ; 18.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-J001            ; jack@email.com       ; USD               ; 20.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-K001            ; karen@email.com      ; USD               ; 28.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-K002            ; karen@email.com      ; USD               ; 12.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-L001            ; liam@email.com       ; USD               ; 02.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-M001            ; mia@email.com        ; USD               ; 07.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-N001            ; noah@email.com       ; USD               ; 17.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-O001            ; olivia@email.com     ; USD               ; 22.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-P001            ; peter@email.com      ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-Q001            ; quinn@email.com      ; USD               ; 06.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-R001            ; rachel@email.com     ; USD               ; 11.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-S001            ; sam@email.com        ; USD               ; 14.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-T001            ; tina@email.com       ; USD               ; 17.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
 
 # ── Order Entries ────────────────────────────────────────────
 # Realistic product codes from SAP Electronics Accelerator catalog
 # Pattern: camera users also buy lenses/memory cards/tripods (collaborative signal)
 
-INSERT_UPDATE OrderEntry; order(code)[unique = true] ; entryNumber[unique = true] ; product(code) ; quantity ; unit(code)
+INSERT_UPDATE OrderEntry; order(code)[unique = true] ; entryNumber[unique = true] ; product(code, catalogVersion(catalog(id), version))[unique = true] ; quantity ; unit(code)
 # Alice: Camera enthusiast (DSLR + lenses + memory cards)
-                        ; ORD-A001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-A001                   ; 1                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
-                        ; ORD-A002                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-A002                   ; 1                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
-                        ; ORD-A003                   ; 0                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-A003                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
+                        ; ORD-A001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-A001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-A002                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-A002                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-A003                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-A003                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
 
 # Bob: Camera + Video (DSLR + camcorder + accessories)
-                        ; ORD-B001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D (same as Alice → collab signal)
-                        ; ORD-B001                   ; 1                          ; 4812254       ; 3        ; pieces     # 16GB SD Card
-                        ; ORD-B001                   ; 2                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-B002                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-B002                   ; 1                          ; 278688        ; 1        ; pieces     # Battery Pack
+                        ; ORD-B001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D (same as Alice → collab signal)
+                        ; ORD-B001                   ; 1                          ; 4812254:$catalogVersion ; 3        ; pieces     # 16GB SD Card
+                        ; ORD-B001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-B002                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-B002                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces     # Battery Pack
 
 # Carol: Photography student (entry-level + learning accessories)
-                        ; ORD-C001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-C001                   ; 1                          ; 4812254       ; 1        ; pieces     # 16GB SD Card
-                        ; ORD-C002                   ; 0                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
-                        ; ORD-C002                   ; 1                          ; 898503        ; 1        ; pieces     # Tripod
+                        ; ORD-C001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-C001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces     # 16GB SD Card
+                        ; ORD-C002                   ; 0                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-C002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
 
 # Dave: Tech power user (multiple high-end cameras + accessories)
-                        ; ORD-D001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-D001                   ; 1                          ; 1366053       ; 2        ; pieces     # Canon EF Lens
-                        ; ORD-D002                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-D002                   ; 1                          ; 4812254       ; 5        ; pieces     # 16GB SD Card
-                        ; ORD-D003                   ; 0                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-D003                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
-                        ; ORD-D003                   ; 2                          ; 278688        ; 2        ; pieces     # Battery Pack
+                        ; ORD-D001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-D001                   ; 1                          ; 1366053:$catalogVersion ; 2        ; pieces     # Canon EF Lens
+                        ; ORD-D002                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-D002                   ; 1                          ; 4812254:$catalogVersion ; 5        ; pieces     # 16GB SD Card
+                        ; ORD-D003                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-D003                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
+                        ; ORD-D003                   ; 2                          ; 278688:$catalogVersion  ; 2        ; pieces     # Battery Pack
 
 # Emma: Casual photographer (compact + memory)
-                        ; ORD-E001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-E001                   ; 1                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
-                        ; ORD-E002                   ; 0                          ; 1934406       ; 1        ; pieces     # Camera Bag
+                        ; ORD-E001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-E001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-E002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
 
 # Frank: Video professional
-                        ; ORD-F001                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-F001                   ; 1                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-F001                   ; 2                          ; 278688        ; 1        ; pieces     # Battery Pack
+                        ; ORD-F001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-F001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-F001                   ; 2                          ; 278688:$catalogVersion  ; 1        ; pieces     # Battery Pack
 
 # Grace: Photographer + accessories
-                        ; ORD-G001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-G001                   ; 1                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
-                        ; ORD-G002                   ; 0                          ; 4812254       ; 4        ; pieces     # 16GB SD Card
-                        ; ORD-G002                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
+                        ; ORD-G001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-G001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-G002                   ; 0                          ; 4812254:$catalogVersion ; 4        ; pieces     # 16GB SD Card
+                        ; ORD-G002                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
 
 # Henry: Budget camera buyer
-                        ; ORD-H001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-H001                   ; 1                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-H002                   ; 0                          ; 278688        ; 2        ; pieces     # Battery Pack
+                        ; ORD-H001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-H001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-H002                   ; 0                          ; 278688:$catalogVersion  ; 2        ; pieces     # Battery Pack
 
 # Iris: Premium camera buyer
-                        ; ORD-I001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-I001                   ; 1                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
-                        ; ORD-I001                   ; 2                          ; 1934406       ; 1        ; pieces     # Camera Bag
-                        ; ORD-I002                   ; 0                          ; 4812254       ; 3        ; pieces     # 16GB SD Card
+                        ; ORD-I001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-I001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-I001                   ; 2                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
+                        ; ORD-I002                   ; 0                          ; 4812254:$catalogVersion ; 3        ; pieces     # 16GB SD Card
 
 # Jack: One-time camera buyer
-                        ; ORD-J001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-J001                   ; 1                          ; 4812254       ; 1        ; pieces     # 16GB SD Card
+                        ; ORD-J001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-J001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces     # 16GB SD Card
 
 # Karen: Accessories focused
-                        ; ORD-K001                   ; 0                          ; 898503        ; 1        ; pieces     # Tripod
-                        ; ORD-K001                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
-                        ; ORD-K002                   ; 0                          ; 278688        ; 3        ; pieces     # Battery Pack
-                        ; ORD-K002                   ; 1                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-K001                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
+                        ; ORD-K001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
+                        ; ORD-K002                   ; 0                          ; 278688:$catalogVersion  ; 3        ; pieces     # Battery Pack
+                        ; ORD-K002                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
 
 # Liam: Video + photo mix
-                        ; ORD-L001                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-L001                   ; 1                          ; 1382080       ; 1        ; pieces     # EOS 450D
+                        ; ORD-L001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-L001                   ; 1                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
 
 # Mia: Compact camera user
-                        ; ORD-M001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-M001                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
+                        ; ORD-M001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-M001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
 
 # Noah: Accessories buyer (cross-sell target)
-                        ; ORD-N001                   ; 0                          ; 4812254       ; 4        ; pieces     # 16GB SD Card
-                        ; ORD-N001                   ; 1                          ; 278688        ; 2        ; pieces     # Battery Pack
-                        ; ORD-N001                   ; 2                          ; 898503        ; 1        ; pieces     # Tripod
+                        ; ORD-N001                   ; 0                          ; 4812254:$catalogVersion ; 4        ; pieces     # 16GB SD Card
+                        ; ORD-N001                   ; 1                          ; 278688:$catalogVersion  ; 2        ; pieces     # Battery Pack
+                        ; ORD-N001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
 
 # Olivia: All-in-one bundle buyer
-                        ; ORD-O001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-O001                   ; 1                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
-                        ; ORD-O001                   ; 2                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
-                        ; ORD-O001                   ; 3                          ; 898503        ; 1        ; pieces     # Tripod
+                        ; ORD-O001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-O001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-O001                   ; 2                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-O001                   ; 3                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
 
 # Peter: Compact camera + memory
-                        ; ORD-P001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-P001                   ; 1                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-P001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-P001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
 
 # Quinn: Video enthusiast
-                        ; ORD-Q001                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-Q001                   ; 1                          ; 278688        ; 1        ; pieces     # Battery Pack
-                        ; ORD-Q001                   ; 2                          ; 898503        ; 1        ; pieces     # Tripod
+                        ; ORD-Q001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-Q001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces     # Battery Pack
+                        ; ORD-Q001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
 
 # Rachel: Photography beginner
-                        ; ORD-R001                   ; 0                          ; 2934302       ; 1        ; pieces     # Powershot A480
-                        ; ORD-R001                   ; 1                          ; 898503        ; 1        ; pieces     # Tripod
+                        ; ORD-R001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces     # Powershot A480
+                        ; ORD-R001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces     # Tripod
 
 # Sam: DSLR enthusiast
-                        ; ORD-S001                   ; 0                          ; 1382080       ; 1        ; pieces     # EOS 450D
-                        ; ORD-S001                   ; 1                          ; 4812254       ; 3        ; pieces     # 16GB SD Card
-                        ; ORD-S001                   ; 2                          ; 1366053       ; 1        ; pieces     # Canon EF Lens
+                        ; ORD-S001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces     # EOS 450D
+                        ; ORD-S001                   ; 1                          ; 4812254:$catalogVersion ; 3        ; pieces     # 16GB SD Card
+                        ; ORD-S001                   ; 2                          ; 1366053:$catalogVersion ; 1        ; pieces     # Canon EF Lens
 
 # Tina: Mixed buyer
-                        ; ORD-T001                   ; 0                          ; 1934796       ; 1        ; pieces     # HDR Camera
-                        ; ORD-T001                   ; 1                          ; 1934406       ; 1        ; pieces     # Camera Bag
-                        ; ORD-T001                   ; 2                          ; 4812254       ; 2        ; pieces     # 16GB SD Card
+                        ; ORD-T001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces     # HDR Camera
+                        ; ORD-T001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces     # Camera Bag
+                        ; ORD-T001                   ; 2                          ; 4812254:$catalogVersion ; 2        ; pieces     # 16GB SD Card
