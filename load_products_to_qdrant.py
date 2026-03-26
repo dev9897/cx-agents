@@ -145,6 +145,19 @@ def load_products(queries: list[str] = None):
 
             categories = [c.get("name", "") for c in product.get("categories", []) if isinstance(c, dict)]
 
+            # Extract best product image URL
+            image_url = ""
+            base_media = SAP_URL.replace("/occ/v2", "")
+            for fmt in ("zoom", "product", "thumbnail"):
+                for img in product.get("images", []):
+                    if img.get("imageType") == "PRIMARY" and img.get("format") == fmt:
+                        url_path = img.get("url", "")
+                        if url_path:
+                            image_url = base_media + url_path if url_path.startswith("/") else url_path
+                            break
+                if image_url:
+                    break
+
             points.append(PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
@@ -158,6 +171,7 @@ def load_products(queries: list[str] = None):
                     "stock":       stock_status,
                     "categories":  categories,
                     "rating":      product.get("averageRating"),
+                    "image_url":   image_url,
                 },
             ))
 

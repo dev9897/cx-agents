@@ -147,10 +147,23 @@ def embed_and_upsert(products: list[dict]):
         vectors = [v.tolist() for v in embedder.embed(texts)]
 
         points = []
+        base_media = SAP_URL.replace("/occ/v2", "")
         for product, vector in zip(batch, vectors):
             price = product.get("price") or {}
             stock = product.get("stock") or {}
             cats  = [c.get("name","") for c in product.get("categories",[]) if isinstance(c, dict)]
+
+            # Extract best product image URL
+            image_url = ""
+            for fmt in ("zoom", "product", "thumbnail"):
+                for img in product.get("images", []):
+                    if img.get("imageType") == "PRIMARY" and img.get("format") == fmt:
+                        url_path = img.get("url", "")
+                        if url_path:
+                            image_url = base_media + url_path if url_path.startswith("/") else url_path
+                            break
+                if image_url:
+                    break
 
             points.append(PointStruct(
                 id      = str(uuid.uuid4()),
@@ -165,6 +178,7 @@ def embed_and_upsert(products: list[dict]):
                     "stock":       stock.get("stockLevelStatus", "unknown") if isinstance(stock, dict) else "unknown",
                     "categories":  cats,
                     "rating":      product.get("averageRating"),
+                    "image_url":   image_url,
                 },
             ))
 

@@ -43,6 +43,13 @@ class TokenTracker:
         out_tokens = usage.get("output_tokens", 0)
         cached = usage.get("cache_read_input_tokens", 0)
 
+        # Azure OpenAI reports tokens in response_metadata instead of usage_metadata
+        if not in_tokens and not out_tokens:
+            resp_meta = getattr(response, "response_metadata", {}) or {}
+            token_usage = resp_meta.get("token_usage", {})
+            in_tokens = token_usage.get("prompt_tokens", 0)
+            out_tokens = token_usage.get("completion_tokens", 0)
+
         new_in = state.get("total_input_tokens", 0) + in_tokens
         new_out = state.get("total_output_tokens", 0) + out_tokens
 
