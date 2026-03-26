@@ -260,6 +260,40 @@ def get_blended_recommendations(user_id: str, purchased_product_texts: list[str]
     }
 
 
+# ── Fallback: Popular Products ───────────────────────────────────────────────
+
+def get_popular_products(top_k: int = 8) -> dict:
+    """Fallback recommendations: return popular products from Qdrant for new users."""
+    try:
+        client = _get_qdrant()
+        # Scroll top products (sorted by Qdrant's internal order)
+        results, _ = client.scroll(
+            collection_name=PRODUCTS_COLLECTION,
+            limit=top_k,
+            with_payload=True,
+            with_vectors=False,
+        )
+        if not results:
+            return {"success": True, "recommendations": [], "message": "No products available."}
+
+        recommendations = []
+        for point in results:
+            recommendations.append({
+                "code": point.payload.get("code", ""),
+                "name": point.payload.get("name", ""),
+                "price": point.payload.get("price", ""),
+                "stock": point.payload.get("stock", ""),
+                "summary": point.payload.get("summary", "")[:150],
+                "image_url": point.payload.get("image_url", ""),
+                "score": 0.5,
+                "reason": "popular",
+            })
+        return {"success": True, "total": len(recommendations), "recommendations": recommendations}
+    except Exception as e:
+        logger.exception("get_popular_products failed")
+        return {"success": True, "recommendations": [], "message": f"Error: {e}"}
+
+
 # ── Agent Tool ───────────────────────────────────────────────────────────────
 
 @tool
@@ -281,8 +315,8 @@ def get_personalized_recommendations(user_email: str = "",
         # Fetch user's order history to build preference profile
         orders_data = sap_client.get_user_orders(access_token, page_size=20)
         if not orders_data.get("success"):
-            return {"success": True, "recommendations": [],
-                    "message": "Could not fetch order history. Try browsing our catalog!"}
+            logger.info("Order history fetch failed for %s, falling back to popular products", user_email)
+            return get_popular_products()
 
         purchased_codes = []
         purchased_texts = []
@@ -295,8 +329,8 @@ def get_personalized_recommendations(user_email: str = "",
                     purchased_texts.append(name)
 
         if not purchased_codes:
-            return {"success": True, "recommendations": [],
-                    "message": "No purchase history yet. Browse our catalog to get started!"}
+            logger.info("No purchase history for %s, falling back to popular products", user_email)
+            return get_popular_products()
 
         result = get_blended_recommendations(
             user_id=user_email,

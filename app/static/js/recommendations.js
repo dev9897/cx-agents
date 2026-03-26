@@ -12,19 +12,26 @@
 // ── Fetch and display recommendations ───────────────────────────────────────
 
 async function fetchRecommendations() {
-  if (!App.sessionId || !App.currentUser) return;
+  if (!App.sessionId || !App.currentUser) {
+    console.log('[reco] skipped: no session or user');
+    return;
+  }
 
   try {
+    console.log('[reco] fetching chat recommendations...');
     const r = await fetch(`${API}/recommendations?session_id=${encodeURIComponent(App.sessionId)}`);
-    if (!r.ok) return; // Silent fail — recommendations are optional
+    if (!r.ok) {
+      console.warn('[reco] HTTP error:', r.status);
+      return;
+    }
 
     const data = await r.json();
+    console.log('[reco] response:', data.success, data.recommendations?.length, 'items', data.message || '');
     if (!data.success || !data.recommendations || data.recommendations.length === 0) return;
 
     renderRecommendationCarousel(data.recommendations);
   } catch (e) {
-    // Silent fail — don't interrupt login flow
-    console.warn('Recommendations fetch failed:', e);
+    console.warn('[reco] fetch failed:', e);
   }
 }
 
@@ -96,6 +103,7 @@ function _getReasonLabel(reason) {
     case 'collaborative': return 'Popular with similar buyers';
     case 'content': return 'Similar to your purchases';
     case 'both': return 'Top pick for you';
+    case 'popular': return 'Trending now';
     default: return '';
   }
 }
@@ -103,15 +111,25 @@ function _getReasonLabel(reason) {
 // ── Store page recommendations ──────────────────────────────────────────────
 
 async function fetchStoreRecommendations() {
-  if (!App.sessionId || !App.currentUser) return;
+  if (!App.sessionId || !App.currentUser) {
+    console.log('[reco-store] skipped: no session or user');
+    return;
+  }
 
   const section = document.getElementById('storeRecoSection');
   const carousel = document.getElementById('storeRecoCarousel');
-  if (!section || !carousel) return;
+  if (!section || !carousel) {
+    console.warn('[reco-store] missing DOM elements');
+    return;
+  }
 
   try {
+    console.log('[reco-store] fetching store recommendations...');
     const r = await fetch(`${API}/recommendations?session_id=${encodeURIComponent(App.sessionId)}`);
-    if (!r.ok) return;
+    if (!r.ok) {
+      console.warn('[reco-store] HTTP error:', r.status);
+      return;
+    }
 
     const data = await r.json();
     if (!data.success || !data.recommendations || data.recommendations.length === 0) {
