@@ -32,51 +32,207 @@ async function doSend(text) {
   hideWelcome();
   appendMsg('user', text);
   setLoading(true);
-  const typing = appendTyping();
+
+  // Create streaming message bubble
+  const msgDiv = _createStreamingMsg();
+  const bubble = msgDiv.querySelector('.bubble');
+  let fullText = '';
+  let gotDone = false;
 
   try {
     const body = { message: text, user_id: App.currentUser || 'anonymous' };
     if (App.sessionId) body.session_id = App.sessionId;
 
-    const r = await fetch(`${API}/chat`, {
+    const r = await fetch(`${API}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    typing.remove();
 
     if (!r.ok) {
+      msgDiv.remove();
       const err = await r.json().catch(() => ({ detail: 'Server error' }));
       appendError(err.detail || `HTTP ${r.status}`);
       return;
     }
 
-    const d = await r.json();
-    App.sessionId    = d.session_id;
-    App.totalTokens += d.tokens_used || 0;
-    App.turnCount    = d.turn || App.turnCount + 1;
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    if (d.awaiting_approval) {
-      showOrderConfirmDirect(d.reply);
-    } else {
-      const msgDiv = appendMsg('agent', d.reply, d);
-      appendSuggestions(msgDiv, d.suggestions);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events (each separated by \n\n)
+      while (buffer.includes('\n\n')) {
+        const idx = buffer.indexOf('\n\n');
+        const block = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+
+        let evtType = '', evtData = '';
+        for (const line of block.split('\n')) {
+          if (line.startsWith('event: ')) evtType = line.slice(7);
+          else if (line.startsWith('data: ')) evtData = line.slice(6);
+        }
+        if (!evtType || !evtData) continue;
+
+        let data;
+        try { data = JSON.parse(evtData); } catch { continue; }
+
+        if (evtType === 'status') {
+          _showStreamStatus(bubble, data);
+        } else if (evtType === 'chunk') {
+          if (!fullText) { bubble.innerHTML = ''; bubble.classList.add('streaming'); }
+          fullText += data.text;
+          bubble.innerHTML = formatText(stripSuggestionsBlock(fullText))
+                           + '<span class="stream-cursor"></span>';
+          const msgs = document.getElementById('messages');
+          msgs.scrollTop = msgs.scrollHeight;
+        } else if (evtType === 'done') {
+          gotDone = true;
+          bubble.classList.remove('streaming');
+          _handleStreamDone(msgDiv, bubble, fullText, data);
+        } else if (evtType === 'error') {
+          msgDiv.remove();
+          appendError(data.message || 'Something went wrong.');
+          return;
+        }
+      }
     }
 
-    updateSidebar(d);
-    syncCartFromResponse(d);
-
-    if (d.authenticated && d.username && !App.currentUser) {
-      App.currentUser = d.username;
-      App.currentUserEmail = d.username.includes('@') ? d.username : `${d.username}@store.local`;
-      updateAuthUI(d.username);
-      updateSidebarUser(d.username);
+    // Stream ended without a done event (e.g. connection dropped)
+    if (!gotDone) {
+      bubble.classList.remove('streaming');
+      const cur = bubble.querySelector('.stream-cursor');
+      if (cur) cur.remove();
+      if (!fullText) { msgDiv.remove(); appendError('Connection interrupted.'); }
     }
   } catch {
-    typing.remove();
+    msgDiv.remove();
     appendError('Could not reach the agent. Is the server running?');
   } finally {
     setLoading(false);
+  }
+}
+
+// ── Streaming helpers ───────────────────────────────────────────────────────
+
+const _TOOL_LABELS = {
+  semantic_search_products: 'Searching products...',
+  search_products: 'Searching products...',
+  get_product_details: 'Loading product details...',
+  add_to_cart: 'Adding to cart...',
+  remove_from_cart: 'Updating cart...',
+  update_cart_entry: 'Updating cart...',
+  get_cart: 'Checking cart...',
+  place_order: 'Placing order...',
+  acp_checkout: 'Processing checkout...',
+  get_personalized_recommendations: 'Getting recommendations...',
+  get_order_history: 'Loading order history...',
+  get_saved_addresses: 'Loading addresses...',
+  list_saved_cards: 'Loading payment methods...',
+};
+
+function _createStreamingMsg() {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg agent';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = 'AI';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = '<div class="stream-status">'
+    + '<div class="thinking-dots"><span></span><span></span><span></span></div>'
+    + '<span class="thinking-label">Thinking\u2026</span></div>';
+
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function _showStreamStatus(bubble, data) {
+  const label = data.phase === 'tool'
+    ? (_TOOL_LABELS[data.tool] || 'Working on it\u2026')
+    : 'Thinking\u2026';
+  bubble.innerHTML = '<div class="stream-status">'
+    + '<div class="thinking-dots"><span></span><span></span><span></span></div>'
+    + '<span class="thinking-label">' + esc(label) + '</span></div>';
+}
+
+function _handleStreamDone(msgDiv, bubble, streamedText, data) {
+  // Remove streaming cursor
+  const cur = bubble.querySelector('.stream-cursor');
+  if (cur) cur.remove();
+
+  // Update global state
+  App.sessionId    = data.session_id;
+  App.totalTokens += data.tokens_used || 0;
+  App.turnCount    = data.turn || App.turnCount + 1;
+
+  if (data.awaiting_approval) {
+    msgDiv.remove();
+    showOrderConfirmDirect(data.reply);
+  } else {
+    // Re-render bubble with structured data if present
+    const hasStructured = (data.products && data.products.length > 0)
+      || (data.product_detail && data.product_detail.code)
+      || (data.cart && data.cart.entries && data.cart.entries.length > 0)
+      || data.order_code;
+
+    if (hasStructured) {
+      _renderFinalBubble(bubble, data.reply || streamedText, data);
+    }
+    // else: keep already-streamed text as-is
+
+    appendSuggestions(msgDiv, data.suggestions);
+  }
+
+  updateSidebar(data);
+  syncCartFromResponse(data);
+
+  if (data.authenticated && data.username && !App.currentUser) {
+    App.currentUser = data.username;
+    App.currentUserEmail = data.username.includes('@') ? data.username : `${data.username}@store.local`;
+    updateAuthUI(data.username);
+    updateSidebarUser(data.username);
+  }
+}
+
+function _renderFinalBubble(bubble, reply, data) {
+  const text = stripSuggestionsBlock(reply);
+
+  if (data && (data.products || data.product_detail || data.cart)) {
+    removeExistingCards(data);
+  }
+
+  if (data.order_code) {
+    bubble.innerHTML = buildOrderSuccessHTML(text, data.order_code);
+  } else if (data.product_detail && data.product_detail.code) {
+    const intro = extractIntro(text);
+    bubble.innerHTML = '';
+    if (intro) bubble.innerHTML = '<div class="pd-intro-text">' + formatText(intro) + '</div>';
+    bubble.innerHTML += buildProductDetailCard(data.product_detail);
+    if (data.cart && data.cart.entries && data.cart.entries.length > 0)
+      bubble.innerHTML += buildCartCardHTML(data.cart);
+  } else if (data.products && data.products.length > 0) {
+    const intro = extractIntro(text);
+    bubble.innerHTML = buildProductCardsHTML(intro, data.products, '');
+    if (data.cart && data.cart.entries && data.cart.entries.length > 0)
+      bubble.innerHTML += buildCartCardHTML(data.cart);
+  } else if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+    const intro = extractIntro(text);
+    bubble.innerHTML = '';
+    if (intro) bubble.innerHTML = '<div class="cart-intro-text">' + formatText(intro) + '</div>';
+    bubble.innerHTML += buildCartCardHTML(data.cart);
+  } else {
+    bubble.innerHTML = formatText(text);
   }
 }
 

@@ -89,6 +89,41 @@ def _build_user_preference_vector(product_texts: list[str]) -> list[float]:
     return (avg / (np.linalg.norm(avg) + 1e-8)).tolist()
 
 
+def _build_preference_vector_from_qdrant(purchased_codes: list[str]) -> Optional[list[float]]:
+    """Build preference vector by averaging actual product vectors from Qdrant.
+
+    Products are indexed with rich text (name + summary + description + categories),
+    so using their stored vectors ensures the preference vector lives in the same
+    semantic space as the catalog — much better than re-embedding short names.
+    Returns None if no matching products found in Qdrant.
+    """
+    if not purchased_codes:
+        return None
+
+    client = _get_qdrant()
+    from qdrant_client.models import Filter, FieldCondition, MatchAny
+
+    results, _ = client.scroll(
+        collection_name=PRODUCTS_COLLECTION,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="code", match=MatchAny(any=purchased_codes))
+        ]),
+        limit=len(purchased_codes),
+        with_vectors=True,
+        with_payload=False,
+    )
+
+    if not results:
+        return None
+
+    vectors = [point.vector for point in results if point.vector]
+    if not vectors:
+        return None
+
+    avg = np.mean(vectors, axis=0)
+    return (avg / (np.linalg.norm(avg) + 1e-8)).tolist()
+
+
 def _upsert_user_profile(user_id: str, preference_vector: list[float],
                          purchased_codes: list[str]):
     """Store/update the user preference vector in Qdrant."""
@@ -170,15 +205,19 @@ def get_collaborative_recommendations(user_id: str,
         with_payload=True,
     )
 
-    # Collect products from similar users that this user hasn't bought
-    candidate_codes = set()
+    # Collect products from similar users, weighted by user similarity
+    # code → best similarity score from the most similar user who bought it
+    candidate_scores: dict[str, float] = {}
     for hit in similar_users.points:
         if hit.payload.get("user_id") != user_id:
+            user_sim = hit.score  # cosine similarity between user profiles
             for code in hit.payload.get("purchased_codes", []):
                 if code not in purchased_codes:
-                    candidate_codes.add(code)
+                    # Keep the highest user-similarity score for each product
+                    candidate_scores[code] = max(
+                        candidate_scores.get(code, 0.0), user_sim)
 
-    if not candidate_codes:
+    if not candidate_scores:
         return []
 
     # Fetch product details from Qdrant for candidate codes
@@ -186,7 +225,7 @@ def get_collaborative_recommendations(user_id: str,
     results = client.scroll(
         collection_name=PRODUCTS_COLLECTION,
         scroll_filter=Filter(must=[
-            FieldCondition(key="code", match=MatchAny(any=list(candidate_codes)))
+            FieldCondition(key="code", match=MatchAny(any=list(candidate_scores.keys())))
         ]),
         limit=top_k,
         with_payload=True,
@@ -195,16 +234,18 @@ def get_collaborative_recommendations(user_id: str,
 
     recommendations = []
     for point in results[0]:
+        code = point.payload.get("code", "")
         recommendations.append({
-            "code": point.payload.get("code", ""),
+            "code": code,
             "name": point.payload.get("name", ""),
             "price": point.payload.get("price", ""),
             "stock": point.payload.get("stock", ""),
             "summary": point.payload.get("summary", "")[:150],
             "image_url": point.payload.get("image_url", ""),
-            "score": 0.8,  # collaborative score placeholder
+            "score": round(candidate_scores.get(code, 0.5), 3),
             "reason": "collaborative",
         })
+    recommendations.sort(key=lambda x: x["score"], reverse=True)
     return recommendations[:top_k]
 
 
@@ -212,14 +253,19 @@ def get_blended_recommendations(user_id: str, purchased_product_texts: list[str]
                                 purchased_codes: list[str],
                                 top_k: int = 8) -> dict:
     """Blend collaborative + content-based recommendations."""
-    if not purchased_product_texts:
+    if not purchased_codes:
         return {
             "success": True,
             "recommendations": [],
             "message": "No purchase history available for recommendations.",
         }
 
-    preference_vector = _build_user_preference_vector(purchased_product_texts)
+    # Use actual Qdrant product vectors for semantic alignment with the catalog
+    preference_vector = _build_preference_vector_from_qdrant(purchased_codes)
+    # Fallback to text-based embedding if purchased products aren't in Qdrant
+    if preference_vector is None:
+        logger.info("Products not found in Qdrant for %s, falling back to text embedding", user_id)
+        preference_vector = _build_user_preference_vector(purchased_product_texts)
     _upsert_user_profile(user_id, preference_vector, purchased_codes)
 
     content_recs = get_content_recommendations(

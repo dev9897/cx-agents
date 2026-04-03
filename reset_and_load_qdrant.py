@@ -205,8 +205,18 @@ if __name__ == "__main__":
 
     # Step 3: Multiple queries se zyada products milenge
     print("\n[3/5] SAP se products fetch kar raha hun...")
-    QUERIES = ["camera", "laptop", "phone", "headphone",
-               "tv", "speaker", "tablet", "printer"]
+    QUERIES = [
+        "camera", "digital camera", "DSLR", "compact camera",
+        "lens", "zoom lens", "wide angle", "telephoto",
+        "memory card", "SD card", "flash drive", "USB",
+        "tripod", "camera bag", "camera case",
+        "battery", "charger", "power bank",
+        "flash", "lighting",
+        "cable", "adapter", "accessory",
+        "printer", "ink", "scanner",
+        "phone", "tablet", "laptop",
+        "headphones", "speaker", "tv",
+    ]
     all_products, seen_codes = [], set()
 
     for q in QUERIES:

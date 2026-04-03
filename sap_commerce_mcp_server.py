@@ -68,7 +68,7 @@ def _resolve(session_id: str) -> tuple[str, str]:
 # ── MCP Server ────────────────────────────────────────────────────────────────
 mcp = FastMCP(
     name="SAP Commerce Cloud",
-    description="Full SAP Commerce OCC v2 API — auth, catalog, cart, checkout, orders.",
+    instructions="Full SAP Commerce OCC v2 API — auth, catalog, cart, checkout, orders.",
 )
 
 # ═════════════════════════════════════════════════════════════════════════════

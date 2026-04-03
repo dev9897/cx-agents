@@ -199,6 +199,86 @@ async def stream_turn(user_message: str, thread_id: str,
                 yield str(msg.content)
 
 
+async def stream_turn_events(user_message: str, thread_id: str,
+                             state: ShoppingState) -> AsyncIterator[dict]:
+    """SSE streaming — yields structured events: status, chunk, error, state."""
+    set_trace_context(thread_id)
+
+    # Security checks (same as run_turn)
+    is_malicious, reason = detect_prompt_injection(user_message)
+    if is_malicious:
+        audit("INJECTION_BLOCKED", thread_id, {"reason": reason})
+        yield {"event": "error", "data": "I couldn't process that request. Please rephrase."}
+        return
+
+    ok, reason = rate_limiter.check_message(thread_id)
+    if not ok:
+        audit("RATE_LIMITED", thread_id, {})
+        yield {"event": "error", "data": "You're sending messages too quickly. Please slow down."}
+        return
+
+    clean = sanitise_input(user_message)
+    state["messages"] = state.get("messages", []) + [HumanMessage(content=clean)]
+    lg_config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+
+    yield {"event": "status", "data": {"phase": "thinking"}}
+
+    try:
+        async for chunk in production_graph.astream(
+            state, config=lg_config, stream_mode="messages"
+        ):
+            if not (isinstance(chunk, tuple) and len(chunk) == 2):
+                continue
+            msg, meta = chunk
+            if not isinstance(msg, AIMessage):
+                continue
+
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    yield {"event": "status",
+                           "data": {"phase": "tool", "tool": tc.get("name", "")}}
+            elif msg.content:
+                content = msg.content
+                if isinstance(content, str) and content:
+                    yield {"event": "chunk", "data": {"text": content}}
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = block.get("text", "")
+                        elif isinstance(block, str):
+                            text = block
+                        else:
+                            continue
+                        if text:
+                            yield {"event": "chunk", "data": {"text": text}}
+    except Exception as exc:
+        logger.exception("stream_turn_events | graph.astream failed | thread=%s", thread_id)
+        yield {"event": "error", "data": str(exc)}
+        return
+
+    # Retrieve final state from checkpoint
+    try:
+        snapshot = await production_graph.aget_state(lg_config)
+        final_state = dict(snapshot.values) if snapshot else state
+        # Detect interrupt (human approval pending)
+        if snapshot and snapshot.next:
+            final_state["__interrupt__"] = True
+    except Exception:
+        logger.debug("Could not retrieve final state from checkpoint | thread=%s", thread_id)
+        final_state = state
+
+    # Preserve access token from session
+    if state.get("access_token"):
+        final_state["access_token"] = state["access_token"]
+        final_state["user_id"] = state.get("user_id", "current")
+
+    audit("TURN_COMPLETE", thread_id, {
+        "turn": final_state.get("turn_count"),
+        "input_tokens": final_state.get("total_input_tokens"),
+    })
+    yield {"event": "state", "data": final_state}
+
+
 # ── Fallback responses ───────────────────────────────────────────────────────
 
 _FALLBACK_RESPONSES = {

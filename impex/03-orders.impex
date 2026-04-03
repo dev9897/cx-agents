@@ -3,6 +3,38 @@
 # Historical order data used for collaborative filtering
 # Product codes match the standard SAP Electronics accelerator
 # ──────────────────────────────────────────────────────────────
+#
+# RECOMMENDATION DESIGN
+# ─────────────────────
+# Users are grouped into 4 clusters + bridge users. Each cluster shares
+# a core set of products but individual users have gaps, so collaborative
+# filtering can surface products that "users like you" bought.
+#
+# Expected recommendations (collaborative + content):
+#   Alice (DSLR Pro)    → 482105 (lens), 479956 (flash), 1934406 (bag)
+#   Carol (Compact)     → 1986316 (DSC-T90), 898503 (tripod)
+#   Bob   (Video)       → 1934793 (camcorder), 458542 (remote)
+#   Karen (Accessories) → 898503 (tripod), 458542 (remote)
+#
+# Product reference (16 products across 6 categories):
+#   DSLR Camera   : 1382080 = Canon EOS 450D
+#   Compact Cams  : 2934302 = PowerShot A480
+#                   816324  = Cyber-shot DSC-W180
+#                   1986316 = Cyber-shot DSC-T90
+#                   325414  = DSC-N2
+#   Camcorders    : 1934796 = HDR-CX105E
+#                   1934793 = HDR-CX105E (variant)
+#   Pro Lenses    : 1366053 = Canon EF 100mm f/2.8
+#                   493683  = EF 70-300mm IS USM
+#                   482105  = EF 75-300mm III USM
+#   Memory        : 4812254 = Kingston 16GB SDHC
+#   Accessories   : 898503  = Tripod
+#                   1934406 = Camera Bag
+#                   278688  = Battery Pack
+#                   479956  = Flash HVL-F58AM
+#                   458542  = Remote Commander
+#
+# ──────────────────────────────────────────────────────────────
 
 $siteUid = electronics
 $currency = USD
@@ -10,161 +42,236 @@ $deliveryMode = standard-gross
 $catalogVersion = electronicsProductCatalog:Online
 
 # ── Orders ───────────────────────────────────────────────────
-# Creates historical orders for each customer with diverse product mix
-# This enables the collaborative filtering algorithm to find patterns:
-#   - Alice & Bob both bought cameras → recommend similar items
-#   - Users who bought cameras also bought memory cards & tripods
-#   - Power users buy accessories → cross-sell opportunities
 
 INSERT_UPDATE Order; code[unique = true] ; user(uid)                    ; currency(isocode) ; date[dateformat = dd.MM.yyyy] ; deliveryMode(code)   ; net    ; calculated ; site(uid)   ; store(uid)  ; status(code)
+# Cluster A – DSLR Pro Photographers
                    ; ORD-A001            ; alice@email.com      ; USD               ; 15.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-A002            ; alice@email.com      ; USD               ; 28.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-A003            ; alice@email.com      ; USD               ; 10.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-B001            ; bob@email.com        ; USD               ; 05.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-B002            ; bob@email.com        ; USD               ; 20.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-C001            ; carol@email.com      ; USD               ; 12.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-C002            ; carol@email.com      ; USD               ; 08.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-D001            ; dave@email.com       ; USD               ; 18.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-D002            ; dave@email.com       ; USD               ; 14.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-D003            ; dave@email.com       ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-E001            ; emma@email.com       ; USD               ; 22.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-E002            ; emma@email.com       ; USD               ; 05.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-F001            ; frank@email.com      ; USD               ; 03.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-G001            ; grace@email.com      ; USD               ; 10.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-G002            ; grace@email.com      ; USD               ; 15.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-S001            ; sam@email.com        ; USD               ; 14.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-S002            ; sam@email.com        ; USD               ; 29.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+# Cluster B – Compact Camera / Casual Users
+                   ; ORD-C001            ; carol@email.com      ; USD               ; 12.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-C002            ; carol@email.com      ; USD               ; 08.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-E001            ; emma@email.com       ; USD               ; 22.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-E002            ; emma@email.com       ; USD               ; 05.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-J001            ; jack@email.com       ; USD               ; 20.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-J002            ; jack@email.com       ; USD               ; 10.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-P001            ; peter@email.com      ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-P002            ; peter@email.com      ; USD               ; 26.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-R001            ; rachel@email.com     ; USD               ; 11.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-R002            ; rachel@email.com     ; USD               ; 28.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+# Cluster C – Video / Camcorder Enthusiasts
+                   ; ORD-B001            ; bob@email.com        ; USD               ; 05.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-B002            ; bob@email.com        ; USD               ; 20.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-F001            ; frank@email.com      ; USD               ; 03.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-F002            ; frank@email.com      ; USD               ; 15.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-Q001            ; quinn@email.com      ; USD               ; 06.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-Q002            ; quinn@email.com      ; USD               ; 27.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-T001            ; tina@email.com       ; USD               ; 17.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-T002            ; tina@email.com       ; USD               ; 29.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+# Cluster D – Accessories & Memory Power Buyers
+                   ; ORD-K001            ; karen@email.com      ; USD               ; 28.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-K002            ; karen@email.com      ; USD               ; 12.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-M001            ; mia@email.com        ; USD               ; 07.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-M002            ; mia@email.com        ; USD               ; 22.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-N001            ; noah@email.com       ; USD               ; 17.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-N002            ; noah@email.com       ; USD               ; 24.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+# Bridge Users (cross-cluster collaborative signals)
                    ; ORD-H001            ; henry@email.com      ; USD               ; 08.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-H002            ; henry@email.com      ; USD               ; 25.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-I001            ; iris@email.com       ; USD               ; 15.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-I002            ; iris@email.com       ; USD               ; 18.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-J001            ; jack@email.com       ; USD               ; 20.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-K001            ; karen@email.com      ; USD               ; 28.01.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-K002            ; karen@email.com      ; USD               ; 12.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-L001            ; liam@email.com       ; USD               ; 02.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-M001            ; mia@email.com        ; USD               ; 07.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-N001            ; noah@email.com       ; USD               ; 17.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-L002            ; liam@email.com       ; USD               ; 20.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
                    ; ORD-O001            ; olivia@email.com     ; USD               ; 22.02.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-P001            ; peter@email.com      ; USD               ; 01.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-Q001            ; quinn@email.com      ; USD               ; 06.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-R001            ; rachel@email.com     ; USD               ; 11.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-S001            ; sam@email.com        ; USD               ; 14.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
-                   ; ORD-T001            ; tina@email.com       ; USD               ; 17.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
+                   ; ORD-O002            ; olivia@email.com     ; USD               ; 25.03.2026                    ; $deliveryMode        ; false  ; true       ; $siteUid    ; $siteUid    ; COMPLETED
 
 # ── Order Entries ────────────────────────────────────────────
-# Realistic product codes from SAP Electronics Accelerator catalog
-# Pattern: camera users also buy lenses/memory cards/tripods (collaborative signal)
-#
-# Product reference:
-#   1382080 = EOS 450D             1366053 = Canon EF Lens
-#   2934302 = Powershot A480       4812254 = 16GB SD Card
-#   1934796 = HDR Camera           898503  = Tripod
-#   1934406 = Camera Bag           278688  = Battery Pack
 
 INSERT_UPDATE OrderEntry; order(code)[unique = true] ; entryNumber[unique = true] ; product(code, catalogVersion(catalog(id), version))[unique = true] ; quantity ; unit(code)
-# Alice: Camera enthusiast (DSLR + lenses + memory cards)
+
+# ═══════════════════════════════════════════════════════════════
+# CLUSTER A – DSLR Pro Photographers
+# ═══════════════════════════════════════════════════════════════
+
+# Alice: DSLR + pro lenses + tripod + memory
+# Bought: 1382080, 1366053, 493683, 898503, 4812254
+# Missing from cluster: 482105 (lens), 479956 (flash), 1934406 (bag)
                         ; ORD-A001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
                         ; ORD-A001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces
-                        ; ORD-A002                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-A002                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
+                        ; ORD-A002                   ; 0                          ; 1366053:$catalogVersion ; 1        ; pieces
+                        ; ORD-A002                   ; 1                          ; 493683:$catalogVersion  ; 1        ; pieces
                         ; ORD-A003                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-A003                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
 
-# Bob: Camera + Video (DSLR + camcorder + accessories)
-                        ; ORD-B001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
-                        ; ORD-B001                   ; 1                          ; 4812254:$catalogVersion ; 3        ; pieces
-                        ; ORD-B001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-B002                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-B002                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
-
-# Carol: Photography student (entry-level + learning accessories)
-                        ; ORD-C001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-C001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
-                        ; ORD-C002                   ; 0                          ; 1366053:$catalogVersion ; 1        ; pieces
-                        ; ORD-C002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
-
-# Dave: Tech power user (multiple high-end cameras + accessories)
+# Dave: DSLR + lens collector + flash
+# Bought: 1382080, 1366053, 493683, 482105, 479956
+# Missing from cluster: 898503 (tripod), 4812254 (memory)
                         ; ORD-D001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
-                        ; ORD-D001                   ; 1                          ; 1366053:$catalogVersion ; 2        ; pieces
-                        ; ORD-D002                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-D002                   ; 1                          ; 4812254:$catalogVersion ; 5        ; pieces
-                        ; ORD-D003                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-D003                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
-                        ; ORD-D003                   ; 2                          ; 278688:$catalogVersion  ; 2        ; pieces
+                        ; ORD-D001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
+                        ; ORD-D002                   ; 0                          ; 493683:$catalogVersion  ; 1        ; pieces
+                        ; ORD-D002                   ; 1                          ; 482105:$catalogVersion  ; 1        ; pieces
+                        ; ORD-D003                   ; 0                          ; 479956:$catalogVersion  ; 1        ; pieces
 
-# Emma: Casual photographer (compact + memory)
-                        ; ORD-E001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-E001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces
-                        ; ORD-E002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces
-
-# Frank: Video professional
-                        ; ORD-F001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-F001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-F001                   ; 2                          ; 278688:$catalogVersion  ; 1        ; pieces
-
-# Grace: Photographer + accessories
+# Grace: DSLR + lenses + flash + bag
+# Bought: 1382080, 1366053, 482105, 479956, 1934406
+# Missing from cluster: 493683 (telephoto), 898503 (tripod), 4812254 (memory)
                         ; ORD-G001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
                         ; ORD-G001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
-                        ; ORD-G002                   ; 0                          ; 4812254:$catalogVersion ; 4        ; pieces
+                        ; ORD-G001                   ; 2                          ; 482105:$catalogVersion  ; 1        ; pieces
+                        ; ORD-G002                   ; 0                          ; 479956:$catalogVersion  ; 1        ; pieces
                         ; ORD-G002                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
 
-# Henry: Budget camera buyer
-                        ; ORD-H001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-H001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-H002                   ; 0                          ; 278688:$catalogVersion  ; 2        ; pieces
+# Sam: DSLR + lenses + tripod + memory
+# Bought: 1382080, 1366053, 493683, 4812254, 898503
+# Missing from cluster: 482105 (lens), 479956 (flash), 1934406 (bag)
+                        ; ORD-S001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
+                        ; ORD-S001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
+                        ; ORD-S001                   ; 2                          ; 493683:$catalogVersion  ; 1        ; pieces
+                        ; ORD-S002                   ; 0                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-S002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
 
-# Iris: Premium camera buyer
+# ═══════════════════════════════════════════════════════════════
+# CLUSTER B – Compact Camera / Casual Users
+# ═══════════════════════════════════════════════════════════════
+
+# Carol: Compact cameras + memory + bag
+# Bought: 2934302, 816324, 4812254, 1934406
+# Missing from cluster: 1986316 (DSC-T90), 325414 (DSC-N2), 898503 (tripod)
+                        ; ORD-C001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-C001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-C002                   ; 0                          ; 816324:$catalogVersion  ; 1        ; pieces
+                        ; ORD-C002                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
+
+# Emma: Compact cameras + bag + memory
+# Bought: 2934302, 1986316, 1934406, 4812254
+# Missing from cluster: 816324 (DSC-W180), 325414 (DSC-N2), 898503 (tripod)
+                        ; ORD-E001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-E001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-E002                   ; 0                          ; 1986316:$catalogVersion ; 1        ; pieces
+                        ; ORD-E002                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
+
+# Jack: Compact cameras + memory + tripod
+# Bought: 816324, 325414, 4812254, 898503
+# Missing from cluster: 2934302 (PowerShot), 1986316 (DSC-T90), 1934406 (bag)
+                        ; ORD-J001                   ; 0                          ; 816324:$catalogVersion  ; 1        ; pieces
+                        ; ORD-J001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-J002                   ; 0                          ; 325414:$catalogVersion  ; 1        ; pieces
+                        ; ORD-J002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
+
+# Peter: Compact cameras + memory + tripod
+# Bought: 2934302, 1986316, 4812254, 898503
+# Missing from cluster: 816324 (DSC-W180), 325414 (DSC-N2), 1934406 (bag)
+                        ; ORD-P001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-P001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-P002                   ; 0                          ; 1986316:$catalogVersion ; 1        ; pieces
+                        ; ORD-P002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
+
+# Rachel: Compact cameras + bag + memory
+# Bought: 816324, 2934302, 1934406, 4812254
+# Missing from cluster: 1986316 (DSC-T90), 325414 (DSC-N2), 898503 (tripod)
+                        ; ORD-R001                   ; 0                          ; 816324:$catalogVersion  ; 1        ; pieces
+                        ; ORD-R001                   ; 1                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-R002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces
+                        ; ORD-R002                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+
+# ═══════════════════════════════════════════════════════════════
+# CLUSTER C – Video / Camcorder Enthusiasts
+# ═══════════════════════════════════════════════════════════════
+
+# Bob: Camcorder + battery + tripod + memory
+# Bought: 1934796, 278688, 898503, 4812254
+# Missing from cluster: 1934793 (camcorder 2), 458542 (remote), 1934406 (bag)
+                        ; ORD-B001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
+                        ; ORD-B001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-B002                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces
+                        ; ORD-B002                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+
+# Frank: Dual camcorders + battery + remote
+# Bought: 1934796, 1934793, 278688, 458542
+# Missing from cluster: 898503 (tripod), 4812254 (memory), 1934406 (bag)
+                        ; ORD-F001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
+                        ; ORD-F001                   ; 1                          ; 1934793:$catalogVersion ; 1        ; pieces
+                        ; ORD-F002                   ; 0                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-F002                   ; 1                          ; 458542:$catalogVersion  ; 1        ; pieces
+
+# Quinn: Dual camcorders + tripod + memory
+# Bought: 1934796, 1934793, 898503, 4812254
+# Missing from cluster: 278688 (battery), 458542 (remote), 1934406 (bag)
+                        ; ORD-Q001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
+                        ; ORD-Q001                   ; 1                          ; 1934793:$catalogVersion ; 1        ; pieces
+                        ; ORD-Q002                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces
+                        ; ORD-Q002                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+
+# Tina: Camcorder + battery + bag + remote
+# Bought: 1934796, 278688, 1934406, 458542
+# Missing from cluster: 1934793 (camcorder 2), 898503 (tripod), 4812254 (memory)
+                        ; ORD-T001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
+                        ; ORD-T001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-T002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces
+                        ; ORD-T002                   ; 1                          ; 458542:$catalogVersion  ; 1        ; pieces
+
+# ═══════════════════════════════════════════════════════════════
+# CLUSTER D – Accessories & Memory Power Buyers
+# ═══════════════════════════════════════════════════════════════
+
+# Karen: Memory + battery + bag + flash
+# Bought: 4812254, 278688, 1934406, 479956
+# Missing from cluster: 898503 (tripod), 458542 (remote)
+                        ; ORD-K001                   ; 0                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-K001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-K002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces
+                        ; ORD-K002                   ; 1                          ; 479956:$catalogVersion  ; 1        ; pieces
+
+# Mia: Memory + tripod + bag + remote
+# Bought: 4812254, 898503, 1934406, 458542
+# Missing from cluster: 278688 (battery), 479956 (flash)
+                        ; ORD-M001                   ; 0                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-M001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
+                        ; ORD-M002                   ; 0                          ; 1934406:$catalogVersion ; 1        ; pieces
+                        ; ORD-M002                   ; 1                          ; 458542:$catalogVersion  ; 1        ; pieces
+
+# Noah: Battery + tripod + memory + flash
+# Bought: 278688, 898503, 4812254, 479956
+# Missing from cluster: 1934406 (bag), 458542 (remote)
+                        ; ORD-N001                   ; 0                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-N001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
+                        ; ORD-N002                   ; 0                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-N002                   ; 1                          ; 479956:$catalogVersion  ; 1        ; pieces
+
+# ═══════════════════════════════════════════════════════════════
+# BRIDGE USERS – Cross-cluster collaborative filtering signals
+# ═══════════════════════════════════════════════════════════════
+
+# Henry: Compact camera + Accessories (bridges B↔D)
+# Bought: 2934302, 278688, 898503, 4812254
+                        ; ORD-H001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-H001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-H002                   ; 0                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-H002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
+
+# Iris: DSLR + Accessories (bridges A↔D)
+# Bought: 1382080, 1366053, 278688, 1934406
                         ; ORD-I001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
                         ; ORD-I001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
-                        ; ORD-I001                   ; 2                          ; 1934406:$catalogVersion ; 1        ; pieces
-                        ; ORD-I002                   ; 0                          ; 4812254:$catalogVersion ; 3        ; pieces
+                        ; ORD-I002                   ; 0                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-I002                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
 
-# Jack: One-time camera buyer
-                        ; ORD-J001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-J001                   ; 1                          ; 4812254:$catalogVersion ; 1        ; pieces
-
-# Karen: Accessories focused
-                        ; ORD-K001                   ; 0                          ; 898503:$catalogVersion  ; 1        ; pieces
-                        ; ORD-K001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
-                        ; ORD-K002                   ; 0                          ; 278688:$catalogVersion  ; 3        ; pieces
-                        ; ORD-K002                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces
-
-# Liam: Video + photo mix
+# Liam: Video + DSLR (bridges C↔A)
+# Bought: 1934796, 1382080, 493683, 278688
                         ; ORD-L001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-L001                   ; 1                          ; 1382080:$catalogVersion ; 1        ; pieces
+                        ; ORD-L001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
+                        ; ORD-L002                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
+                        ; ORD-L002                   ; 1                          ; 493683:$catalogVersion  ; 1        ; pieces
 
-# Mia: Compact camera user
-                        ; ORD-M001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-M001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
-
-# Noah: Accessories buyer (cross-sell target)
-                        ; ORD-N001                   ; 0                          ; 4812254:$catalogVersion ; 4        ; pieces
-                        ; ORD-N001                   ; 1                          ; 278688:$catalogVersion  ; 2        ; pieces
-                        ; ORD-N001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces
-
-# Olivia: All-in-one bundle buyer
+# Olivia: DSLR + Compact (bridges A↔B)
+# Bought: 1382080, 2934302, 4812254, 898503
                         ; ORD-O001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
-                        ; ORD-O001                   ; 1                          ; 1366053:$catalogVersion ; 1        ; pieces
-                        ; ORD-O001                   ; 2                          ; 4812254:$catalogVersion ; 2        ; pieces
-                        ; ORD-O001                   ; 3                          ; 898503:$catalogVersion  ; 1        ; pieces
-
-# Peter: Compact camera + memory
-                        ; ORD-P001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-P001                   ; 1                          ; 4812254:$catalogVersion ; 2        ; pieces
-
-# Quinn: Video enthusiast
-                        ; ORD-Q001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-Q001                   ; 1                          ; 278688:$catalogVersion  ; 1        ; pieces
-                        ; ORD-Q001                   ; 2                          ; 898503:$catalogVersion  ; 1        ; pieces
-
-# Rachel: Photography beginner
-                        ; ORD-R001                   ; 0                          ; 2934302:$catalogVersion ; 1        ; pieces
-                        ; ORD-R001                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces
-
-# Sam: DSLR enthusiast
-                        ; ORD-S001                   ; 0                          ; 1382080:$catalogVersion ; 1        ; pieces
-                        ; ORD-S001                   ; 1                          ; 4812254:$catalogVersion ; 3        ; pieces
-                        ; ORD-S001                   ; 2                          ; 1366053:$catalogVersion ; 1        ; pieces
-
-# Tina: Mixed buyer
-                        ; ORD-T001                   ; 0                          ; 1934796:$catalogVersion ; 1        ; pieces
-                        ; ORD-T001                   ; 1                          ; 1934406:$catalogVersion ; 1        ; pieces
-                        ; ORD-T001                   ; 2                          ; 4812254:$catalogVersion ; 2        ; pieces
+                        ; ORD-O001                   ; 1                          ; 2934302:$catalogVersion ; 1        ; pieces
+                        ; ORD-O002                   ; 0                          ; 4812254:$catalogVersion ; 1        ; pieces
+                        ; ORD-O002                   ; 1                          ; 898503:$catalogVersion  ; 1        ; pieces

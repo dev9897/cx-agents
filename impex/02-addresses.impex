@@ -5,47 +5,47 @@
 
 # ── Addresses ────────────────────────────────────────────────
 INSERT_UPDATE Address; owner(Customer.uid)[unique = true] ; streetname[unique = true]    ; streetnumber ; postalcode ; town            ; country(isocode) ; region(isocode) ; firstname   ; lastname    ; phone1         ; billingAddress ; shippingAddress ; &addrRef
-                     ; alice@electronics.store            ; Market Street               ; 123          ; 94105      ; San Francisco   ; US               ; US-CA           ; Alice       ; Johnson     ; +1-415-555-0101 ; true          ; true            ; aliceAddr1
-                     ; alice@electronics.store            ; Mission Blvd                ; 456          ; 94110      ; San Francisco   ; US               ; US-CA           ; Alice       ; Johnson     ; +1-415-555-0102 ; false         ; true            ; aliceAddr2
-                     ; bob@electronics.store              ; Broadway                    ; 789          ; 10001      ; New York        ; US               ; US-NY           ; Bob         ; Williams    ; +1-212-555-0201 ; true          ; true            ; bobAddr1
-                     ; carol@electronics.store            ; Elm Avenue                  ; 321          ; 60601      ; Chicago         ; US               ; US-IL           ; Carol       ; Martinez    ; +1-312-555-0301 ; true          ; true            ; carolAddr1
-                     ; dave@electronics.store             ; Technology Drive            ; 100          ; 78701      ; Austin          ; US               ; US-TX           ; Dave        ; Chen        ; +1-512-555-0401 ; true          ; true            ; daveAddr1
-                     ; emma@electronics.store             ; Peachtree Lane              ; 55           ; 30301      ; Atlanta         ; US               ; US-GA           ; Emma        ; Thompson    ; +1-404-555-0501 ; true          ; true            ; emmaAddr1
-                     ; frank@electronics.store            ; Hauptstrasse                ; 12           ; 80331      ; Munich          ; DE               ;                 ; Frank       ; Mueller     ; +49-89-555-0601 ; true          ; true            ; frankAddr1
-                     ; grace@electronics.store            ; Gangnam-daero               ; 88           ; 06000      ; Seoul           ; KR               ;                 ; Grace       ; Kim         ; +82-2-555-0701  ; true          ; true            ; graceAddr1
-                     ; henry@electronics.store            ; MG Road                     ; 42           ; 560001     ; Bangalore       ; IN               ;                 ; Henry       ; Patel       ; +91-80-555-0801 ; true          ; true            ; henryAddr1
-                     ; iris@electronics.store             ; Shibuya                     ; 1            ; 1500001    ; Tokyo           ; JP               ;                 ; Iris        ; Nakamura    ; +81-3-555-0901  ; true          ; true            ; irisAddr1
-                     ; jack@electronics.store             ; King Street                 ; 200          ; 2000       ; Sydney          ; AU               ;                 ; Jack        ; Robinson    ; +61-2-555-1001  ; true          ; true            ; jackAddr1
-                     ; karen@electronics.store            ; Ocean Drive                 ; 77           ; 33139      ; Miami           ; US               ; US-FL           ; Karen       ; Okonkwo     ; +1-305-555-1101 ; true          ; true            ; karenAddr1
-                     ; liam@electronics.store             ; Sunset Boulevard            ; 444          ; 90028      ; Los Angeles     ; US               ; US-CA           ; Liam        ; Garcia      ; +1-323-555-1201 ; true          ; true            ; liamAddr1
-                     ; mia@electronics.store              ; Congress Avenue             ; 600          ; 02101      ; Boston          ; US               ; US-MA           ; Mia         ; Anderson    ; +1-617-555-1301 ; true          ; true            ; miaAddr1
-                     ; noah@electronics.store             ; Pike Street                 ; 350          ; 98101      ; Seattle         ; US               ; US-WA           ; Noah        ; Brown       ; +1-206-555-1401 ; true          ; true            ; noahAddr1
-                     ; olivia@electronics.store           ; Pennsylvania Avenue         ; 1600         ; 20500      ; Washington      ; US               ; US-DC           ; Olivia      ; Davis       ; +1-202-555-1501 ; true          ; true            ; oliviaAddr1
-                     ; peter@electronics.store            ; Cherry Lane                 ; 99           ; 80202      ; Denver          ; US               ; US-CO           ; Peter       ; Wilson      ; +1-303-555-1601 ; true          ; true            ; peterAddr1
-                     ; quinn@electronics.store            ; River Road                  ; 501          ; 97201      ; Portland        ; US               ; US-OR           ; Quinn       ; Taylor      ; +1-503-555-1701 ; true          ; true            ; quinnAddr1
-                     ; rachel@electronics.store           ; Park Avenue                 ; 800          ; 55401      ; Minneapolis     ; US               ; US-MN           ; Rachel      ; Lee         ; +1-612-555-1801 ; true          ; true            ; rachelAddr1
-                     ; sam@electronics.store              ; Vine Street                 ; 150          ; 19102      ; Philadelphia    ; US               ; US-PA           ; Sam         ; Harris      ; +1-215-555-1901 ; true          ; true            ; samAddr1
-                     ; tina@electronics.store             ; Bayshore Drive              ; 275          ; 33602      ; Tampa           ; US               ; US-FL           ; Tina        ; Fernandez   ; +1-813-555-2001 ; true          ; true            ; tinaAddr1
+                     ; alice@email.com            ; Market Street               ; 123          ; 94105      ; San Francisco   ; US               ; US-CA           ; Alice       ; Johnson     ; +1-415-555-0101 ; true          ; true            ; aliceAddr1
+                     ; alice@email.com            ; Mission Blvd                ; 456          ; 94110      ; San Francisco   ; US               ; US-CA           ; Alice       ; Johnson     ; +1-415-555-0102 ; false         ; true            ; aliceAddr2
+                     ; bob@email.com              ; Broadway                    ; 789          ; 10001      ; New York        ; US               ; US-NY           ; Bob         ; Williams    ; +1-212-555-0201 ; true          ; true            ; bobAddr1
+                     ; carol@email.com            ; Elm Avenue                  ; 321          ; 60601      ; Chicago         ; US               ; US-IL           ; Carol       ; Martinez    ; +1-312-555-0301 ; true          ; true            ; carolAddr1
+                     ; dave@email.com             ; Technology Drive            ; 100          ; 78701      ; Austin          ; US               ; US-TX           ; Dave        ; Chen        ; +1-512-555-0401 ; true          ; true            ; daveAddr1
+                     ; emma@email.com             ; Peachtree Lane              ; 55           ; 30301      ; Atlanta         ; US               ; US-GA           ; Emma        ; Thompson    ; +1-404-555-0501 ; true          ; true            ; emmaAddr1
+                     ; frank@email.com            ; Hauptstrasse                ; 12           ; 80331      ; Munich          ; DE               ;                 ; Frank       ; Mueller     ; +49-89-555-0601 ; true          ; true            ; frankAddr1
+                     ; grace@email.com            ; Gangnam-daero               ; 88           ; 06000      ; Seoul           ; KR               ;                 ; Grace       ; Kim         ; +82-2-555-0701  ; true          ; true            ; graceAddr1
+                     ; henry@email.com            ; MG Road                     ; 42           ; 560001     ; Bangalore       ; IN               ;                 ; Henry       ; Patel       ; +91-80-555-0801 ; true          ; true            ; henryAddr1
+                     ; iris@email.com             ; Shibuya                     ; 1            ; 1500001    ; Tokyo           ; JP               ;                 ; Iris        ; Nakamura    ; +81-3-555-0901  ; true          ; true            ; irisAddr1
+                     ; jack@email.com             ; King Street                 ; 200          ; 2000       ; Sydney          ; AU               ;                 ; Jack        ; Robinson    ; +61-2-555-1001  ; true          ; true            ; jackAddr1
+                     ; karen@email.com            ; Ocean Drive                 ; 77           ; 33139      ; Miami           ; US               ; US-FL           ; Karen       ; Okonkwo     ; +1-305-555-1101 ; true          ; true            ; karenAddr1
+                     ; liam@email.com             ; Sunset Boulevard            ; 444          ; 90028      ; Los Angeles     ; US               ; US-CA           ; Liam        ; Garcia      ; +1-323-555-1201 ; true          ; true            ; liamAddr1
+                     ; mia@email.com              ; Congress Avenue             ; 600          ; 02101      ; Boston          ; US               ; US-MA           ; Mia         ; Anderson    ; +1-617-555-1301 ; true          ; true            ; miaAddr1
+                     ; noah@email.com             ; Pike Street                 ; 350          ; 98101      ; Seattle         ; US               ; US-WA           ; Noah        ; Brown       ; +1-206-555-1401 ; true          ; true            ; noahAddr1
+                     ; olivia@email.com           ; Pennsylvania Avenue         ; 1600         ; 20500      ; Washington      ; US               ; US-DC           ; Olivia      ; Davis       ; +1-202-555-1501 ; true          ; true            ; oliviaAddr1
+                     ; peter@email.com            ; Cherry Lane                 ; 99           ; 80202      ; Denver          ; US               ; US-CO           ; Peter       ; Wilson      ; +1-303-555-1601 ; true          ; true            ; peterAddr1
+                     ; quinn@email.com            ; River Road                  ; 501          ; 97201      ; Portland        ; US               ; US-OR           ; Quinn       ; Taylor      ; +1-503-555-1701 ; true          ; true            ; quinnAddr1
+                     ; rachel@email.com           ; Park Avenue                 ; 800          ; 55401      ; Minneapolis     ; US               ; US-MN           ; Rachel      ; Lee         ; +1-612-555-1801 ; true          ; true            ; rachelAddr1
+                     ; sam@email.com              ; Vine Street                 ; 150          ; 19102      ; Philadelphia    ; US               ; US-PA           ; Sam         ; Harris      ; +1-215-555-1901 ; true          ; true            ; samAddr1
+                     ; tina@email.com             ; Bayshore Drive              ; 275          ; 33602      ; Tampa           ; US               ; US-FL           ; Tina        ; Fernandez   ; +1-813-555-2001 ; true          ; true            ; tinaAddr1
 
 # ── Set default addresses ────────────────────────────────────
 UPDATE Customer; uid[unique = true]         ; defaultShipmentAddress(&addrRef) ; defaultPaymentAddress(&addrRef)
-              ; alice@electronics.store    ; aliceAddr1                       ; aliceAddr1
-              ; bob@electronics.store      ; bobAddr1                         ; bobAddr1
-              ; carol@electronics.store    ; carolAddr1                       ; carolAddr1
-              ; dave@electronics.store     ; daveAddr1                        ; daveAddr1
-              ; emma@electronics.store     ; emmaAddr1                        ; emmaAddr1
-              ; frank@electronics.store    ; frankAddr1                       ; frankAddr1
-              ; grace@electronics.store    ; graceAddr1                       ; graceAddr1
-              ; henry@electronics.store    ; henryAddr1                       ; henryAddr1
-              ; iris@electronics.store     ; irisAddr1                        ; irisAddr1
-              ; jack@electronics.store     ; jackAddr1                        ; jackAddr1
-              ; karen@electronics.store    ; karenAddr1                       ; karenAddr1
-              ; liam@electronics.store     ; liamAddr1                        ; liamAddr1
-              ; mia@electronics.store      ; miaAddr1                         ; miaAddr1
-              ; noah@electronics.store     ; noahAddr1                        ; noahAddr1
-              ; olivia@electronics.store   ; oliviaAddr1                      ; oliviaAddr1
-              ; peter@electronics.store    ; peterAddr1                       ; peterAddr1
-              ; quinn@electronics.store    ; quinnAddr1                       ; quinnAddr1
-              ; rachel@electronics.store   ; rachelAddr1                      ; rachelAddr1
-              ; sam@electronics.store      ; samAddr1                         ; samAddr1
-              ; tina@electronics.store     ; tinaAddr1                        ; tinaAddr1
+              ; alice@email.com    ; aliceAddr1                       ; aliceAddr1
+              ; bob@email.com      ; bobAddr1                         ; bobAddr1
+              ; carol@email.com    ; carolAddr1                       ; carolAddr1
+              ; dave@email.com     ; daveAddr1                        ; daveAddr1
+              ; emma@email.com     ; emmaAddr1                        ; emmaAddr1
+              ; frank@email.com    ; frankAddr1                       ; frankAddr1
+              ; grace@email.com    ; graceAddr1                       ; graceAddr1
+              ; henry@email.com    ; henryAddr1                       ; henryAddr1
+              ; iris@email.com     ; irisAddr1                        ; irisAddr1
+              ; jack@email.com     ; jackAddr1                        ; jackAddr1
+              ; karen@email.com    ; karenAddr1                       ; karenAddr1
+              ; liam@email.com     ; liamAddr1                        ; liamAddr1
+              ; mia@email.com      ; miaAddr1                         ; miaAddr1
+              ; noah@email.com     ; noahAddr1                        ; noahAddr1
+              ; olivia@email.com   ; oliviaAddr1                      ; oliviaAddr1
+              ; peter@email.com    ; peterAddr1                       ; peterAddr1
+              ; quinn@email.com    ; quinnAddr1                       ; quinnAddr1
+              ; rachel@email.com   ; rachelAddr1                      ; rachelAddr1
+              ; sam@email.com      ; samAddr1                         ; samAddr1
+              ; tina@email.com     ; tinaAddr1                        ; tinaAddr1

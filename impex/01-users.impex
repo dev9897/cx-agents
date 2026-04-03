@@ -1,9 +1,46 @@
 # ──────────────────────────────────────────────────────────────
 # SAP Commerce ImpEx: Sample Customers for Recommendation Engine
-# Import: Electronics storefront users with profiles
+# Import: Electronics storefront users with distinct buyer profiles
+# ──────────────────────────────────────────────────────────────
+#
+# USER PROFILES (for collaborative + content filtering)
+# ─────────────────────────────────────────────────────
+# Each user is assigned a buyer persona so the recommendation engine
+# can discover meaningful clusters and cross-sell opportunities.
+#
+# Cluster A – DSLR Pro Photographers
+#   Alice Johnson      : DSLR + pro lenses + tripod + memory
+#   Dave Chen          : DSLR + lens collector + flash
+#   Grace Kim          : DSLR + lenses + flash + bag
+#   Sam Harris         : DSLR + lenses + tripod + memory
+#
+# Cluster B – Compact Camera / Casual Users
+#   Carol Martinez     : Compact cameras + memory + bag
+#   Emma Thompson      : Compact cameras + bag + memory
+#   Jack Robinson      : Compact cameras + memory + tripod
+#   Peter Wilson       : Compact cameras + memory + tripod
+#   Rachel Lee         : Compact cameras + bag + memory
+#
+# Cluster C – Video / Camcorder Enthusiasts
+#   Bob Williams       : Camcorder + battery + tripod + memory
+#   Frank Mueller      : Dual camcorders + battery + remote
+#   Quinn Taylor       : Dual camcorders + tripod + memory
+#   Tina Fernandez     : Camcorder + battery + bag + remote
+#
+# Cluster D – Accessories & Memory Power Buyers
+#   Karen Okonkwo      : Memory + battery + bag + flash
+#   Mia Anderson       : Memory + tripod + bag + remote
+#   Noah Brown         : Battery + tripod + memory + flash
+#
+# Bridge Users (connect clusters for collaborative filtering)
+#   Henry Patel        : Compact + Accessories (B↔D)
+#   Iris Nakamura      : DSLR + Accessories (A↔D)
+#   Liam Garcia        : Video + DSLR (C↔A)
+#   Olivia Davis       : DSLR + Compact (A↔B)
+#
 # ──────────────────────────────────────────────────────────────
 
-$defaultPassword = 12341234
+$defaultPassword = 1234567890
 $siteUid = electronics
 
 # ── Customer Group ───────────────────────────────────────────
@@ -12,23 +49,28 @@ INSERT_UPDATE UserGroup; uid[unique = true]; locname[lang = en]
 
 # ── Customers ────────────────────────────────────────────────
 INSERT_UPDATE Customer; uid[unique = true]          ; name                ; customerID          ; &userRef          ; groups(uid)    ; sessionLanguage(isocode) ; sessionCurrency(isocode) ; password[default = $defaultPassword]
-                      ; alice@electronics.store     ; Alice Johnson       ; CUST-001            ; aliceRef          ; customergroup  ; en                       ; USD
-                      ; bob@electronics.store       ; Bob Williams        ; CUST-002            ; bobRef            ; customergroup  ; en                       ; USD
-                      ; carol@electronics.store     ; Carol Martinez      ; CUST-003            ; carolRef          ; customergroup  ; en                       ; USD
-                      ; dave@electronics.store      ; Dave Chen           ; CUST-004            ; daveRef           ; customergroup  ; en                       ; USD
-                      ; emma@electronics.store      ; Emma Thompson       ; CUST-005            ; emmaRef           ; customergroup  ; en                       ; USD
-                      ; frank@electronics.store     ; Frank Mueller       ; CUST-006            ; frankRef          ; customergroup  ; en                       ; USD
-                      ; grace@electronics.store     ; Grace Kim           ; CUST-007            ; graceRef          ; customergroup  ; en                       ; USD
-                      ; henry@electronics.store     ; Henry Patel         ; CUST-008            ; henryRef          ; customergroup  ; en                       ; USD
-                      ; iris@electronics.store      ; Iris Nakamura       ; CUST-009            ; irisRef           ; customergroup  ; en                       ; USD
-                      ; jack@electronics.store      ; Jack Robinson       ; CUST-010            ; jackRef           ; customergroup  ; en                       ; USD
-                      ; karen@electronics.store     ; Karen Okonkwo       ; CUST-011            ; karenRef          ; customergroup  ; en                       ; USD
-                      ; liam@electronics.store      ; Liam Garcia         ; CUST-012            ; liamRef           ; customergroup  ; en                       ; USD
-                      ; mia@electronics.store       ; Mia Anderson        ; CUST-013            ; miaRef            ; customergroup  ; en                       ; USD
-                      ; noah@electronics.store      ; Noah Brown          ; CUST-014            ; noahRef           ; customergroup  ; en                       ; USD
-                      ; olivia@electronics.store    ; Olivia Davis        ; CUST-015            ; oliviaRef         ; customergroup  ; en                       ; USD
-                      ; peter@electronics.store     ; Peter Wilson        ; CUST-016            ; peterRef          ; customergroup  ; en                       ; USD
-                      ; quinn@electronics.store     ; Quinn Taylor        ; CUST-017            ; quinnRef          ; customergroup  ; en                       ; USD
-                      ; rachel@electronics.store    ; Rachel Lee          ; CUST-018            ; rachelRef         ; customergroup  ; en                       ; USD
-                      ; sam@electronics.store       ; Sam Harris          ; CUST-019            ; samRef            ; customergroup  ; en                       ; USD
-                      ; tina@electronics.store      ; Tina Fernandez      ; CUST-020            ; tinaRef           ; customergroup  ; en                       ; USD
+# Cluster A – DSLR Pro Photographers
+                      ; alice@email.com     ; Alice Johnson       ; CUST-001            ; aliceRef          ; customergroup  ; en                       ; USD
+                      ; dave@email.com      ; Dave Chen           ; CUST-004            ; daveRef           ; customergroup  ; en                       ; USD
+                      ; grace@email.com     ; Grace Kim           ; CUST-007            ; graceRef          ; customergroup  ; en                       ; USD
+                      ; sam@email.com       ; Sam Harris          ; CUST-019            ; samRef            ; customergroup  ; en                       ; USD
+# Cluster B – Compact Camera / Casual Users
+                      ; carol@email.com     ; Carol Martinez      ; CUST-003            ; carolRef          ; customergroup  ; en                       ; USD
+                      ; emma@email.com      ; Emma Thompson       ; CUST-005            ; emmaRef           ; customergroup  ; en                       ; USD
+                      ; jack@email.com      ; Jack Robinson       ; CUST-010            ; jackRef           ; customergroup  ; en                       ; USD
+                      ; peter@email.com     ; Peter Wilson        ; CUST-016            ; peterRef          ; customergroup  ; en                       ; USD
+                      ; rachel@email.com    ; Rachel Lee          ; CUST-018            ; rachelRef         ; customergroup  ; en                       ; USD
+# Cluster C – Video / Camcorder Enthusiasts
+                      ; bob@email.com       ; Bob Williams        ; CUST-002            ; bobRef            ; customergroup  ; en                       ; USD
+                      ; frank@email.com     ; Frank Mueller       ; CUST-006            ; frankRef          ; customergroup  ; en                       ; USD
+                      ; quinn@email.com     ; Quinn Taylor        ; CUST-017            ; quinnRef          ; customergroup  ; en                       ; USD
+                      ; tina@email.com      ; Tina Fernandez      ; CUST-020            ; tinaRef           ; customergroup  ; en                       ; USD
+# Cluster D – Accessories & Memory Power Buyers
+                      ; karen@email.com     ; Karen Okonkwo       ; CUST-011            ; karenRef          ; customergroup  ; en                       ; USD
+                      ; mia@email.com       ; Mia Anderson        ; CUST-013            ; miaRef            ; customergroup  ; en                       ; USD
+                      ; noah@email.com      ; Noah Brown          ; CUST-014            ; noahRef           ; customergroup  ; en                       ; USD
+# Bridge Users (cross-cluster collaborative signals)
+                      ; henry@email.com     ; Henry Patel         ; CUST-008            ; henryRef          ; customergroup  ; en                       ; USD
+                      ; iris@email.com      ; Iris Nakamura       ; CUST-009            ; irisRef           ; customergroup  ; en                       ; USD
+                      ; liam@email.com      ; Liam Garcia         ; CUST-012            ; liamRef           ; customergroup  ; en                       ; USD
+                      ; olivia@email.com    ; Olivia Davis        ; CUST-015            ; oliviaRef         ; customergroup  ; en                       ; USD

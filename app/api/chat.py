@@ -1,4 +1,4 @@
-"""Chat routes — message send, order approval."""
+"""Chat routes — message send, order approval, SSE streaming."""
 
 import json
 import logging
@@ -6,10 +6,13 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.middleware.audit import audit
-from app.services.agent_service import get_fallback, get_last_ai_message, new_session, run_turn
+from app.services.agent_service import (
+    get_fallback, get_last_ai_message, new_session, run_turn, stream_turn_events,
+)
 
 logger = logging.getLogger("sap_agent.api.chat")
 
@@ -270,6 +273,81 @@ def chat(req: ChatRequest):
         product_detail=product_detail,
         saved_addresses=new_state.get("saved_addresses") or [],
         sap_payment_details=new_state.get("sap_payment_details") or [],
+    )
+
+
+@router.post("/stream")
+async def chat_stream(req: ChatRequest):
+    """SSE streaming endpoint — streams thinking status + text tokens + final structured data."""
+    if req.session_id and req.session_id in _sessions:
+        state = _sessions[req.session_id]
+        thread_id = req.session_id
+    else:
+        state, thread_id = new_session(req.user_id)
+        _sessions[thread_id] = state
+
+    prev_order_code = state.get("order_code")
+
+    async def event_generator():
+        full_reply = ""
+        final_state = state
+
+        async for event in stream_turn_events(req.message, thread_id, state):
+            evt_type = event["event"]
+            data = event["data"]
+
+            if evt_type == "chunk":
+                full_reply += data["text"]
+                yield f"event: chunk\ndata: {json.dumps(data)}\n\n"
+            elif evt_type == "status":
+                yield f"event: status\ndata: {json.dumps(data)}\n\n"
+            elif evt_type == "error":
+                yield f"event: error\ndata: {json.dumps({'message': data})}\n\n"
+                return
+            elif evt_type == "state":
+                final_state = data
+
+        # Update session store with final state
+        _sessions[thread_id] = final_state
+
+        # Build structured response (same logic as POST /chat)
+        if not full_reply:
+            full_reply = get_last_ai_message(final_state) or ""
+        reply, suggestions = _extract_suggestions(full_reply)
+        products = _extract_products(final_state)
+        cart = _extract_cart(final_state)
+        product_detail = _extract_product_detail(final_state)
+        awaiting = bool(final_state.get("__interrupt__"))
+        is_auth = bool(final_state.get("access_token")) and final_state.get("user_id") == "current"
+
+        # Clear structured data after consuming
+        final_state["last_search_results"] = None
+        final_state["last_cart_data"] = None
+        final_state["last_product_detail"] = None
+
+        done_data = {
+            "session_id": thread_id,
+            "reply": reply,
+            "turn": final_state.get("turn_count", 0),
+            "tokens_used": final_state.get("total_input_tokens", 0),
+            "cart_id": final_state.get("cart_id"),
+            "order_code": final_state.get("order_code") if final_state.get("order_code") != prev_order_code else None,
+            "awaiting_approval": awaiting,
+            "username": final_state.get("username") if is_auth else None,
+            "authenticated": is_auth,
+            "suggestions": [s.model_dump() for s in suggestions],
+            "products": [p.model_dump() for p in products],
+            "cart": cart.model_dump() if cart else None,
+            "product_detail": product_detail.model_dump() if product_detail else None,
+            "saved_addresses": final_state.get("saved_addresses") or [],
+            "sap_payment_details": final_state.get("sap_payment_details") or [],
+        }
+        yield f"event: done\ndata: {json.dumps(done_data)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
