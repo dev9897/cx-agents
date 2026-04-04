@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAP Commerce Shopping Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/styles.css">
+<script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">S</div>
+    <span><span class="brand-sap">AgentixForce</span> Commerce Ai Agent</span>
+  </div>
+  <nav class="main-nav">
+    <a class="nav-link active" data-view="store" onclick="switchView('store')">&#127968; Store</a>
+    <a class="nav-link" data-view="cart-page" onclick="switchView('cart-page')">&#128722; Cart <span class="nav-cart-count" id="navCartCount">0</span></a>
+  </nav>
+  <div class="header-right">
+    <div class="token-badge" id="tokenBadge">0 tokens</div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot"></div>
+      <span>connecting</span>
+    </div>
+    <button class="header-btn settings-btn" onclick="openSettings()" title="Settings">
+      &#9881;
+    </button>
+    <button class="header-btn" id="authBtn" onclick="openLogin()">
+      <span class="auth-icon">&#128100;</span>
+      <span id="authBtnLabel">Sign In</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── Store View (default) ── -->
+<div class="store-view" id="view-store">
+  <div class="store-container">
+
+    <!-- Search bar -->
+    <div class="store-search-bar">
+      <input type="text" id="storeSearchInput" placeholder="Search electronics catalog..." onkeydown="if(event.key==='Enter')storeSearch()">
+      <button class="store-search-btn" onclick="storeSearch()">&#128269; Search</button>
+    </div>
+
+    <!-- Category chips -->
+    <div class="store-categories" id="storeCategories">
+      <button class="store-chip active" onclick="storeSearchCategory('')">All Products</button>
+      <button class="store-chip" onclick="storeSearchCategory('camera')">Cameras</button>
+      <button class="store-chip" onclick="storeSearchCategory('lens')">Lenses</button>
+      <button class="store-chip" onclick="storeSearchCategory('memory card')">Memory Cards</button>
+      <button class="store-chip" onclick="storeSearchCategory('tripod')">Tripods</button>
+      <button class="store-chip" onclick="storeSearchCategory('battery')">Batteries</button>
+      <button class="store-chip" onclick="storeSearchCategory('flash')">Flash</button>
+      <button class="store-chip" onclick="storeSearchCategory('bag')">Bags</button>
+    </div>
+
+    <!-- Product grid -->
+    <div class="store-results-info" id="storeResultsInfo"></div>
+    <div class="product-grid" id="productGrid">
+      <div class="store-loading" id="storeLoading">Loading products...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="store-pagination" id="storePagination"></div>
+  </div>
+
+  <!-- Product detail overlay -->
+  <div class="product-detail-overlay" id="productDetailOverlay" style="display:none" onclick="if(event.target===this)closeProductDetail()">
+    <div class="product-detail-modal">
+      <button class="product-detail-close" onclick="closeProductDetail()">&#10005;</button>
+      <div id="productDetailContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cart Page View ── -->
+<div class="cart-page-view" id="view-cart-page" style="display:none">
+  <div class="cart-page-container">
+    <h2>&#128722; Shopping Cart</h2>
+    <p class="cart-page-subtitle">Manage your cart items below or use the Agent Chat to complete checkout.</p>
+    <div id="cartPageContent">
+      <div class="cart-page-empty">
+        <div style="font-size:48px;margin-bottom:16px">&#128722;</div>
+        <h3>Your cart is empty</h3>
+        <p>Browse the store and add some products to get started.</p>
+        <button class="store-search-btn" onclick="switchView('store')" style="margin-top:16px">Browse Store</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Floating Chat Widget ── -->
+<div class="chat-widget" id="chatWidget">
+  <div class="chat-widget-header">
+    <div class="chat-widget-title">
+      <div class="chat-widget-avatar">AI</div>
+      <div>
+        <div class="chat-widget-name">Shopping Assistant</div>
+        <div class="chat-widget-status">
+          <span class="cw-dot"></span> Ask me anything
+        </div>
+      </div>
+    </div>
+    <div class="chat-widget-actions">
+      <button class="cw-header-btn" onclick="toggleChatWidgetSize()" id="cwExpandBtn" title="Expand">
+        &#9634;
+      </button>
+      <button class="cw-header-btn" onclick="toggleChatWidget()" title="Close">
+        &#10005;
+      </button>
+    </div>
+  </div>
+
+  <!-- Compact sidebar tabs inside widget -->
+  <div class="cw-tabs">
+    <button class="cw-tab active" data-cwtab="chat" onclick="switchCwTab('chat')">&#128172; Chat</button>
+    <button class="cw-tab" data-cwtab="cart" onclick="switchCwTab('cart')">&#128722; Cart <span class="cw-cart-badge" id="cwCartBadge">0</span></button>
+    <button class="cw-tab" data-cwtab="progress" onclick="switchCwTab('progress')">&#9776; Progress</button>
+  </div>
+
+  <!-- Chat tab -->
+  <div class="cw-panel active" id="cwPanel-chat">
+    <div class="chat-wrap">
+      <div id="messages">
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon" style="width:56px;height:56px;border-radius:14px;font-size:28px;margin-bottom:14px">&#128247;</div>
+          <h2 style="font-size:18px">How can I help?</h2>
+          <p style="font-size:13px">Search products, manage your cart, checkout &mdash; all through conversation.</p>
+          <div class="chips" style="margin-top:14px">
+            <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon Cameras</div>
+            <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
+            <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
+            <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Accessories</div>
+            <div class="chip" onclick="sendQuick('I want to checkout')"><span class="chip-icon">&#128179;</span> Checkout</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-bar">
+        <!-- Image preview bar -->
+        <div class="image-preview-bar" id="imagePreviewBar">
+          <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
+          <div class="image-preview-info">
+            <strong id="imagePreviewName">image.jpg</strong>
+            <span id="imagePreviewSize">0 KB</span>
+          </div>
+          <div class="image-preview-actions">
+            <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
+            <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Audio recording bar -->
+        <div class="audio-recording-bar" id="audioRecordingBar">
+          <div class="audio-recording-dot"></div>
+          <span>Recording</span>
+          <div class="audio-waveform">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <span class="audio-recording-timer" id="audioTimer">0:00</span>
+          <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
+        </div>
+
+        <div class="input-wrap">
+          <div class="input-actions">
+            <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Image Search">
+              &#128247;
+              <span class="tooltip">Search by image</span>
+            </button>
+            <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice Search">
+              &#127908;
+              <span class="tooltip">Voice search</span>
+            </button>
+          </div>
+          <textarea id="userInput" rows="1" placeholder="Ask about products, cart, checkout..."></textarea>
+          <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
+        </div>
+        <div class="input-hint"><kbd>Enter</kbd> send &middot; &#128247; Image &middot; &#127908; Voice</div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
+        <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart tab -->
+  <div class="cw-panel" id="cwPanel-cart">
+    <div class="cw-cart-content">
+      <div id="userPill" class="user-pill" style="display:none">
+        <span>&#10003;</span>
+        <span class="uname" id="userPillName"></span>
+        <span class="logout-link" onclick="doLogout()">logout</span>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Shopping Cart</div>
+        <div class="cart-panel">
+          <div class="cart-header">
+            <span>Cart</span>
+            <span class="cart-count" id="cartCount">0</span>
+          </div>
+          <div class="cart-items" id="cartItems">
+            <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
+          </div>
+          <div class="cart-total" id="cartTotal" style="display:none">
+            <span>Total</span>
+            <span class="price" id="cartTotalPrice">&mdash;</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Quick Actions</div>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress tab -->
+  <div class="cw-panel" id="cwPanel-progress">
+    <div class="cw-progress-content">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Session</div>
+        <div class="session-card">
+          <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
+          <div class="row"><span>User</span><span id="sideUser">guest</span></div>
+          <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
+        </div>
+      </div>
+      <div class="flow-steps" style="padding:0 16px">
+        <div class="sidebar-label">Checkout Progress</div>
+        <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
+        <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
+        <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
+        <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
+        <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Chat Toggle Bubble ── -->
+<button class="chat-toggle-bubble" id="chatToggleBubble" onclick="toggleChatWidget()" title="Chat with AI Assistant">
+  <span class="chat-bubble-icon" id="chatBubbleIcon">&#128172;</span>
+  <span class="chat-bubble-pulse"></span>
+</button>
+
+<!-- ── Login Modal ── -->
+<div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeLogin()">&#10005;</button>
+    <div class="modal-icon">&#128100;</div>
+    <h2>Sign In</h2>
+    <p class="modal-sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
+    <div class="modal-error" id="loginError"></div>
+    <div class="field">
+      <label>Username / Email</label>
+      <input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"/>
+    </div>
+    <button id="loginBtn" onclick="doLogin()">
+      <div class="login-spinner" id="loginSpinner"></div>
+      <span id="loginBtnLabel">Sign In</span>
+    </button>
+    <div class="modal-divider">or</div>
+    <button id="guestBtn" onclick="closeLogin()">Continue as Guest</button>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div class="modal-overlay settings-modal" id="settingsModal" onclick="handleSettingsOverlayClick(event)">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeSettings()">&#10005;</button>
+    <div class="modal-icon">&#9881;</div>
+    <h2>Settings</h2>
+    <p class="modal-sub">Manage your payment methods and delivery addresses.</p>
+
+    <!-- Tabs -->
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-tab="cards" onclick="switchSettingsTab('cards')">
+        &#128179; Payment Cards
+      </button>
+      <button class="settings-tab" data-tab="addresses" onclick="switchSettingsTab('addresses')">
+        &#127968; Addresses
+      </button>
+    </div>
+
+    <!-- Cards Panel -->
+    <div class="settings-panel active" id="panel-cards">
+      <div id="cardsList"></div>
+      <div id="addCardSection">
+        <button class="btn-primary" id="addCardBtn" onclick="initStripeElements()" style="margin-top:12px">+ Add New Card</button>
+        <div id="cardFormWrap" style="display:none;margin-top:12px">
+          <div class="stripe-element-wrap">
+            <div id="stripeCardElement"></div>
+          </div>
+          <div class="card-form-error" id="cardFormError"></div>
+          <button class="btn-primary" id="saveCardBtn" onclick="saveCard()" style="margin-top:10px">Save Card</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Addresses Panel -->
+    <div class="settings-panel" id="panel-addresses">
+      <div id="addressesList"></div>
+      <div id="addAddressSection">
+        <button class="btn-primary" id="addAddressBtn" onclick="toggleAddressForm()" style="margin-top:12px">+ Add New Address</button>
+        <div id="addressFormWrap" style="display:none;margin-top:12px">
+          <div class="field"><label>Full Name *</label><input type="text" id="addrName" placeholder="John Doe"/></div>
+          <div class="field"><label>Address Line 1 *</label><input type="text" id="addrLine1" placeholder="123 Main Street"/></div>
+          <div class="field"><label>Address Line 2</label><input type="text" id="addrLine2" placeholder="Apt 4B (optional)"/></div>
+          <div style="display:flex;gap:10px">
+            <div class="field" style="flex:1"><label>City *</label><input type="text" id="addrCity" placeholder="New York"/></div>
+            <div class="field" style="flex:1"><label>State</label><input type="text" id="addrState" placeholder="NY"/></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div class="field" style="flex:1"><label>Postal Code *</label><input type="text" id="addrPostal" placeholder="10001"/></div>
+            <div class="field" style="flex:1"><label>Country *</label><input type="text" id="addrCountry" placeholder="US" value="US"/></div>
+          </div>
+          <button class="btn-primary" id="saveAddressBtn" onclick="saveAddress()" style="margin-top:4px">Save Address</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts (order matters: app first, then modules that depend on it) ── -->
+<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/renderers.js?v=10"></script>
+<script src="/static/js/auth.js?v=10"></script>
+<script src="/static/js/chat.js?v=10"></script>
+<script src="/static/js/settings.js?v=10"></script>
+<script src="/static/js/image_search.js?v=10"></script>
+<script src="/static/js/audio_search.js?v=10"></script>
+<script src="/static/js/recommendations.js?v=10"></script>
+<script src="/static/js/storefront.js?v=10"></script>
+
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AgentixForce Commerce AI Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+        colors: {
+          brand: { DEFAULT: '#1d4ed8', dark: '#1e40af', light: '#2563eb', soft: '#eff6ff' }
+        }
+      }
+    }
+  }
+</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  * { font-family: 'Poppins', sans-serif; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 99px; }
+
+  /* Chat widget */
+  #chatWidget {
+    position: fixed; bottom: 88px; right: 24px;
+    width: 380px; max-height: 600px;
+    background: #fff; border-radius: 20px;
+    box-shadow: 0 8px 40px rgba(29,78,216,0.13), 0 2px 8px rgba(0,0,0,0.06);
+    display: flex; flex-direction: column;
+    overflow: hidden; z-index: 999;
+    border: 1.5px solid #e0eaff;
+    transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  }
+  #chatWidget.hidden { opacity: 0; pointer-events: none; transform: translateY(16px) scale(0.97); }
+  #chatWidget.expanded { width: 520px; max-height: 80vh; bottom: 24px; right: 24px; }
+
+  /* Bubble */
+  #chatToggleBubble {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 56px; height: 56px; border-radius: 9999px;
+    background: #1d4ed8; color: #fff;
+    box-shadow: 0 4px 20px rgba(29,78,216,0.35);
+    border: none; cursor: pointer; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+  }
+  #chatToggleBubble:hover { background: #1e40af; transform: scale(1.07); }
+
+  /* Messages area */
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* Chips */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; background: #eff6ff; color: #1d4ed8;
+    border-radius: 9999px; font-size: 12.5px; font-weight: 500;
+    cursor: pointer; border: 1.5px solid #bfdbfe;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover { background: #dbeafe; border-color: #1d4ed8; }
+
+  /* Tabs */
+  .cw-tab { flex: 1; padding: 9px 0; font-size: 12px; font-weight: 500; color: #64748b;
+    background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s; }
+  .cw-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+
+  /* Step indicator */
+  .step-dot { width: 10px; height: 10px; border-radius: 9999px; background: #e2e8f0; flex-shrink: 0; }
+  .step-dot.done { background: #1d4ed8; }
+  .step-dot.active { background: #1d4ed8; box-shadow: 0 0 0 3px #bfdbfe; }
+
+  /* Product card hover */
+  .product-card { transition: box-shadow 0.2s, transform 0.2s; }
+  .product-card:hover { box-shadow: 0 8px 32px rgba(29,78,216,0.12); transform: translateY(-2px); }
+
+  /* Textarea auto-grow */
+  textarea { resize: none; overflow: hidden; min-height: 40px; max-height: 120px; }
+
+  /* Input focus */
+  .chat-input:focus { outline: none; border-color: #1d4ed8; box-shadow: 0 0 0 3px #bfdbfe; }
+
+  /* Overlay modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.35);
+    backdrop-filter: blur(3px); z-index: 2000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+
+  /* Settings tabs */
+  .settings-tab { flex: 1; padding: 9px 0; font-size: 13px; font-weight: 500; color: #64748b;
+    background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s; }
+  .settings-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+  .settings-panel { display: none; }
+  .settings-panel.active { display: block; }
+
+  /* Cart item */
+  .cart-item-img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+
+  /* Pulse animation */
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(29,78,216,0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(29,78,216,0); }
+    100% { box-shadow: 0 0 0 0 rgba(29,78,216,0); }
+  }
+  .pulse { animation: pulse-ring 2s infinite; }
+
+  /* Message bubbles */
+  .msg-user { align-self: flex-end; background: #1d4ed8; color: #fff; border-radius: 18px 18px 4px 18px; padding: 10px 14px; max-width: 80%; font-size: 13px; }
+  .msg-ai { align-self: flex-start; background: #f1f5f9; color: #1e293b; border-radius: 18px 18px 18px 4px; padding: 10px 14px; max-width: 85%; font-size: 13px; }
+
+  /* Typing indicator */
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+  .typing-dot { width: 6px; height: 6px; border-radius: 9999px; background: #94a3b8; display: inline-block; animation: blink 1.4s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  /* Category chip active */
+  .cat-chip.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+
+  /* Page view */
+  .page-view { display: none; }
+  .page-view.active { display: block; }
+
+  /* Stripe element */
+  .stripe-element-wrap { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #f8fafc; }
+
+  /* Status pill */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .connecting-dot { width: 8px; height: 8px; border-radius: 9999px; border: 2px solid #1d4ed8; border-top-color: transparent; animation: spin 0.8s linear infinite; }
+  .online-dot { width: 8px; height: 8px; border-radius: 9999px; background: #22c55e; }
+</style>
+</head>
+<body class="bg-white text-slate-800">
+
+<!-- ── NAVBAR ── -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-blue-600 shadow-sm h-14 flex items-center px-6 gap-6">
+  <!-- Logo -->
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="text-white font-semibold text-base tracking-tight leading-tight">
+      AgentixForce <span class="font-light opacity-90">Commerce AI Agent</span>
+    </span>
+  </div>
+
+  <!-- Nav links -->
+  <nav class="flex items-center gap-1 ml-4">
+    <button onclick="switchView('store')" data-view="store"
+      class="nav-link flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-white/90 hover:bg-white/15 transition-colors active-nav">
+      <i data-lucide="store" class="w-4 h-4"></i> Store
+    </button>
+    <button onclick="switchView('cart-page')" data-view="cart-page"
+      class="nav-link flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium text-white/90 hover:bg-white/15 transition-colors relative">
+      <i data-lucide="shopping-cart" class="w-4 h-4"></i> Cart
+      <span id="navCartCount" class="absolute -top-1 -right-1 bg-white text-blue-700 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
+    </button>
+  </nav>
+
+  <div class="ml-auto flex items-center gap-3">
+    <!-- Token badge -->
+    <div id="tokenBadge" class="hidden bg-white/15 text-white text-xs font-medium px-3 py-1 rounded-full">0 tokens</div>
+
+    <!-- Status -->
+    <div id="statusPill" class="flex items-center gap-1.5 bg-white/15 px-3 py-1 rounded-full">
+      <div class="connecting-dot" id="statusDot"></div>
+      <span id="statusLabel" class="text-white text-xs font-medium">Connecting</span>
+    </div>
+
+    <!-- Settings -->
+    <button onclick="openSettings()" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+      <i data-lucide="settings" class="w-4 h-4"></i>
+    </button>
+
+    <!-- Auth -->
+    <button id="authBtn" onclick="openLogin()"
+      class="flex items-center gap-1.5 bg-white text-blue-700 hover:bg-blue-50 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">
+      <i data-lucide="user" class="w-4 h-4"></i>
+      <span id="authBtnLabel">Sign In</span>
+    </button>
+  </div>
+</header>
+
+<!-- ── STORE VIEW ── -->
+<div class="page-view active pt-14" id="view-store">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Search bar -->
+    <div class="flex gap-3 mb-6">
+      <div class="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2.5 shadow-sm focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+        <input id="storeSearchInput" type="text"
+          placeholder="Search electronics catalog..."
+          class="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400"
+          onkeydown="if(event.key==='Enter')storeSearch()">
+      </div>
+      <button onclick="storeSearch()"
+        class="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-full text-sm font-semibold transition-colors flex items-center gap-2">
+        <i data-lucide="search" class="w-4 h-4"></i> Search
+      </button>
+    </div>
+
+    <!-- Category chips -->
+    <div class="flex flex-wrap gap-2 mb-6" id="storeCategories">
+      <button onclick="storeSearchCategory('')" class="cat-chip active chip text-sm" data-cat="">All Products</button>
+      <button onclick="storeSearchCategory('camera')" class="cat-chip chip text-sm" data-cat="camera">
+        <i data-lucide="camera" class="w-3.5 h-3.5"></i> Cameras
+      </button>
+      <button onclick="storeSearchCategory('lens')" class="cat-chip chip text-sm" data-cat="lens">
+        <i data-lucide="aperture" class="w-3.5 h-3.5"></i> Lenses
+      </button>
+      <button onclick="storeSearchCategory('memory card')" class="cat-chip chip text-sm" data-cat="memory card">
+        <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Memory Cards
+      </button>
+      <button onclick="storeSearchCategory('tripod')" class="cat-chip chip text-sm" data-cat="tripod">
+        <i data-lucide="align-center" class="w-3.5 h-3.5"></i> Tripods
+      </button>
+      <button onclick="storeSearchCategory('battery')" class="cat-chip chip text-sm" data-cat="battery">
+        <i data-lucide="battery-charging" class="w-3.5 h-3.5"></i> Batteries
+      </button>
+      <button onclick="storeSearchCategory('flash')" class="cat-chip chip text-sm" data-cat="flash">
+        <i data-lucide="zap" class="w-3.5 h-3.5"></i> Flash
+      </button>
+      <button onclick="storeSearchCategory('bag')" class="cat-chip chip text-sm" data-cat="bag">
+        <i data-lucide="briefcase" class="w-3.5 h-3.5"></i> Bags
+      </button>
+    </div>
+
+    <!-- Results info -->
+    <div id="storeResultsInfo" class="text-sm text-slate-500 mb-4"></div>
+
+    <!-- Product grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" id="productGrid">
+      <div id="storeLoading" class="col-span-full flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+        <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <span class="text-sm">Loading products...</span>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="storePagination" class="flex justify-center gap-2 mt-8"></div>
+  </div>
+
+  <!-- Product detail overlay -->
+  <div id="productDetailOverlay" onclick="if(event.target===this)closeProductDetail()"
+    class="hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
+      <button onclick="closeProductDetail()"
+        class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors z-10">
+        <i data-lucide="x" class="w-4 h-4 text-slate-600"></i>
+      </button>
+      <div id="productDetailContent" class="p-6"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CART PAGE VIEW ── -->
+<div class="page-view pt-14" id="view-cart-page">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <div class="flex items-center gap-3 mb-2">
+      <i data-lucide="shopping-cart" class="w-6 h-6 text-blue-700"></i>
+      <h2 class="text-2xl font-semibold text-slate-800">Shopping Cart</h2>
+    </div>
+    <p class="text-slate-500 text-sm mb-6">Manage your cart items or use the AI chat to complete checkout.</p>
+
+    <div id="cartPageContent">
+      <div class="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+        <i data-lucide="shopping-cart" class="w-12 h-12 opacity-30"></i>
+        <h3 class="text-lg font-medium text-slate-600">Your cart is empty</h3>
+        <p class="text-sm">Browse the store and add some products to get started.</p>
+        <button onclick="switchView('store')"
+          class="mt-2 bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-full text-sm font-semibold transition-colors">
+          Browse Store
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHAT WIDGET ── -->
+<div id="chatWidget" class="hidden">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-4 py-3 bg-blue-700 flex-shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+        <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+      </div>
+      <div>
+        <div class="text-white font-semibold text-sm leading-tight">Shopping Assistant</div>
+        <div class="flex items-center gap-1">
+          <div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+          <span class="text-white/70 text-xs">Ask me anything</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1">
+      <button onclick="toggleChatWidgetSize()" id="cwExpandBtn"
+        class="w-7 h-7 rounded-full hover:bg-white/15 flex items-center justify-center transition-colors text-white/80">
+        <i data-lucide="maximize-2" class="w-3.5 h-3.5" id="cwExpandIcon"></i>
+      </button>
+      <button onclick="toggleChatWidget()"
+        class="w-7 h-7 rounded-full hover:bg-white/15 flex items-center justify-center transition-colors text-white/80">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-slate-100 bg-white flex-shrink-0">
+    <button class="cw-tab active" data-cwtab="chat" onclick="switchCwTab('chat')">Chat</button>
+    <button class="cw-tab" data-cwtab="cart" onclick="switchCwTab('cart')">
+      Cart <span id="cwCartBadge" class="ml-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full px-1.5 py-0.5 hidden">0</span>
+    </button>
+    <button class="cw-tab" data-cwtab="progress" onclick="switchCwTab('progress')">Progress</button>
+  </div>
+
+  <!-- Chat Panel -->
+  <div id="cwPanel-chat" class="cw-panel flex flex-col flex-1 overflow-hidden" style="display:flex">
+    <!-- Messages -->
+    <div id="messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <!-- Welcome -->
+      <div id="welcome" class="flex flex-col items-center text-center py-4 gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+          <i data-lucide="shopping-bag" class="w-6 h-6 text-blue-700"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-slate-800">How can I help?</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Search products, manage cart, checkout — all through chat.</p>
+        </div>
+        <div class="flex flex-wrap justify-center gap-2 mt-1">
+          <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')">
+            <i data-lucide="camera" class="w-3 h-3"></i> Canon Cameras
+          </div>
+          <div class="chip" onclick="sendQuick('Show me digital cameras')">
+            <i data-lucide="camera" class="w-3 h-3"></i> Digital Cameras
+          </div>
+          <div class="chip" onclick="sendQuick('Show me memory cards')">
+            <i data-lucide="cpu" class="w-3 h-3"></i> Memory Cards
+          </div>
+          <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')">
+            <i data-lucide="layers" class="w-3 h-3"></i> Accessories
+          </div>
+          <div class="chip" onclick="sendQuick('I want to checkout')">
+            <i data-lucide="credit-card" class="w-3 h-3"></i> Checkout
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="border-t border-slate-100 p-3 bg-white flex-shrink-0">
+      <!-- Image preview -->
+      <div id="imagePreviewBar" class="hidden mb-2 bg-blue-50 border border-blue-100 rounded-xl p-2 flex items-center gap-2">
+        <img id="imagePreviewThumb" class="w-10 h-10 rounded-lg object-cover border border-blue-200" src="" alt=""/>
+        <div class="flex-1 min-w-0">
+          <div id="imagePreviewName" class="text-xs font-medium text-slate-700 truncate">image.jpg</div>
+          <div id="imagePreviewSize" class="text-xs text-slate-400">0 KB</div>
+        </div>
+        <button onclick="submitImageSearch()" class="text-xs bg-blue-700 text-white px-3 py-1 rounded-full font-medium">Search</button>
+        <button onclick="cancelImagePreview()" class="text-xs text-slate-400 hover:text-slate-600 px-1">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Audio recording -->
+      <div id="audioRecordingBar" class="hidden mb-2 bg-red-50 border border-red-100 rounded-xl p-2 flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+        <span class="text-xs font-medium text-red-600 flex-1">Recording...</span>
+        <span class="text-xs text-slate-500" id="audioTimer">0:00</span>
+        <button onclick="cancelAudioRecording()" class="text-xs text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Input row -->
+      <div class="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+        <button onclick="triggerImageUpload()" title="Image Search"
+          class="w-7 h-7 rounded-full hover:bg-blue-100 flex items-center justify-center text-slate-400 hover:text-blue-700 transition-colors flex-shrink-0 self-end mb-0.5">
+          <i data-lucide="image" class="w-4 h-4"></i>
+        </button>
+        <button onclick="toggleAudioRecording()" title="Voice Search"
+          class="w-7 h-7 rounded-full hover:bg-blue-100 flex items-center justify-center text-slate-400 hover:text-blue-700 transition-colors flex-shrink-0 self-end mb-0.5">
+          <i data-lucide="mic" class="w-4 h-4"></i>
+        </button>
+        <textarea id="userInput" rows="1"
+          class="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none leading-relaxed"
+          placeholder="Ask about products, cart, checkout..."></textarea>
+        <button id="sendBtn" onclick="sendMessage()"
+          class="w-8 h-8 rounded-full bg-blue-700 hover:bg-blue-800 flex items-center justify-center text-white transition-colors flex-shrink-0 self-end">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+      <div class="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-slate-400">
+        <span>Enter to send</span>
+        <span>·</span>
+        <span class="flex items-center gap-0.5"><i data-lucide="image" class="w-2.5 h-2.5"></i> Image search</span>
+        <span>·</span>
+        <span class="flex items-center gap-0.5"><i data-lucide="mic" class="w-2.5 h-2.5"></i> Voice</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Panel -->
+  <div id="cwPanel-cart" class="cw-panel flex-1 overflow-y-auto p-4" style="display:none">
+    <!-- User pill -->
+    <div id="userPill" class="hidden mb-3 bg-green-50 border border-green-100 rounded-xl px-3 py-2 flex items-center gap-2">
+      <i data-lucide="check-circle" class="w-4 h-4 text-green-600"></i>
+      <span class="text-sm font-medium text-green-700 flex-1" id="userPillName"></span>
+      <button onclick="doLogout()" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Logout</button>
+    </div>
+
+    <!-- Cart -->
+    <div class="mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Shopping Cart</span>
+        <span id="cartCount" class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div id="cartItems">
+          <div id="cartEmpty" class="flex flex-col items-center py-8 text-slate-400 gap-2">
+            <i data-lucide="shopping-cart" class="w-8 h-8 opacity-30"></i>
+            <span class="text-xs">Your cart is empty</span>
+          </div>
+        </div>
+        <div id="cartTotal" class="hidden border-t border-slate-100 px-4 py-3 flex items-center justify-between">
+          <span class="text-sm font-medium text-slate-600">Total</span>
+          <span id="cartTotalPrice" class="text-sm font-bold text-blue-700">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div>
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Quick Actions</div>
+      <div class="flex flex-col gap-1.5">
+        <button onclick="switchCwTab('chat');sendQuick('Show me digital cameras')"
+          class="flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+          <i data-lucide="camera" class="w-4 h-4 text-blue-600"></i> Browse Cameras
+        </button>
+        <button onclick="switchCwTab('chat');sendQuick('Show me my cart')"
+          class="flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+          <i data-lucide="shopping-cart" class="w-4 h-4 text-blue-600"></i> View Cart
+        </button>
+        <button onclick="switchCwTab('chat');sendQuick('I want to checkout')"
+          class="flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+          <i data-lucide="credit-card" class="w-4 h-4 text-blue-600"></i> Checkout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Panel -->
+  <div id="cwPanel-progress" class="cw-panel flex-1 overflow-y-auto p-4" style="display:none">
+    <!-- Session info -->
+    <div class="mb-4">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Session</div>
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+          <span class="text-xs text-slate-500">Session ID</span>
+          <span id="sessionId" class="text-xs font-mono text-slate-700">—</span>
+        </div>
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+          <span class="text-xs text-slate-500">User</span>
+          <span id="sideUser" class="text-xs font-medium text-slate-700">guest</span>
+        </div>
+        <div class="flex items-center justify-between px-4 py-2.5">
+          <span class="text-xs text-slate-500">Turns</span>
+          <span id="sideTurns" class="text-xs font-medium text-slate-700">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Checkout progress -->
+    <div>
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Checkout Progress</div>
+      <div class="flex flex-col gap-0">
+        <div class="step flex items-center gap-3 py-3 px-4 bg-white border border-slate-200 rounded-t-2xl border-b-0" id="step-search">
+          <div class="step-dot w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+          <span class="text-sm text-slate-600">Browse &amp; Search</span>
+          <span class="ml-auto text-xs text-slate-400">Step 1</span>
+        </div>
+        <div class="step flex items-center gap-3 py-3 px-4 bg-white border border-slate-200 border-b-0" id="step-cart">
+          <div class="step-dot w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+          <span class="text-sm text-slate-600">Add to Cart</span>
+          <span class="ml-auto text-xs text-slate-400">Step 2</span>
+        </div>
+        <div class="step flex items-center gap-3 py-3 px-4 bg-white border border-slate-200 border-b-0" id="step-address">
+          <div class="step-dot w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+          <span class="text-sm text-slate-600">Delivery Address</span>
+          <span class="ml-auto text-xs text-slate-400">Step 3</span>
+        </div>
+        <div class="step flex items-center gap-3 py-3 px-4 bg-white border border-slate-200 border-b-0" id="step-payment">
+          <div class="step-dot w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+          <span class="text-sm text-slate-600">Payment</span>
+          <span class="ml-auto text-xs text-slate-400">Step 4</span>
+        </div>
+        <div class="step flex items-center gap-3 py-3 px-4 bg-white border border-slate-200 rounded-b-2xl" id="step-order">
+          <div class="step-dot w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+          <span class="text-sm text-slate-600">Place Order</span>
+          <span class="ml-auto text-xs text-slate-400">Step 5</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHAT TOGGLE BUBBLE ── -->
+<button id="chatToggleBubble" onclick="toggleChatWidget()" title="Chat with AI Assistant" class="pulse">
+  <i data-lucide="message-circle" class="w-6 h-6" id="chatBubbleIcon"></i>
+</button>
+
+<!-- ── LOGIN MODAL ── -->
+<div id="loginModal" class="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 relative">
+    <button onclick="closeLogin()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+      <i data-lucide="x" class="w-4 h-4 text-slate-500"></i>
+    </button>
+    <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-4">
+      <i data-lucide="user" class="w-6 h-6 text-blue-700"></i>
+    </div>
+    <h2 class="text-xl font-semibold text-slate-800 mb-1">Sign In</h2>
+    <p class="text-sm text-slate-500 mb-4">Enter your SAP Commerce account credentials.</p>
+    <div id="loginError" class="hidden mb-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-3 py-2"></div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-slate-600 mb-1.5">Username / Email</label>
+      <input type="text" id="loginUser" placeholder="user@example.com"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+    </div>
+    <div class="mb-4">
+      <label class="block text-xs font-medium text-slate-600 mb-1.5">Password</label>
+      <input type="password" id="loginPass" placeholder="Enter your password"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+    </div>
+    <button id="loginBtn" onclick="doLogin()"
+      class="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+      <div id="loginSpinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+      <span id="loginBtnLabel">Sign In</span>
+    </button>
+    <div class="flex items-center gap-3 my-3">
+      <div class="flex-1 h-px bg-slate-200"></div>
+      <span class="text-xs text-slate-400">or</span>
+      <div class="flex-1 h-px bg-slate-200"></div>
+    </div>
+    <button id="guestBtn" onclick="closeLogin()"
+      class="w-full border border-slate-200 hover:bg-slate-50 text-slate-600 py-2.5 rounded-xl text-sm font-medium transition-colors">
+      Continue as Guest
+    </button>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div id="settingsModal" class="modal-overlay" onclick="handleSettingsOverlayClick(event)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 relative max-h-[90vh] overflow-y-auto">
+    <button onclick="closeSettings()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+      <i data-lucide="x" class="w-4 h-4 text-slate-500"></i>
+    </button>
+    <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-4">
+      <i data-lucide="settings" class="w-6 h-6 text-blue-700"></i>
+    </div>
+    <h2 class="text-xl font-semibold text-slate-800 mb-1">Settings</h2>
+    <p class="text-sm text-slate-500 mb-4">Manage your payment methods and delivery addresses.</p>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-slate-100 mb-4">
+      <button class="settings-tab active" data-tab="cards" onclick="switchSettingsTab('cards')">
+        <span class="flex items-center gap-1.5 justify-center"><i data-lucide="credit-card" class="w-3.5 h-3.5"></i> Payment Cards</span>
+      </button>
+      <button class="settings-tab" data-tab="addresses" onclick="switchSettingsTab('addresses')">
+        <span class="flex items-center gap-1.5 justify-center"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Addresses</span>
+      </button>
+    </div>
+
+    <!-- Cards Panel -->
+    <div class="settings-panel active" id="panel-cards">
+      <div id="cardsList"></div>
+      <div id="addCardSection">
+        <button id="addCardBtn" onclick="initStripeElements()"
+          class="mt-2 w-full border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-500 hover:text-blue-700 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4"></i> Add New Card
+        </button>
+        <div id="cardFormWrap" style="display:none" class="mt-3">
+          <div class="stripe-element-wrap">
+            <div id="stripeCardElement"></div>
+          </div>
+          <div id="cardFormError" class="text-xs text-red-500 mt-1.5"></div>
+          <button onclick="saveCard()"
+            class="mt-2 w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            Save Card
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Addresses Panel -->
+    <div class="settings-panel" id="panel-addresses">
+      <div id="addressesList"></div>
+      <div id="addAddressSection">
+        <button id="addAddressBtn" onclick="toggleAddressForm()"
+          class="mt-2 w-full border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-500 hover:text-blue-700 py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4"></i> Add New Address
+        </button>
+        <div id="addressFormWrap" style="display:none" class="mt-3 flex flex-col gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Full Name *</label>
+            <input type="text" id="addrName" placeholder="John Doe" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Address Line 1 *</label>
+            <input type="text" id="addrLine1" placeholder="123 Main Street" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Address Line 2</label>
+            <input type="text" id="addrLine2" placeholder="Apt 4B (optional)" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">City *</label>
+              <input type="text" id="addrCity" placeholder="New York" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">State</label>
+              <input type="text" id="addrState" placeholder="NY" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Postal Code *</label>
+              <input type="text" id="addrPostal" placeholder="10001" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Country *</label>
+              <input type="text" id="addrCountry" placeholder="US" value="US" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+          </div>
+          <button onclick="saveAddress()"
+            class="w-full bg-blue-700 hover:bg-blue-800 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            Save Address
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
+<input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
+
+<!-- Stripe -->
+<script src="https://js.stripe.com/v3/"></script>
+
+<!-- Init Lucide icons -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+
+  // ── View switching ──
+  function switchView(view) {
+    document.querySelectorAll('.page-view').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById('view-' + view);
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.nav-link').forEach(btn => {
+      btn.classList.toggle('bg-white/20', btn.dataset.view === view);
+      btn.classList.toggle('text-white', true);
+    });
+  }
+
+  // ── Chat widget toggle ──
+  let chatOpen = false;
+  function toggleChatWidget() {
+    chatOpen = !chatOpen;
+    const w = document.getElementById('chatWidget');
+    if (chatOpen) { w.classList.remove('hidden'); lucide.createIcons(); }
+    else w.classList.add('hidden');
+  }
+
+  let chatExpanded = false;
+  function toggleChatWidgetSize() {
+    chatExpanded = !chatExpanded;
+    const w = document.getElementById('chatWidget');
+    w.classList.toggle('expanded', chatExpanded);
+    const icon = document.getElementById('cwExpandIcon');
+    if (icon) {
+      icon.setAttribute('data-lucide', chatExpanded ? 'minimize-2' : 'maximize-2');
+      lucide.createIcons();
+    }
+  }
+
+  // ── CW Tabs ──
+  function switchCwTab(tab) {
+    document.querySelectorAll('.cw-tab').forEach(t => t.classList.toggle('active', t.dataset.cwtab === tab));
+    ['chat','cart','progress'].forEach(p => {
+      const panel = document.getElementById('cwPanel-' + p);
+      if (panel) panel.style.display = p === tab ? 'flex' : 'none';
+    });
+    if (tab === 'chat') {
+      const panel = document.getElementById('cwPanel-chat');
+      if (panel) panel.style.display = 'flex';
+    }
+  }
+
+  // ── Settings tabs ──
+  function switchSettingsTab(tab) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + tab);
+    if (panel) panel.classList.add('active');
+  }
+
+  // ── Modals ──
+  function openLogin() { document.getElementById('loginModal').classList.add('open'); }
+  function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
+  function handleOverlayClick(e) { if (e.target === document.getElementById('loginModal')) closeLogin(); }
+
+  function openSettings() { document.getElementById('settingsModal').classList.add('open'); lucide.createIcons(); }
+  function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+  function handleSettingsOverlayClick(e) { if (e.target === document.getElementById('settingsModal')) closeSettings(); }
+
+  function toggleAddressForm() {
+    const wrap = document.getElementById('addressFormWrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  // ── Category chip active state ──
+  document.querySelectorAll('.cat-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // ── Textarea auto-resize ──
+  const ta = document.getElementById('userInput');
+  if (ta) {
+    ta.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    ta.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+  }
+
+  // Stubs for external JS files
+  function storeSearch() { const q = document.getElementById('storeSearchInput').value; console.log('search:', q); }
+  function storeSearchCategory(cat) { console.log('category:', cat); }
+  function closeProductDetail() { document.getElementById('productDetailOverlay').classList.add('hidden'); }
+  function sendMessage() { const v = document.getElementById('userInput').value.trim(); if (!v) return; appendMsg(v, 'user'); document.getElementById('userInput').value = ''; }
+  function sendQuick(text) { document.getElementById('welcome') && (document.getElementById('welcome').style.display='none'); appendMsg(text, 'user'); switchCwTab('chat'); }
+  function appendMsg(text, role) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = role === 'user' ? 'msg-user' : 'msg-ai';
+    div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  function triggerImageUpload() { document.getElementById('imageFileInput').click(); }
+  function toggleAudioRecording() { console.log('audio toggle'); }
+  function submitImageSearch() { console.log('image search'); }
+  function cancelImagePreview() { document.getElementById('imagePreviewBar').classList.add('hidden'); }
+  function cancelAudioRecording() { document.getElementById('audioRecordingBar').classList.add('hidden'); }
+  function handleImageSelect(e) { if (e.target.files[0]) { const bar = document.getElementById('imagePreviewBar'); bar.classList.remove('hidden'); document.getElementById('imagePreviewName').textContent = e.target.files[0].name; document.getElementById('imagePreviewThumb').src = URL.createObjectURL(e.target.files[0]); } }
+  function handleAudioFileSelect(e) { console.log('audio file', e.target.files[0]); }
+  function doLogin() { console.log('login'); }
+  function doLogout() { console.log('logout'); }
+  function initStripeElements() { document.getElementById('cardFormWrap').style.display = 'block'; }
+  function saveCard() { console.log('save card'); }
+  function saveAddress() { console.log('save address'); }
+</script>
+
+<!-- External JS (order matters) -->
+<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/renderers.js?v=10"></script>
+<script src="/static/js/auth.js?v=10"></script>
+<script src="/static/js/chat.js?v=10"></script>
+<script src="/static/js/settings.js?v=10"></script>
+<script src="/static/js/image_search.js?v=10"></script>
+<script src="/static/js/audio_search.js?v=10"></script>
+<script src="/static/js/recommendations.js?v=10"></script>
+<script src="/static/js/storefront.js?v=10"></script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AgentixForce · Commerce AI Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Poppins','sans-serif']}}}}</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Poppins',sans-serif;background:#fff;color:#111827;overflow-x:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:10px}
+
+/* NAVBAR */
+.navbar{position:fixed;top:0;left:0;right:0;height:60px;z-index:200;background:#2563eb;display:flex;align-items:center;padding:0 28px;gap:12px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.nav-divider{width:1px;height:24px;background:rgba(255,255,255,0.25);flex-shrink:0}
+.nav-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:13px;font-weight:500;background:transparent;color:rgba(255,255,255,0.75);transition:all .15s}
+.nav-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.nav-btn.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.nav-badge{background:#fff;color:#2563eb;font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px;min-width:18px;text-align:center}
+.token-pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11.5px;font-weight:500;padding:5px 12px;border-radius:100px;display:flex;align-items:center;gap:5px}
+.status-pill{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);padding:5px 11px;border-radius:100px;display:flex;align-items:center;gap:6px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:blink-dot 2s ease-in-out infinite}
+@keyframes blink-dot{0%,100%{opacity:1}50%{opacity:.35}}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.icon-btn:hover{background:rgba(255,255,255,.22)}
+.auth-btn{display:flex;align-items:center;gap:7px;background:#fff;color:#1d4ed8;border:none;border-radius:8px;cursor:pointer;padding:8px 16px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;transition:background .15s}
+.auth-btn:hover{background:#eff6ff}
+
+/* MAIN */
+main{padding-top:60px;min-height:100vh;background:#fff}
+
+/* SEARCH */
+.search-wrap{max-width:540px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 10px 8px 16px;transition:border-color .2s,box-shadow .2s}
+.search-wrap:focus-within{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.search-wrap input{flex:1;border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13.5px;color:#111827;background:transparent}
+.search-wrap input::placeholder{color:#9ca3af}
+
+/* BTNS */
+.btn-primary{background:#1d4ed8;color:#fff;border:none;border-radius:9px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s}
+.btn-primary:hover{background:#1e40af}
+.btn-primary:active{transform:scale(.97)}
+.btn-secondary{background:#fff;color:#1d4ed8;border:1.5px solid #2563eb;border-radius:9px;padding:8px 16px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.btn-secondary:hover{background:#eff6ff}
+
+/* CAT CHIPS */
+.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 15px;border-radius:100px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-family:'Poppins',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cat-chip:hover{border-color:#2563eb;color:#1d4ed8;background:#eff6ff}
+.cat-chip.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+
+/* PRODUCT GRID */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+
+/* PRODUCT CARD */
+.product-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:16px;overflow:hidden;cursor:pointer;transition:all .2s;animation:fadeUp .35s ease forwards;opacity:0}
+.product-card:hover{border-color:#1d4ed8;box-shadow:0 6px 28px rgba(29,78,216,.12);transform:translateY(-3px)}
+.product-card:nth-child(1){animation-delay:.05s}.product-card:nth-child(2){animation-delay:.09s}
+.product-card:nth-child(3){animation-delay:.13s}.product-card:nth-child(4){animation-delay:.17s}
+.product-card:nth-child(5){animation-delay:.21s}.product-card:nth-child(6){animation-delay:.25s}
+.product-card:nth-child(7){animation-delay:.29s}.product-card:nth-child(8){animation-delay:.33s}
+.product-card:nth-child(9){animation-delay:.37s}.product-card:nth-child(10){animation-delay:.41s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.card-img{background:#f0f6ff;border-bottom:1px solid #e5e7eb;height:170px;display:flex;align-items:center;justify-content:center;position:relative}
+.card-badge{position:absolute;top:10px;left:10px;background:#1d4ed8;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px}
+.card-badge.hot{background:#f59e0b}.card-badge.sale{background:#16a34a}
+.card-body{padding:14px 16px 16px}
+.card-brand{font-size:10.5px;color:#94a3b8;margin-bottom:3px}
+.card-name{font-size:13.5px;font-weight:600;color:#0f172a;line-height:1.35;margin-bottom:8px}
+.card-stars{display:flex;align-items:center;gap:4px;margin-bottom:12px}
+.star{color:#f59e0b;font-size:11px}.star-empty{color:#e5e7eb;font-size:11px}
+.review-count{font-size:11px;color:#94a3b8}
+.card-footer{display:flex;align-items:center;justify-content:space-between}
+.card-price{font-size:15px;font-weight:700;color:#1d4ed8}
+.card-old-price{font-size:11px;color:#9ca3af;text-decoration:line-through;margin-left:5px}
+.add-btn{width:32px;height:32px;border-radius:9px;border:none;background:#1d4ed8;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.add-btn:hover{background:#1e40af}.add-btn:active{transform:scale(.9)}
+
+/* PAGINATION */
+.pagination{display:flex;justify-content:center;gap:6px;margin-top:36px}
+.page-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;transition:all .15s}
+.page-btn:hover{border-color:#1d4ed8;color:#1d4ed8}
+.page-btn.active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+
+/* CHAT FAB */
+.chat-fab{position:fixed;bottom:24px;right:24px;z-index:1001;width:56px;height:56px;border-radius:50%;background:#1d4ed8;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(29,78,216,.4);transition:background .2s,transform .2s}
+.chat-fab:hover{background:#1e40af;transform:scale(1.07)}
+.fab-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(37,99,235,.3);animation:ring-pulse 2.2s ease-in-out infinite}
+@keyframes ring-pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.22);opacity:0}}
+
+/* CHAT WIDGET */
+.chat-widget{position:fixed;bottom:92px;right:24px;z-index:1000;width:372px;height:608px;background:#fff;border-radius:20px;border:1.5px solid #e5e7eb;box-shadow:0 12px 50px rgba(0,0,0,.13);display:flex;flex-direction:column;overflow:hidden;transform:scale(.88) translateY(22px);opacity:0;pointer-events:none;transition:all .28s cubic-bezier(.16,1,.3,1)}
+.chat-widget.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.chat-header{background:#1d4ed8;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cw-close-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.cw-close-btn:hover{background:rgba(255,255,255,.28)}
+
+/* CW TABS */
+.cw-tabs{display:flex;border-bottom:1px solid #e5e7eb;background:#fff;flex-shrink:0}
+.cw-tab{flex:1;padding:10px 4px 9px;border:none;background:transparent;cursor:pointer;font-family:'Poppins',sans-serif;font-size:11.5px;font-weight:500;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2px solid transparent;transition:all .15s}
+.cw-tab.active{color:#1d4ed8;border-bottom-color:#1d4ed8}
+
+/* MESSAGES */
+.messages-area{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg-user{background:#1d4ed8;color:#fff;align-self:flex-end;border-radius:16px 16px 4px 16px;padding:10px 14px;max-width:82%;font-size:13px;line-height:1.5;animation:fadeUp .22s ease}
+.msg-ai{background:#f1f5f9;color:#1e293b;align-self:flex-start;border-radius:16px 16px 16px 4px;padding:10px 14px;max-width:82%;font-size:13px;line-height:1.5;animation:fadeUp .22s ease}
+.typing-dot{width:6px;height:6px;background:#94a3b8;border-radius:50%;animation:bounce-dot 1.2s ease-in-out infinite}
+.typing-dot:nth-child(2){animation-delay:.15s}.typing-dot:nth-child(3){animation-delay:.3s}
+@keyframes bounce-dot{0%,80%,100%{transform:scale(.6);opacity:.5}40%{transform:scale(1);opacity:1}}
+
+/* WELCOME CHIPS */
+.wchip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:100px;font-size:12px;font-weight:500;color:#1d4ed8;cursor:pointer;transition:all .15s;font-family:'Poppins',sans-serif;white-space:nowrap}
+.wchip:hover{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+
+/* CHAT INPUT */
+.chat-input-area{padding:12px 14px 14px;border-top:1px solid #e5e7eb;background:#fff;flex-shrink:0}
+.chat-input-box{background:#f8fafc;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 12px 8px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s}
+.chat-input-box:focus-within{border-color:#1d4ed8}
+.chat-input-box textarea{border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13px;background:transparent;color:#111827;resize:none;line-height:1.5;min-height:34px;max-height:90px}
+.chat-input-box textarea::placeholder{color:#9ca3af}
+.send-btn{width:32px;height:32px;border-radius:8px;border:none;background:#1d4ed8;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.send-btn:hover{background:#1e40af}
+.input-action{width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;color:#94a3b8;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.input-action:hover{background:#eff6ff;color:#1d4ed8}
+
+/* CART ROWS */
+.cart-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9}
+.cart-row:last-child{border-bottom:none}
+.cart-thumb{width:44px;height:44px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.quick-btn{width:100%;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:500;color:#374151;font-family:'Poppins',sans-serif;transition:all .15s}
+.quick-btn:hover{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+
+/* CHECKOUT STEPS */
+.ck-step{display:flex;align-items:flex-start;gap:12px}
+.ck-num{width:28px;height:28px;border-radius:50%;border:2px solid #e5e7eb;color:#9ca3af;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;transition:all .25s}
+.ck-step.done .ck-num{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.ck-step.active .ck-num{border-color:#1d4ed8;color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+.ck-connector{width:1px;height:14px;background:#e5e7eb;margin-left:13px}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 20px 60px rgba(0,0,0,.15);border:1px solid #e5e7eb;position:relative;transform:scale(.93) translateY(10px);transition:transform .26s cubic-bezier(.16,1,.3,1)}
+.modal-overlay.open .modal-box{transform:scale(1) translateY(0)}
+.modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:none;background:#f3f4f6;cursor:pointer;color:#6b7280;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.modal-close:hover{background:#e5e7eb}
+.modal-icon{width:46px;height:46px;border-radius:12px;background:#1d4ed8;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+
+/* FIELD */
+.input-field{border:1.5px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;gap:8px;padding:10px 14px;transition:all .2s}
+.input-field:focus-within{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+.input-field input{flex:1;border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13px;background:transparent;color:#111827}
+.input-field input::placeholder{color:#9ca3af}
+.field-label{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:7px}
+
+/* SETTINGS STABS */
+.stab{flex:1;padding:8px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-family:'Poppins',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.stab.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+
+/* DETAIL OVERLAY */
+.detail-overlay{position:fixed;inset:0;z-index:500;background:rgba(17,24,39,.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.detail-overlay.open{opacity:1;pointer-events:all}
+.detail-box{background:#fff;border-radius:20px;overflow:hidden;width:100%;max-width:460px;margin:0 16px;border:1px solid #e5e7eb;box-shadow:0 24px 70px rgba(0,0,0,.15);position:relative;max-height:90vh;overflow-y:auto;transform:scale(.92) translateY(12px);transition:transform .28s cubic-bezier(.16,1,.3,1)}
+.detail-overlay.open .detail-box{transform:scale(1) translateY(0)}
+.spec-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px}
+.spec-row:last-child{border-bottom:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);z-index:9999;animation:fadeUp .22s ease;font-family:'Poppins',sans-serif}
+
+/* MISC */
+.sec-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
+.info-row:last-child{border-bottom:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:640px){.chat-widget{width:calc(100vw - 24px);right:12px}.chat-fab{right:14px;bottom:14px}}
+</style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ══ -->
+<header class="navbar">
+  <div style="display:flex;flex-direction:column;line-height:1.2;flex-shrink:0">
+    <span style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-.3px">AgentixForce</span>
+    <span style="font-size:10.5px;font-weight:400;color:rgba(255,255,255,.65)">Commerce AI Agent</span>
+  </div>
+  <div class="nav-divider"></div>
+  <nav style="display:flex;align-items:center;gap:4px">
+    <button class="nav-btn active" id="navStore" onclick="switchView('store')">
+      <i data-lucide="store" style="width:15px;height:15px"></i> Store
+    </button>
+    <button class="nav-btn" id="navCart" onclick="switchView('cart')">
+      <i data-lucide="shopping-cart" style="width:15px;height:15px"></i> Cart
+      <span class="nav-badge" id="navCartBadge" style="display:none">0</span>
+    </button>
+  </nav>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="token-pill">
+      <i data-lucide="cpu" style="width:12px;height:12px"></i>
+      <span id="tokenDisplay">0 tokens</span>
+    </div>
+    <div class="status-pill" id="status-pill">
+      <div class="status-dot"></div>
+      <span style="font-size:11.5px;font-weight:500;color:#fff">Online</span>
+    </div>
+    <button class="icon-btn" onclick="openModal('settingsModal')">
+      <i data-lucide="settings" style="width:15px;height:15px"></i>
+    </button>
+    <button class="auth-btn" id="authBtn" onclick="openModal('loginModal')">
+      <i data-lucide="user" style="width:14px;height:14px"></i>
+      <span id="authLabel">Sign In</span>
+    </button>
+  </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main>
+
+<!-- ── STORE VIEW ── -->
+<div id="view-store" style="animation:fadeIn .3s ease">
+  <div style="max-width:1280px;margin:0 auto;padding:36px 24px">
+
+    <!-- Hero -->
+    <div style="text-align:center;margin-bottom:32px">
+      <p style="font-size:10.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#2563eb;margin-bottom:10px">AI-Powered Shopping</p>
+      <h1 style="font-size:28px;font-weight:800;color:#0f172a;letter-spacing:-.5px;margin-bottom:6px">Find exactly what you need</h1>
+      <p style="font-size:13.5px;color:#94a3b8;margin-bottom:24px">Browse our catalog or let the AI assistant guide you</p>
+      <div class="search-wrap">
+        <i data-lucide="search" style="width:17px;height:17px;color:#2563eb;flex-shrink:0"></i>
+        <input id="storeSearch" type="text" placeholder="Search cameras, lenses, accessories..." onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn-primary" onclick="doSearch()" style="padding:8px 16px;font-size:12.5px;border-radius:8px;white-space:nowrap">Search</button>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px">
+      <button class="cat-chip active" onclick="filterCat(this,'')"><i data-lucide="layout-grid" style="width:13px;height:13px"></i> All</button>
+      <button class="cat-chip" onclick="filterCat(this,'camera')"><i data-lucide="camera" style="width:13px;height:13px"></i> Cameras</button>
+      <button class="cat-chip" onclick="filterCat(this,'lens')"><i data-lucide="aperture" style="width:13px;height:13px"></i> Lenses</button>
+      <button class="cat-chip" onclick="filterCat(this,'memory')"><i data-lucide="hard-drive" style="width:13px;height:13px"></i> Memory Cards</button>
+      <button class="cat-chip" onclick="filterCat(this,'tripod')"><i data-lucide="sliders" style="width:13px;height:13px"></i> Tripods</button>
+      <button class="cat-chip" onclick="filterCat(this,'battery')"><i data-lucide="battery-charging" style="width:13px;height:13px"></i> Batteries</button>
+      <button class="cat-chip" onclick="filterCat(this,'flash')"><i data-lucide="zap" style="width:13px;height:13px"></i> Flash</button>
+      <button class="cat-chip" onclick="filterCat(this,'bag')"><i data-lucide="briefcase" style="width:13px;height:13px"></i> Bags</button>
+    </div>
+
+    <!-- Results bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <p style="font-size:12.5px;color:#94a3b8" id="resultsInfo">Showing all products</p>
+      <div style="display:flex;gap:6px">
+        <button style="width:32px;height:32px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8"><i data-lucide="grid-3x3" style="width:14px;height:14px"></i></button>
+        <button style="width:32px;height:32px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8"><i data-lucide="list" style="width:14px;height:14px"></i></button>
+      </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="product-grid" id="productGrid">
+      <div class="product-card" onclick="openDetail('sony-a7')">
+        <div class="card-img"><i data-lucide="camera" style="width:64px;height:64px;color:#bfdbfe"></i><span class="card-badge">New</span></div>
+        <div class="card-body"><p class="card-brand">Sony</p><h3 class="card-name">Alpha A7 IV Full Frame</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(248)</span></div><div class="card-footer"><span class="card-price">$2,499</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Sony Alpha A7 IV','$2,499')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('canon-r5')">
+        <div class="card-img"><i data-lucide="camera" style="width:64px;height:64px;color:#bfdbfe"></i><span class="card-badge hot">Hot</span></div>
+        <div class="card-body"><p class="card-brand">Canon</p><h3 class="card-name">EOS R5 Mirrorless</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(193)</span></div><div class="card-footer"><span class="card-price">$3,899</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Canon EOS R5','$3,899')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('sd-card')">
+        <div class="card-img"><i data-lucide="hard-drive" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">SanDisk</p><h3 class="card-name">Extreme Pro 256GB</h3><div class="card-stars"><span class="star">★★★★</span><span class="star-empty">★</span><span class="review-count">(512)</span></div><div class="card-footer"><span class="card-price">$54</span><button class="add-btn" onclick="event.stopPropagation();addToCart('SanDisk 256GB','$54')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('manfrotto')">
+        <div class="card-img"><i data-lucide="sliders" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Manfrotto</p><h3 class="card-name">MT190X Pro Tripod</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(87)</span></div><div class="card-footer"><span class="card-price">$189</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Manfrotto Tripod','$189')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('sigma')">
+        <div class="card-img"><i data-lucide="aperture" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Sigma</p><h3 class="card-name">35mm f/1.4 Art Lens</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(142)</span></div><div class="card-footer"><span class="card-price">$799</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Sigma 35mm Lens','$799')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('sony-battery')">
+        <div class="card-img"><i data-lucide="battery-charging" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Sony</p><h3 class="card-name">NP-FZ100 Battery Pack</h3><div class="card-stars"><span class="star">★★★★</span><span class="star-empty">★</span><span class="review-count">(329)</span></div><div class="card-footer"><span class="card-price">$78</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Sony NP-FZ100','$78')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('godox')">
+        <div class="card-img"><i data-lucide="zap" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Godox</p><h3 class="card-name">V1 Round Head Flash</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(211)</span></div><div class="card-footer"><span class="card-price">$229</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Godox V1 Flash','$229')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('lowepro')">
+        <div class="card-img"><i data-lucide="briefcase" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Lowepro</p><h3 class="card-name">ProTactic BP 450 AW II</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(76)</span></div><div class="card-footer"><span class="card-price">$349</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Lowepro BP 450','$349')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('nikon-z6')">
+        <div class="card-img"><i data-lucide="camera" style="width:64px;height:64px;color:#bfdbfe"></i><span class="card-badge sale">Sale</span></div>
+        <div class="card-body"><p class="card-brand">Nikon</p><h3 class="card-name">Z6 III Full Frame</h3><div class="card-stars"><span class="star">★★★★★</span><span class="review-count">(167)</span></div><div class="card-footer"><div><span class="card-price">$1,999</span><span class="card-old-price">$2,499</span></div><button class="add-btn" onclick="event.stopPropagation();addToCart('Nikon Z6 III','$1,999')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+      <div class="product-card" onclick="openDetail('tamron')">
+        <div class="card-img"><i data-lucide="aperture" style="width:64px;height:64px;color:#bfdbfe"></i></div>
+        <div class="card-body"><p class="card-brand">Tamron</p><h3 class="card-name">28-75mm f/2.8 G2 Zoom</h3><div class="card-stars"><span class="star">★★★★</span><span class="star-empty">★</span><span class="review-count">(98)</span></div><div class="card-footer"><span class="card-price">$649</span><button class="add-btn" onclick="event.stopPropagation();addToCart('Tamron 28-75mm','$649')"><i data-lucide="plus" style="width:14px;height:14px"></i></button></div></div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="storePagination">
+      <button class="page-btn"><i data-lucide="chevron-left" style="width:14px;height:14px"></i></button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn"><i data-lucide="chevron-right" style="width:14px;height:14px"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CART VIEW ── -->
+<div id="view-cart" style="display:none;animation:fadeIn .3s ease">
+  <div style="max-width:720px;margin:0 auto;padding:36px 24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
+      <i data-lucide="shopping-cart" style="width:22px;height:22px;color:#1d4ed8"></i>
+      <h2 style="font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-.3px">Shopping Cart</h2>
+      <span style="background:#1d4ed8;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px" id="cartPageBadge">0</span>
+    </div>
+    <div id="cartEmpty" style="text-align:center;padding:80px 0">
+      <div style="width:72px;height:72px;background:#eff6ff;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><i data-lucide="shopping-cart" style="width:32px;height:32px;color:#93c5fd"></i></div>
+      <h3 style="font-size:17px;font-weight:700;color:#0f172a;margin-bottom:6px">Your cart is empty</h3>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px">Browse the store and add some products to get started</p>
+      <button class="btn-primary" onclick="switchView('store')" style="margin:0 auto"><i data-lucide="store" style="width:14px;height:14px"></i> Browse Store</button>
+    </div>
+    <div id="cartList" style="display:none">
+      <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;overflow:hidden;margin-bottom:16px" id="cartItemsBox"></div>
+      <div style="background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;padding:20px 22px">
+        <div class="info-row"><span style="color:#6b7280">Subtotal</span><span style="font-weight:600;color:#0f172a" id="cartSub">$0.00</span></div>
+        <div class="info-row"><span style="color:#6b7280">Shipping</span><span style="font-weight:600;color:#16a34a">Free</span></div>
+        <div class="info-row" style="padding-top:10px"><span style="font-weight:700;font-size:14px;color:#0f172a">Total</span><span style="font-size:18px;font-weight:700;color:#1d4ed8" id="cartGrand">$0.00</span></div>
+        <button class="btn-primary" style="width:100%;justify-content:center;padding:13px;margin-top:16px;font-size:14px;border-radius:10px"><i data-lucide="credit-card" style="width:15px;height:15px"></i> Proceed to Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- ══ PRODUCT DETAIL MODAL ══ -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-box">
+    <button class="modal-close" onclick="closeDetail()"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    <div style="background:#f0f6ff;border-bottom:1px solid #e5e7eb;height:230px;display:flex;align-items:center;justify-content:center;position:relative">
+      <i id="detailIcon" data-lucide="camera" style="width:90px;height:90px;color:#bfdbfe"></i>
+      <div id="detailBadgeWrap" style="position:absolute;top:14px;left:14px"></div>
+    </div>
+    <div style="padding:24px">
+      <p style="font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.6px" id="detailBrand"></p>
+      <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:8px;letter-spacing:-.3px;line-height:1.25" id="detailName"></h2>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+        <span style="color:#f59e0b;font-size:13px" id="detailStars">★★★★★</span>
+        <span style="font-size:12px;color:#94a3b8" id="detailRating">4.8 · 248 reviews</span>
+      </div>
+      <p style="font-size:13.5px;color:#6b7280;line-height:1.65;margin-bottom:20px" id="detailDesc"></p>
+      <div id="detailSpecs" style="background:#f8fafc;border-radius:12px;padding:14px 16px;margin-bottom:20px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <span style="font-size:24px;font-weight:800;color:#1d4ed8" id="detailPrice"></span>
+          <span style="font-size:12px;color:#9ca3af;text-decoration:line-through;margin-left:6px" id="detailOldPrice"></span>
+        </div>
+        <button class="btn-primary" style="padding:11px 22px;font-size:13.5px;border-radius:10px" id="detailAddBtn">
+          <i data-lucide="shopping-cart" style="width:15px;height:15px"></i> Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHAT FAB ══ -->
+<button class="chat-fab" id="chatFab" onclick="toggleChat()">
+  <div class="fab-ring"></div>
+  <i data-lucide="message-circle" style="width:24px;height:24px;position:relative;z-index:1"></i>
+</button>
+
+<!-- ══ CHAT WIDGET ══ -->
+<div class="chat-widget" id="chatWidget">
+  <div class="chat-header">
+    <div class="chat-avatar"><i data-lucide="bot" style="width:20px;height:20px;color:#fff"></i></div>
+    <div style="flex:1">
+      <div style="color:#fff;font-weight:600;font-size:14px;line-height:1.2">Shopping Assistant</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+        <div style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink-dot 2s infinite"></div>
+        <span style="color:rgba(255,255,255,.7);font-size:11px">Ask me anything</span>
+      </div>
+    </div>
+    <button class="cw-close-btn" onclick="toggleChat()"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+  </div>
+
+  <div class="cw-tabs">
+    <button class="cw-tab active" id="cwTab-chat" onclick="switchCwTab('chat')"><i data-lucide="message-circle" style="width:15px;height:15px"></i>Chat</button>
+    <button class="cw-tab" id="cwTab-cart" onclick="switchCwTab('cart')"><i data-lucide="shopping-cart" style="width:15px;height:15px"></i>Cart<span id="cwCartBadge" style="display:none;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;line-height:1.4">0</span></button>
+    <button class="cw-tab" id="cwTab-progress" onclick="switchCwTab('progress')"><i data-lucide="bar-chart-2" style="width:15px;height:15px"></i>Progress</button>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div id="cwPanel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="messages-area" id="messagesArea">
+      <div id="chatWelcome" style="text-align:center;padding:18px 6px 10px">
+        <div style="width:52px;height:52px;border-radius:50%;background:#1d4ed8;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 18px rgba(29,78,216,.3)">
+          <i data-lucide="sparkles" style="width:24px;height:24px;color:#fff"></i>
+        </div>
+        <h3 style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px">How can I help?</h3>
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:14px">Search, cart, checkout — all via chat</p>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center">
+          <button class="wchip" onclick="sendQuick('Show me Canon cameras')"><i data-lucide="camera" style="width:11px;height:11px"></i> Canon Cameras</button>
+          <button class="wchip" onclick="sendQuick('Show me memory cards')"><i data-lucide="hard-drive" style="width:11px;height:11px"></i> Memory Cards</button>
+          <button class="wchip" onclick="sendQuick('I want to checkout')"><i data-lucide="credit-card" style="width:11px;height:11px"></i> Checkout</button>
+          <button class="wchip" onclick="sendQuick('What tripods do you have?')"><i data-lucide="sliders" style="width:11px;height:11px"></i> Tripods</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <div class="chat-input-box">
+        <textarea id="userInput" rows="1" placeholder="Ask about products, cart, checkout..."
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:3px">
+            <button class="input-action" onclick="document.getElementById('imageFileInput').click()"><i data-lucide="image" style="width:15px;height:15px"></i></button>
+            <button class="input-action"><i data-lucide="mic" style="width:15px;height:15px"></i></button>
+          </div>
+          <button class="send-btn" onclick="sendMsg()"><i data-lucide="send" style="width:13px;height:13px"></i></button>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:11px;color:#d1d5db;margin-top:8px"><kbd style="background:#f3f4f6;color:#9ca3af;padding:1px 5px;border-radius:4px;font-size:10px">Enter</kbd> to send</p>
+    </div>
+  </div>
+
+  <!-- CART PANEL -->
+  <div id="cwPanel-cart" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:16px">
+    <div class="sec-label">Your Cart</div>
+    <div id="cwCartItems">
+      <div style="text-align:center;padding:40px 0;color:#94a3b8"><i data-lucide="shopping-cart" style="width:28px;height:28px;margin:0 auto 8px;display:block;color:#bfdbfe"></i><p style="font-size:13px">Cart is empty</p></div>
+    </div>
+    <div id="cwCartTotal" style="display:none;margin-top:10px">
+      <div style="background:#eff6ff;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:600;color:#374151">Total</span>
+        <span style="font-size:15px;font-weight:700;color:#1d4ed8" id="cwTotalAmt">$0.00</span>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <div class="sec-label">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me digital cameras')"><i data-lucide="camera" style="width:15px;height:15px;color:#1d4ed8"></i> Browse Cameras</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me my cart')"><i data-lucide="shopping-bag" style="width:15px;height:15px;color:#1d4ed8"></i> View Cart Details</button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('I want to checkout')"><i data-lucide="credit-card" style="width:15px;height:15px;color:#1d4ed8"></i> Start Checkout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS PANEL -->
+  <div id="cwPanel-progress" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:16px">
+    <div class="sec-label">Session Info</div>
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:20px">
+      <div class="info-row"><span style="color:#94a3b8">Session ID</span><span style="font-family:monospace;font-size:11px;color:#374151" id="sessionId">—</span></div>
+      <div class="info-row"><span style="color:#94a3b8">User</span><span style="font-size:12px;font-weight:600;color:#374151" id="sideUser">guest</span></div>
+      <div class="info-row"><span style="color:#94a3b8">Turns</span><span style="font-size:12px;font-weight:600;color:#374151" id="sideTurns">0</span></div>
+    </div>
+    <div class="sec-label">Checkout Progress</div>
+    <div style="display:flex;flex-direction:column">
+      <div class="ck-step done" id="s-browse"><div class="ck-num"><i data-lucide="check" style="width:11px;height:11px"></i></div><div><p style="font-size:12.5px;font-weight:600;color:#374151">Browse &amp; Search</p><p style="font-size:11px;color:#94a3b8">Find your products</p></div></div>
+      <div class="ck-connector"></div>
+      <div class="ck-step active" id="s-cart"><div class="ck-num">2</div><div><p style="font-size:12.5px;font-weight:600;color:#374151">Add to Cart</p><p style="font-size:11px;color:#94a3b8">Build your order</p></div></div>
+      <div class="ck-connector"></div>
+      <div class="ck-step" id="s-address"><div class="ck-num">3</div><div><p style="font-size:12.5px;font-weight:600;color:#374151">Delivery Address</p><p style="font-size:11px;color:#94a3b8">Where to ship</p></div></div>
+      <div class="ck-connector"></div>
+      <div class="ck-step" id="s-pay"><div class="ck-num">4</div><div><p style="font-size:12.5px;font-weight:600;color:#374151">Payment</p><p style="font-size:11px;color:#94a3b8">Secure checkout</p></div></div>
+      <div class="ck-connector"></div>
+      <div class="ck-step" id="s-order"><div class="ck-num">5</div><div><p style="font-size:12.5px;font-weight:600;color:#374151">Place Order</p><p style="font-size:11px;color:#94a3b8">Confirm &amp; done</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN MODAL ══ -->
+<div class="modal-overlay" id="loginModal" onclick="if(event.target===this)closeModal('loginModal')">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('loginModal')"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    <div class="modal-icon"><i data-lucide="user" style="width:20px;height:20px;color:#fff"></i></div>
+    <h2 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px">Sign In</h2>
+    <p style="font-size:12.5px;color:#94a3b8;margin-bottom:22px">Access your AgentixForce account</p>
+    <div id="loginError" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:12.5px;border-radius:9px;padding:10px 12px;margin-bottom:14px"></div>
+    <div style="margin-bottom:14px">
+      <label class="field-label">Email</label>
+      <div class="input-field"><i data-lucide="mail" style="width:15px;height:15px;color:#1d4ed8;flex-shrink:0"></i><input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"></div>
+    </div>
+    <div style="margin-bottom:22px">
+      <label class="field-label">Password</label>
+      <div class="input-field"><i data-lucide="lock" style="width:15px;height:15px;color:#1d4ed8;flex-shrink:0"></i><input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"></div>
+    </div>
+    <button class="btn-primary" onclick="doLogin()" style="width:100%;justify-content:center;padding:12px;font-size:14px;border-radius:10px;margin-bottom:10px" id="loginBtn">
+      <div id="loginSpinner" style="display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>
+      <i data-lucide="log-in" style="width:15px;height:15px"></i>
+      <span id="loginBtnLabel">Sign In</span>
+    </button>
+    <button class="btn-secondary" onclick="closeModal('loginModal')" style="width:100%;justify-content:center;padding:11px;border-radius:10px">Continue as Guest</button>
+  </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeModal('settingsModal')">
+  <div class="modal-box" style="max-width:460px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeModal('settingsModal')"><i data-lucide="x" style="width:13px;height:13px"></i></button>
+    <div class="modal-icon"><i data-lucide="settings" style="width:20px;height:20px;color:#fff"></i></div>
+    <h2 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px">Settings</h2>
+    <p style="font-size:12.5px;color:#94a3b8;margin-bottom:20px">Manage payment methods and addresses</p>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="stab active" id="stab-cards" onclick="switchStab('cards')"><i data-lucide="credit-card" style="width:13px;height:13px"></i> Cards</button>
+      <button class="stab" id="stab-addresses" onclick="switchStab('addresses')"><i data-lucide="map-pin" style="width:13px;height:13px"></i> Addresses</button>
+    </div>
+    <div id="spanel-cards">
+      <div id="cardsList"></div>
+      <div style="background:#f8fafc;border:1.5px dashed #e5e7eb;border-radius:12px;padding:28px;text-align:center;margin-bottom:14px"><i data-lucide="credit-card" style="width:28px;height:28px;color:#bfdbfe;margin:0 auto 8px;display:block"></i><p style="font-size:12.5px;color:#94a3b8">No saved cards yet</p></div>
+      <button class="btn-primary" onclick="initStripeElements()" id="addCardBtn" style="width:100%;justify-content:center;padding:11px;border-radius:10px"><i data-lucide="plus" style="width:14px;height:14px"></i> Add New Card</button>
+      <div id="cardFormWrap" style="display:none;margin-top:14px">
+        <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px;background:#f8fafc"><div id="stripeCardElement"></div></div>
+        <div id="cardFormError" style="font-size:12px;color:#dc2626;margin-top:6px"></div>
+        <button class="btn-primary" onclick="saveCard()" style="width:100%;justify-content:center;padding:11px;border-radius:10px;margin-top:10px">Save Card</button>
+      </div>
+    </div>
+    <div id="spanel-addresses" style="display:none">
+      <div id="addressesList"></div>
+      <div style="background:#f8fafc;border:1.5px dashed #e5e7eb;border-radius:12px;padding:28px;text-align:center;margin-bottom:14px"><i data-lucide="map-pin" style="width:28px;height:28px;color:#bfdbfe;margin:0 auto 8px;display:block"></i><p style="font-size:12.5px;color:#94a3b8">No saved addresses yet</p></div>
+      <button class="btn-primary" onclick="toggleAddressForm()" id="addAddressBtn" style="width:100%;justify-content:center;padding:11px;border-radius:10px"><i data-lucide="plus" style="width:14px;height:14px"></i> Add New Address</button>
+      <div id="addressFormWrap" style="display:none;margin-top:14px;flex-direction:column;gap:12px">
+        <div><label class="field-label">Full Name *</label><div class="input-field"><input type="text" id="addrName" placeholder="John Doe"></div></div>
+        <div><label class="field-label">Address Line 1 *</label><div class="input-field"><input type="text" id="addrLine1" placeholder="123 Main Street"></div></div>
+        <div><label class="field-label">Address Line 2</label><div class="input-field"><input type="text" id="addrLine2" placeholder="Apt 4B (optional)"></div></div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label class="field-label">City *</label><div class="input-field"><input type="text" id="addrCity" placeholder="New York"></div></div>
+          <div style="flex:1"><label class="field-label">State</label><div class="input-field"><input type="text" id="addrState" placeholder="NY"></div></div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label class="field-label">Postal Code *</label><div class="input-field"><input type="text" id="addrPostal" placeholder="10001"></div></div>
+          <div style="flex:1"><label class="field-label">Country *</label><div class="input-field"><input type="text" id="addrCountry" placeholder="US" value="US"></div></div>
+        </div>
+        <button class="btn-primary" onclick="saveAddress()" style="width:100%;justify-content:center;padding:11px;border-radius:10px">Save Address</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+<input type="file" id="audioFileInput" accept="audio/*" style="display:none">
+
+<script>
+lucide.createIcons();
+
+let chatOpen=false,cartItems=[],turns=0;
+const sid='sx-'+Math.random().toString(36).substr(2,8).toUpperCase();
+document.getElementById('sessionId').textContent=sid;
+
+/* CHAT TOGGLE */
+function toggleChat(){
+  chatOpen=!chatOpen;
+  document.getElementById('chatWidget').classList.toggle('open',chatOpen);
+  const fab=document.getElementById('chatFab');
+  fab.innerHTML=chatOpen
+    ?`<i data-lucide="x" style="width:22px;height:22px;position:relative;z-index:1"></i>`
+    :`<div class="fab-ring"></div><i data-lucide="message-circle" style="width:24px;height:24px;position:relative;z-index:1"></i>`;
+  lucide.createIcons();
+}
+
+/* VIEW SWITCH */
+function switchView(v){
+  document.getElementById('view-store').style.display=v==='store'?'block':'none';
+  document.getElementById('view-cart').style.display=v==='cart'?'block':'none';
+  document.getElementById('navStore').classList.toggle('active',v==='store');
+  document.getElementById('navCart').classList.toggle('active',v==='cart');
+  if(v==='cart')renderCartPage();
+  lucide.createIcons();
+}
+
+/* CW TABS */
+function switchCwTab(tab){
+  ['chat','cart','progress'].forEach(t=>{
+    const p=document.getElementById('cwPanel-'+t);
+    const b=document.getElementById('cwTab-'+t);
+    if(p){p.style.display=t===tab?'flex':'none';if(t===tab)p.style.flexDirection='column';}
+    if(b)b.classList.toggle('active',t===tab);
+  });
+  lucide.createIcons();
+}
+
+/* FILTER */
+function filterCat(el,cat){
+  document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('resultsInfo').textContent=cat?'Showing: '+cat:'Showing all products';
+}
+function doSearch(){
+  const q=document.getElementById('storeSearch').value.trim();
+  if(q)document.getElementById('resultsInfo').textContent='Results for "'+q+'"';
+}
+
+/* CART */
+function addToCart(name,price){
+  const ex=cartItems.find(i=>i.name===name);
+  if(ex)ex.qty++;else cartItems.push({name,price,qty:1});
+  updateCartUI();showToast('Added: '+name);
+}
+function removeItem(name){
+  cartItems=cartItems.filter(i=>i.name!==name);
+  updateCartUI();
+}
+function updateCartUI(){
+  const count=cartItems.reduce((s,i)=>s+i.qty,0);
+  const nb=document.getElementById('navCartBadge');
+  nb.textContent=count;nb.style.display=count>0?'inline':'none';
+  const cb=document.getElementById('cwCartBadge');
+  cb.textContent=count;cb.style.display=count>0?'inline':'none';
+  renderCwCart();
+}
+function renderCwCart(){
+  const el=document.getElementById('cwCartItems');
+  const tot=document.getElementById('cwCartTotal');
+  if(!cartItems.length){
+    el.innerHTML=`<div style="text-align:center;padding:40px 0;color:#94a3b8"><i data-lucide="shopping-cart" style="width:28px;height:28px;margin:0 auto 8px;display:block;color:#bfdbfe"></i><p style="font-size:13px">Cart is empty</p></div>`;
+    tot.style.display='none';lucide.createIcons();return;
+  }
+  let total=0;
+  el.innerHTML=cartItems.map(item=>{
+    const p=parseFloat(item.price.replace(/[^0-9.]/g,''));
+    total+=p*item.qty;
+    return `<div class="cart-row">
+      <div class="cart-thumb"><i data-lucide="package" style="width:18px;height:18px;color:#1d4ed8"></i></div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:12px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</p>
+        <p style="font-size:11px;color:#94a3b8">${item.price} × ${item.qty}</p>
+      </div>
+      <button onclick="removeItem('${item.name}')" style="width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#d1d5db;transition:all .15s"
+        onmouseover="this.style.background='#fef2f2';this.style.color='#ef4444'"
+        onmouseout="this.style.background='transparent';this.style.color='#d1d5db'">
+        <i data-lucide="trash-2" style="width:13px;height:13px"></i>
+      </button>
+    </div>`;
+  }).join('');
+  document.getElementById('cwTotalAmt').textContent='$'+total.toFixed(2);
+  tot.style.display='block';lucide.createIcons();
+}
+function renderCartPage(){
+  const empty=document.getElementById('cartEmpty');
+  const list=document.getElementById('cartList');
+  const box=document.getElementById('cartItemsBox');
+  const cnt=document.getElementById('cartPageBadge');
+  cnt.textContent=cartItems.reduce((s,i)=>s+i.qty,0);
+  if(!cartItems.length){empty.style.display='block';list.style.display='none';lucide.createIcons();return;}
+  empty.style.display='none';list.style.display='block';
+  let grand=0;
+  box.innerHTML=cartItems.map(item=>{
+    const p=parseFloat(item.price.replace(/[^0-9.]/g,''));grand+=p*item.qty;
+    return `<div class="cart-row" style="padding:14px 18px">
+      <div class="cart-thumb" style="width:48px;height:48px"><i data-lucide="package" style="width:20px;height:20px;color:#1d4ed8"></i></div>
+      <div style="flex:1"><p style="font-size:13px;font-weight:600;color:#0f172a">${item.name}</p><p style="font-size:12px;color:#94a3b8">Qty: ${item.qty}</p></div>
+      <span style="font-size:14px;font-weight:700;color:#1d4ed8">${item.price}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('cartSub').textContent='$'+grand.toFixed(2);
+  document.getElementById('cartGrand').textContent='$'+grand.toFixed(2);
+  lucide.createIcons();
+}
+
+/* MESSAGES */
+function sendMsg(){
+  const inp=document.getElementById('userInput');
+  const text=inp.value.trim();if(!text)return;
+  inp.value='';inp.style.height='auto';
+  document.getElementById('chatWelcome').style.display='none';
+  appendMsg('user',text);turns++;
+  document.getElementById('sideTurns').textContent=turns;
+  showTyping();
+  setTimeout(()=>{removeTyping();appendMsg('ai',aiReply(text));},1000+Math.random()*600);
+}
+function sendQuick(text){
+  if(!chatOpen)toggleChat();
+  switchCwTab('chat');
+  setTimeout(()=>{
+    document.getElementById('chatWelcome').style.display='none';
+    appendMsg('user',text);turns++;
+    document.getElementById('sideTurns').textContent=turns;
+    showTyping();
+    setTimeout(()=>{removeTyping();appendMsg('ai',aiReply(text));},1000+Math.random()*500);
+  },chatOpen?0:320);
+}
+function appendMsg(role,text){
+  const area=document.getElementById('messagesArea');
+  const d=document.createElement('div');
+  d.className=role==='user'?'msg-user':'msg-ai';
+  d.textContent=text;area.appendChild(d);area.scrollTop=area.scrollHeight;
+}
+function showTyping(){
+  const area=document.getElementById('messagesArea');
+  const d=document.createElement('div');d.id='typingInd';d.className='msg-ai';
+  d.style.cssText='display:flex;gap:5px;align-items:center';
+  d.innerHTML='<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  area.appendChild(d);area.scrollTop=area.scrollHeight;
+}
+function removeTyping(){const t=document.getElementById('typingInd');if(t)t.remove();}
+function aiReply(text){
+  const t=text.toLowerCase();
+  if(t.includes('canon'))return"Canon EOS R5 ($3,899) is our top pick — 45MP, 8K video, Dual Pixel AF. Want to add it?";
+  if(t.includes('camera'))return"We have Sony A7 IV ($2,499), Canon EOS R5 ($3,899), and Nikon Z6 III ($1,999 — on sale!). Which interests you?";
+  if(t.includes('memory')||t.includes('card'))return"SanDisk Extreme Pro 256GB at just $54 — 200MB/s read speed. Want me to add it?";
+  if(t.includes('tripod'))return"Manfrotto MT190X Pro ($189) is excellent for studio and outdoors. Shall I add it?";
+  if(t.includes('checkout'))return"I'll need your delivery address and payment method. Please sign in using the button top right.";
+  if(t.includes('cart'))return`You have ${cartItems.length} item(s) totaling $${cartItems.reduce((s,i)=>s+parseFloat(i.price.replace(/[^0-9.]/g,''))*i.qty,0).toFixed(2)}. Ready to checkout?`;
+  return"I can help you find cameras, lenses, accessories — or manage your cart and checkout. What are you looking for?";
+}
+
+/* PRODUCT DETAIL */
+const products={
+  'sony-a7':{brand:'Sony',name:'Alpha A7 IV Full Frame',price:'$2,499',icon:'camera',badge:'new',badgeLabel:'New',desc:'33MP full-frame BSI-CMOS sensor with 4K 60p video, 5-axis IBIS, and Real-time Eye AF. The definitive hybrid camera for professionals.',specs:[['Sensor','33MP Full-Frame BSI'],['Video','4K 60p / 4:2:2 10-bit'],['Stabilization','5-axis IBIS (5.5 stops)'],['Autofocus','759-point Real-time AF']]},
+  'canon-r5':{brand:'Canon',name:'EOS R5 Mirrorless',price:'$3,899',icon:'camera',badge:'hot',badgeLabel:'Hot',desc:'45MP full-frame sensor, 8K RAW internal recording, Dual Pixel CMOS AF II. Fully weather-sealed magnesium body.',specs:[['Sensor','45MP Full-Frame CMOS'],['Video','8K RAW / 4K 120p'],['Stabilization','8-stop Coordinated IS'],['Buffer','180 RAW continuous']]},
+  'sd-card':{brand:'SanDisk',name:'Extreme Pro 256GB',price:'$54',icon:'hard-drive',desc:'Up to 200MB/s read speed. V30 rated for 4K/8K video. Includes 5-year limited warranty and RescuePRO data recovery.',specs:[['Capacity','256GB'],['Read Speed','200 MB/s'],['Write Speed','140 MB/s'],['Rating','V30 / U3 / A2']]},
+  'manfrotto':{brand:'Manfrotto',name:'MT190X Pro Tripod',price:'$189',icon:'sliders',desc:'Versatile tripod with centre column that rotates 90° horizontally. Max load 7kg. Folds to 63cm for transport.',specs:[['Max Height','156cm'],['Min Height','9cm'],['Max Load','7 kg'],['Weight','1.9 kg']]},
+  'sigma':{brand:'Sigma',name:'35mm f/1.4 Art Lens',price:'$799',icon:'aperture',desc:'Art-series prime with razor-sharp f/1.4 optics. 13 elements in 11 groups. Canon EF, Nikon F, Sony E mount compatible.',specs:[['Focal Length','35mm'],['Max Aperture','f/1.4'],['Min Focus','30cm'],['Filter Size','67mm']]},
+  'sony-battery':{brand:'Sony',name:'NP-FZ100 Battery Pack',price:'$78',icon:'battery-charging',desc:'High-capacity 2280mAh battery for Alpha series cameras. Up to 710 shots per charge. Supports USB-C in-camera charging.',specs:[['Capacity','2280 mAh'],['Voltage','7.2V'],['Shots Per Charge','~710 (CIPA)'],['Weight','83g']]},
+  'godox':{brand:'Godox',name:'V1 Round Head Flash',price:'$229',icon:'zap',desc:'TTL round magnetic flash with Li-ion battery for 480 full-power shots. Supports HSS up to 1/8000s.',specs:[['Guide Number','GN92 (ISO100)'],['HSS','Up to 1/8000s'],['Power Levels','1/128 – 1/1'],['Battery','Li-ion 2000mAh']]},
+  'lowepro':{brand:'Lowepro',name:'ProTactic BP 450 AW II',price:'$349',icon:'briefcase',desc:'Professional 32L camera backpack with side access and integrated All Weather Cover. Fits 15" laptop + full DSLR kit.',specs:[['Capacity','32L'],['Laptop Slot','Up to 15"'],['Body','1680D Ballistic Poly'],['Weather Cover','Included']]},
+  'nikon-z6':{brand:'Nikon',name:'Z6 III Full Frame',price:'$1,999',oldPrice:'$2,499',icon:'camera',badge:'sale',badgeLabel:'Sale',desc:'24.5MP partial stacked BSI-CMOS sensor with 4K 120p N-RAW video and 20fps burst. Best value full-frame mirrorless.',specs:[['Sensor','24.5MP Partial Stacked BSI'],['Video','4K 120p N-RAW'],['Burst','20fps (RAW)'],['Stabilization','6-stop IBIS']]},
+  'tamron':{brand:'Tamron',name:'28-75mm f/2.8 G2 Zoom',price:'$649',icon:'aperture',desc:'Second generation 28-75mm f/2.8 with improved optics, faster AF, and moisture-resistant construction.',specs:[['Zoom Range','28–75mm'],['Max Aperture','f/2.8'],['Filter Size','67mm'],['Weight','540g']]},
+};
+
+function openDetail(id){
+  const p=products[id];if(!p)return;
+  document.getElementById('detailBrand').textContent=p.brand;
+  document.getElementById('detailName').textContent=p.name;
+  document.getElementById('detailPrice').textContent=p.price;
+  document.getElementById('detailOldPrice').textContent=p.oldPrice||'';
+  document.getElementById('detailDesc').textContent=p.desc;
+  const iconEl=document.getElementById('detailIcon');
+  iconEl.setAttribute('data-lucide',p.icon||'camera');
+  const bwrap=document.getElementById('detailBadgeWrap');
+  bwrap.innerHTML=p.badge?`<span class="card-badge ${p.badge==='hot'?'hot':p.badge==='sale'?'sale':''}">${p.badgeLabel}</span>`:'';
+  const specsEl=document.getElementById('detailSpecs');
+  if(p.specs&&p.specs.length){
+    specsEl.innerHTML=p.specs.map(([k,v])=>`<div class="spec-row"><span style="color:#94a3b8">${k}</span><span style="font-weight:600;color:#0f172a">${v}</span></div>`).join('');
+    specsEl.style.display='block';
+  }else{specsEl.style.display='none';}
+  document.getElementById('detailAddBtn').onclick=()=>{addToCart(p.name,p.price);closeDetail();};
+  document.getElementById('detailOverlay').classList.add('open');
+  lucide.createIcons();
+}
+function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');}
+
+/* MODALS */
+function openModal(id){document.getElementById(id).classList.add('open');lucide.createIcons();}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function switchStab(tab){
+  ['cards','addresses'].forEach(t=>{
+    document.getElementById('spanel-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('stab-'+t).classList.toggle('active',t===tab);
+  });lucide.createIcons();
+}
+function toggleAddressForm(){
+  const w=document.getElementById('addressFormWrap');
+  w.style.display=w.style.display==='none'||w.style.display===''?'flex':'none';
+}
+
+/* TOAST */
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<i data-lucide="check-circle" style="width:15px;height:15px;color:#4ade80;flex-shrink:0"></i>${msg}`;
+  document.body.appendChild(t);lucide.createIcons();
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';t.style.transition='all .25s';setTimeout(()=>t.remove(),260);},2500);
+}
+
+/* STUBS */
+function doLogin(){console.log('login');}
+function doLogout(){console.log('logout');}
+function initStripeElements(){document.getElementById('cardFormWrap').style.display='block';}
+function saveCard(){console.log('save card');}
+function saveAddress(){console.log('save address');}
+function handleImageSelect(e){console.log('image',e.target.files[0]);}
+
+lucide.createIcons();
+</script>
+
+<!-- External JS -->
+<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/renderers.js?v=10"></script>
+<script src="/static/js/auth.js?v=10"></script>
+<script src="/static/js/chat.js?v=10"></script>
+<script src="/static/js/settings.js?v=10"></script>
+<script src="/static/js/image_search.js?v=10"></script>
+<script src="/static/js/audio_search.js?v=10"></script>
+<script src="/static/js/recommendations.js?v=10"></script>
+<script src="/static/js/storefront.js?v=10"></script>
+</body>
+</html>

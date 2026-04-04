@@ -391,70 +391,111 @@ function hideWelcome() {
   if (w) w.remove();
 }
 
-function appendMsg(role, text, data) {
-  const msgs   = document.getElementById('messages');
-  const div    = document.createElement('div');
-  div.className = `msg ${role}`;
+// function appendMsg(role, text, data) {
+//   const msgs   = document.getElementById('messages');
+//   const div    = document.createElement('div');
+//   div.className = `msg ${role}`;
 
-  const avatar = document.createElement('div');
-  avatar.className = 'avatar';
-  avatar.textContent = role === 'agent' ? 'AI' : 'U';
+//   const avatar = document.createElement('div');
+//   avatar.className = 'avatar';
+//   avatar.textContent = role === 'agent' ? 'AI' : 'U';
+
+//   const bubble = document.createElement('div');
+//   bubble.className = 'bubble';
+
+//   if (role === 'agent') {
+//     text = stripSuggestionsBlock(text);
+
+//     // Remove previous structured cards (replace, not stack)
+//     if (data && (data.products || data.product_detail || data.cart)) {
+//       removeExistingCards(data);
+//     }
+
+//     if (data && data.order_code) {
+//       // Order success card
+//       bubble.innerHTML = buildOrderSuccessHTML(text, data.order_code);
+
+//     } else if (data && data.product_detail && data.product_detail.code) {
+//       // Product detail card
+//       const intro = extractIntro(text);
+//       if (intro) bubble.innerHTML = `<div class="pd-intro-text">${formatText(intro)}</div>`;
+//       bubble.innerHTML += buildProductDetailCard(data.product_detail);
+
+//       // If we also have cart data, append cart card below
+//       if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+//         bubble.innerHTML += buildCartCardHTML(data.cart);
+//       }
+
+//     } else if (data && data.products && data.products.length > 0) {
+//       // Product cards with optional intro text
+//       const intro = extractIntro(text);
+//       bubble.innerHTML = buildProductCardsHTML(intro, data.products, '');
+
+//       // If we also have cart data, append cart card below products
+//       if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
+//         bubble.innerHTML += buildCartCardHTML(data.cart);
+//       }
+
+//     } else if (data && data.cart && data.cart.entries && data.cart.entries.length > 0) {
+//       // Cart card with intro text
+//       const intro = extractIntro(text);
+//       if (intro) bubble.innerHTML = `<div class="cart-intro-text">${formatText(intro)}</div>`;
+//       bubble.innerHTML += buildCartCardHTML(data.cart);
+
+//     } else {
+//       bubble.innerHTML = formatText(text);
+//     }
+//   } else {
+//     bubble.innerHTML = formatText(text);
+//   }
+
+//   div.appendChild(avatar);
+//   div.appendChild(bubble);
+//   msgs.appendChild(div);
+//   msgs.scrollTop = msgs.scrollHeight;
+//   return div;
+// }
+
+
+function appendMsg(role, content, isHTML) {
+  const box = document.getElementById('messages');
+
+  const welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + role; 
+
+  const av = document.createElement('div');
+  av.className = 'msg-avatar ' + (role === 'user' ? 'user-av' : 'agent-av');
+  av.innerHTML = role === 'user'
+    ? `<i data-lucide="user" style="width:13px;height:13px;color:#1e40af"></i>`
+    : `<i data-lucide="bot"  style="width:13px;height:13px;color:#3730a3"></i>`;
+
+  const msgContent = document.createElement('div');
+  msgContent.className = 'msg-content';
 
   const bubble = document.createElement('div');
-  bubble.className = 'bubble';
+  bubble.className = 'bubble ' + (role === 'user' ? 'user-bubble' : 'agent-bubble');
+  if (isHTML) bubble.innerHTML = content;
+  else        bubble.textContent = content;
 
-  if (role === 'agent') {
-    text = stripSuggestionsBlock(text);
+  const ts = document.createElement('div');
+  ts.className = 'msg-ts';
+  ts.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-    // Remove previous structured cards (replace, not stack)
-    if (data && (data.products || data.product_detail || data.cart)) {
-      removeExistingCards(data);
-    }
+  msgContent.appendChild(bubble);
+  msgContent.appendChild(ts);
 
-    if (data && data.order_code) {
-      // Order success card
-      bubble.innerHTML = buildOrderSuccessHTML(text, data.order_code);
+  row.appendChild(av);
+  row.appendChild(msgContent);
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
 
-    } else if (data && data.product_detail && data.product_detail.code) {
-      // Product detail card
-      const intro = extractIntro(text);
-      if (intro) bubble.innerHTML = `<div class="pd-intro-text">${formatText(intro)}</div>`;
-      bubble.innerHTML += buildProductDetailCard(data.product_detail);
-
-      // If we also have cart data, append cart card below
-      if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
-        bubble.innerHTML += buildCartCardHTML(data.cart);
-      }
-
-    } else if (data && data.products && data.products.length > 0) {
-      // Product cards with optional intro text
-      const intro = extractIntro(text);
-      bubble.innerHTML = buildProductCardsHTML(intro, data.products, '');
-
-      // If we also have cart data, append cart card below products
-      if (data.cart && data.cart.entries && data.cart.entries.length > 0) {
-        bubble.innerHTML += buildCartCardHTML(data.cart);
-      }
-
-    } else if (data && data.cart && data.cart.entries && data.cart.entries.length > 0) {
-      // Cart card with intro text
-      const intro = extractIntro(text);
-      if (intro) bubble.innerHTML = `<div class="cart-intro-text">${formatText(intro)}</div>`;
-      bubble.innerHTML += buildCartCardHTML(data.cart);
-
-    } else {
-      bubble.innerHTML = formatText(text);
-    }
-  } else {
-    bubble.innerHTML = formatText(text);
-  }
-
-  div.appendChild(avatar);
-  div.appendChild(bubble);
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  return row;
 }
+
 
 function removeExistingCards(data) {
   const msgs = document.getElementById('messages');
@@ -502,15 +543,39 @@ function appendSuggestions(msgDiv, suggestions) {
   if (bubble) bubble.appendChild(buildSuggestionButtons(suggestions));
 }
 
+// function appendTyping() {
+//   const msgs = document.getElementById('messages');
+//   const div  = document.createElement('div');
+//   div.className = 'msg agent';
+//   div.innerHTML = `<div class="avatar">AI</div>
+//     <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+//   msgs.appendChild(div);
+//   msgs.scrollTop = msgs.scrollHeight;
+//   return div;
+// }
+
 function appendTyping() {
-  const msgs = document.getElementById('messages');
-  const div  = document.createElement('div');
-  div.className = 'msg agent';
-  div.innerHTML = `<div class="avatar">AI</div>
-    <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
+  const box = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.id = 'typingRow';
+  row.className = 'msg-row agent';
+  row.innerHTML = `
+    <div class="msg-avatar agent-av">
+      <i data-lucide="bot" style="width:13px;height:13px;color:#3730a3"></i>
+    </div>
+    <div class="msg-content">
+      <div class="bubble agent-bubble">
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="width:6px;height:6px;background:#94a3b8;border-radius:50%;display:inline-block;animation:bounce-dot .9s infinite"></span>
+          <span style="width:6px;height:6px;background:#94a3b8;border-radius:50%;display:inline-block;animation:bounce-dot .9s .15s infinite"></span>
+          <span style="width:6px;height:6px;background:#94a3b8;border-radius:50%;display:inline-block;animation:bounce-dot .9s .3s infinite"></span>
+        </div>
+      </div>
+    </div>`;
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  return row;
 }
 
 function appendError(msg) {

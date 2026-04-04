@@ -1,6 +1,15 @@
 import logging
 import os
 
+import uvicorn.config
+import nest_asyncio 
+
+#  Patch for LOG_LEVEL issue
+nest_asyncio.apply()
+
+uvicorn.config.LOG_LEVELS["INFO"] = logging.INFO
+uvicorn.config.LOG_LEVELS["info"] = logging.INFO
+
 import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -68,7 +77,7 @@ def _resolve(session_id: str) -> tuple[str, str]:
 # ── MCP Server ────────────────────────────────────────────────────────────────
 mcp = FastMCP(
     name="SAP Commerce Cloud",
-    description="Full SAP Commerce OCC v2 API — auth, catalog, cart, checkout, orders.",
+    # description="Full SAP Commerce OCC v2 API — auth, catalog, cart, checkout, orders.",
 )
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -759,6 +768,7 @@ if __name__ == "__main__":
 
     if MCP_TRANSPORT in ("sse", "http", "streamable_http"):
         logger.info("  Listening : %s:%d", MCP_HOST, MCP_PORT)
-        mcp.run(transport=MCP_TRANSPORT, host=MCP_HOST, port=MCP_PORT)
+        # mcp.run(transport=MCP_TRANSPORT, host=MCP_HOST, port=MCP_PORT)
+        mcp.run(transport=MCP_TRANSPORT)
     else:
         mcp.run()

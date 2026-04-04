@@ -129,31 +129,69 @@ async function storeSearch(page = 0) {
 
         // Render products
         if (data.products && data.products.length > 0) {
+            // grid.innerHTML = data.products.map(p => `
+            //     <div class="product-card" onclick="openProductDetail('${p.code}')">
+            //         <div class="product-card-image">
+            //             ${p.image
+            //                 ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2214%22>No Image</text></svg>'">`
+            //                 : '<div class="no-image">No Image</div>'}
+            //         </div>
+            //         <div class="product-card-body">
+            //             <div class="product-card-name">${escapeHtml(p.name)}</div>
+            //             <div class="product-card-price">${p.price}</div>
+            //             <div class="product-card-stock ${p.stock === 'inStock' ? 'in-stock' : 'out-stock'}">
+            //                 ${p.stock === 'inStock' ? 'In Stock' : p.stock === 'lowStock' ? 'Low Stock' : 'Out of Stock'}
+            //             </div>
+            //             ${p.averageRating > 0 ? `
+            //                 <div class="product-card-rating">
+            //                     ${'&#9733;'.repeat(Math.round(p.averageRating))}${'&#9734;'.repeat(5 - Math.round(p.averageRating))}
+            //                     <span>(${p.numberOfReviews})</span>
+            //                 </div>
+            //             ` : ''}
+            //         </div>
+            //         <button class="product-card-add" onclick="event.stopPropagation();addToCartFromStore('${p.code}','${escapeHtml(p.name)}')">
+            //             Add to Cart
+            //         </button>
+            //     </div>
+            // `).join('');
+
             grid.innerHTML = data.products.map(p => `
-                <div class="product-card" onclick="openProductDetail('${p.code}')">
-                    <div class="product-card-image">
-                        ${p.image
-                            ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2214%22>No Image</text></svg>'">`
-                            : '<div class="no-image">No Image</div>'}
-                    </div>
-                    <div class="product-card-body">
-                        <div class="product-card-name">${escapeHtml(p.name)}</div>
-                        <div class="product-card-price">${p.price}</div>
-                        <div class="product-card-stock ${p.stock === 'inStock' ? 'in-stock' : 'out-stock'}">
-                            ${p.stock === 'inStock' ? 'In Stock' : p.stock === 'lowStock' ? 'Low Stock' : 'Out of Stock'}
-                        </div>
-                        ${p.averageRating > 0 ? `
-                            <div class="product-card-rating">
-                                ${'&#9733;'.repeat(Math.round(p.averageRating))}${'&#9734;'.repeat(5 - Math.round(p.averageRating))}
-                                <span>(${p.numberOfReviews})</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <button class="product-card-add" onclick="event.stopPropagation();addToCartFromStore('${p.code}','${escapeHtml(p.name)}')">
-                        Add to Cart
-                    </button>
-                </div>
-            `).join('');
+  <div class="product-card" onclick="openProductDetail('${p.code}')"
+    style="background:white;border:1.5px solid #e5e7eb;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer;transition:all .2s"
+    onmouseover="this.style.borderColor='#2563eb';this.style.boxShadow='0 4px 16px rgba(37,99,235,.12)'"
+    onmouseout="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
+
+    <div style="background:#f0f6ff;height:160px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid #e5e7eb;">
+      ${p.image
+        ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" style="width:100%;height:100%;object-fit:contain;padding:12px">`
+        : `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`}
+    </div>
+
+    <div style="padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px;">
+      <p style="font-size:11px;color:#94a3b8;margin:0">${escapeHtml(p.brand || '')}</p>
+      <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(p.name)}</p>
+      ${p.averageRating > 0 ? `
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="color:#f59e0b;font-size:11px;letter-spacing:-1px">${'★'.repeat(Math.round(p.averageRating))}${'☆'.repeat(5 - Math.round(p.averageRating))}</span>
+          <span style="font-size:11px;color:#94a3b8">(${p.numberOfReviews || 0})</span>
+        </div>` : ''}
+      <span style="display:inline-block;background:${p.stock === 'inStock' ? '#dcfce7' : '#fee2e2'};color:${p.stock === 'inStock' ? '#15803d' : '#dc2626'};font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;width:fit-content">
+        ${p.stock === 'inStock' ? 'In Stock' : p.stock === 'lowStock' ? 'Low Stock' : 'Out of Stock'}
+      </span>
+    </div>
+
+    <div style="padding:0 16px 14px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span style="font-size:16px;font-weight:700;color:#2563eb">${p.price}</span>
+        ${p.oldPrice ? `<span style="font-size:11px;color:#9ca3af;text-decoration:line-through">${p.oldPrice}</span>` : ''}
+      </div>
+      <button onclick="event.stopPropagation();addToCartFromStore('${p.code}','${escapeHtml(p.name)}')"
+        style="width:32px;height:32px;border-radius:8px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:background .15s"
+        onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">+</button>
+    </div>
+
+  </div>
+`).join('');
         } else {
             grid.innerHTML = '<div class="store-empty">No products found. Try a different search.</div>';
         }

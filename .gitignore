@@ -7,6 +7,8 @@ __pycache__/
 .env.backup
 !.env.example
 
+.env.example
+
 # Log files
 logs/
 
@@ -17,3 +19,7 @@ logs/
 dist/
 build/
 *.egg-info/
+
+
+logs/
+*.log
