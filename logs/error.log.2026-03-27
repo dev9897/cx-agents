@@ -1,0 +1,94 @@
+2026-03-27 12:23:07,006 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://your-sap-instance.example.com/occ/v2/electronics/products/search [Errno -5] No address associated with hostname[0m
+2026-03-27 12:44:43,886 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://fakestoreapi.com/products/category/electronics/electronics/products/search Client error '404 Not Found' for url 'https://fakestoreapi.com/products/category/electronics/electronics/products/search?query=%2A%3A%2A&currentPage=0&pageSize=20&sort=relevance&fields=FULL'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404[0m
+2026-03-27 12:44:47,709 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://fakestoreapi.com/products/category/electronics/electronics/products/search Client error '404 Not Found' for url 'https://fakestoreapi.com/products/category/electronics/electronics/products/search?query=camera&currentPage=0&pageSize=20&sort=relevance&fields=FULL'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404[0m
+2026-03-27 13:16:11,489 | [31mERROR[0m | [90msap_agent                     [0m | sid=[35mf13a5dd7-fb9c-4cc7-9a89-20cec54a84d3[0m | tid=[34ma0cc2f68[0m | [31magent_node | LLM call failed | session=f13a5dd7-fb9c-4cc7-9a89-20cec54a84d3[0m
+Traceback (most recent call last):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/graph.py", line 334, in agent_node
+    response = _llm_factory.invoke_with_retry(_llm_with_tools, all_msgs, config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/llm.py", line 92, in invoke_with_retry
+    return llm.invoke(messages, config=config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/runnables/base.py", line 5695, in invoke
+    return self.bound.invoke(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 454, in invoke
+    self.generate_prompt(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1201, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1010, in generate
+    self._generate_with_cache(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1270, in _generate_with_cache
+    for chunk in self._stream(messages, stop=stop, **kwargs):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1211, in _stream
+    stream = self._create(payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1190, in _create
+    return self._client.messages.create(**payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/resources/messages/messages.py", line 996, in create
+    return self._post(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CZTDMs5PLeBwEck7JEz1e'}
+2026-03-27 13:16:29,711 | [31mERROR[0m | [90msap_agent                     [0m | sid=[35mf13a5dd7-fb9c-4cc7-9a89-20cec54a84d3[0m | tid=[34m7371246f[0m | [31magent_node | LLM call failed | session=f13a5dd7-fb9c-4cc7-9a89-20cec54a84d3[0m
+Traceback (most recent call last):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/graph.py", line 334, in agent_node
+    response = _llm_factory.invoke_with_retry(_llm_with_tools, all_msgs, config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/llm.py", line 92, in invoke_with_retry
+    return llm.invoke(messages, config=config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/runnables/base.py", line 5695, in invoke
+    return self.bound.invoke(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 454, in invoke
+    self.generate_prompt(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1201, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1010, in generate
+    self._generate_with_cache(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1270, in _generate_with_cache
+    for chunk in self._stream(messages, stop=stop, **kwargs):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1211, in _stream
+    stream = self._create(payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1190, in _create
+    return self._client.messages.create(**payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/resources/messages/messages.py", line 996, in create
+    return self._post(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CZTDPD7RXnsm3e9ipv5es'}
+2026-03-27 13:19:48,673 | [31mERROR[0m | [90msap_agent                     [0m | sid=[35m38417b05-841d-4568-9645-500597da0a60[0m | tid=[34m598974dd[0m | [31magent_node | LLM call failed | session=38417b05-841d-4568-9645-500597da0a60[0m
+Traceback (most recent call last):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/graph.py", line 334, in agent_node
+    response = _llm_factory.invoke_with_retry(_llm_with_tools, all_msgs, config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/app/agent/llm.py", line 92, in invoke_with_retry
+    return llm.invoke(messages, config=config)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/runnables/base.py", line 5695, in invoke
+    return self.bound.invoke(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 454, in invoke
+    self.generate_prompt(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1201, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1010, in generate
+    self._generate_with_cache(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_core/language_models/chat_models.py", line 1270, in _generate_with_cache
+    for chunk in self._stream(messages, stop=stop, **kwargs):
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1211, in _stream
+    stream = self._create(payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/langchain_anthropic/chat_models.py", line 1190, in _create
+    return self._client.messages.create(**payload)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_utils/_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/resources/messages/messages.py", line 996, in create
+    return self._post(
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+  File "/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/venv/lib/python3.10/site-packages/anthropic/_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.AuthenticationError: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CZTDdsnzaoxYSmo3ZTKUb'}
+2026-03-27 13:22:35,300 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://localhost:9002/occ/v2/electronics/products/search [Errno 111] Connection refused[0m
+2026-03-27 13:22:44,620 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://localhost:9002/occ/v2/electronics/products/search [Errno 111] Connection refused[0m

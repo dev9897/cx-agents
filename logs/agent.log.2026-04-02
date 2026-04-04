@@ -1,0 +1,32 @@
+2026-04-02 19:38:01,699 | [32mINFO [0m | [90msap_agent                     [0m | sid=[35m-[0m | tid=[34m-[0m | [32mLogging initialised | dir=/mnt/e/AGENTIXFORCES/Python-Ag/cx-agents/logs level=DEBUG colors=console:True,file:True[0m
+2026-04-02 19:38:16,315 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:38:16,316 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:35,299 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:35,303 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:35,436 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:35,436 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:35,438 | [33mWARNING[0m | [90msap_agent.sap_client          [0m | sid=[35m-[0m | tid=[34m-[0m | [33mSAP_SSL_VERIFY=false — SSL verification DISABLED (dev only)[0m
+2026-04-02 19:39:35,908 | [33mWARNING[0m | [90msap_agent.mcp                 [0m | sid=[35m-[0m | tid=[34m-[0m | [33mMCP connection failed (unhandled errors in a TaskGroup (1 sub-exception)) — falling back to direct SAP tools[0m
+2026-04-02 19:39:37,732 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:37,734 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:37,875 | [33mWARNING[0m | [90msap_agent.mcp                 [0m | sid=[35m-[0m | tid=[34m-[0m | [33mCould not fetch MCP session_id: unhandled errors in a TaskGroup (1 sub-exception)[0m
+2026-04-02 19:39:37,876 | [32mINFO [0m | [90msap_agent                     [0m | sid=[35m-[0m | tid=[34m-[0m | [32mLLM provider: Azure OpenAI (gpt-4o)[0m
+2026-04-02 19:39:50,352 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:50,353 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:53,627 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:53,628 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:53,638 | [32mINFO [0m | [90msap_agent.features            [0m | sid=[35m-[0m | tid=[34m-[0m | [32mFeature 'recommendations' registered successfully[0m
+2026-04-02 19:39:53,715 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:53,716 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:53,727 | [33mWARNING[0m | [90msap_agent.features.image_search[0m | sid=[35m-[0m | tid=[34m-[0m | [33mImage search unavailable: no CLIP+Qdrant and no OPENAI_API_KEY[0m
+2026-04-02 19:39:53,729 | [33mWARNING[0m | [90msap_agent.features            [0m | sid=[35m-[0m | tid=[34m-[0m | [33mFeature 'image_search' dependencies not met — skipping[0m
+2026-04-02 19:39:53,799 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 103[0m
+2026-04-02 19:39:53,800 | [33mWARNING[0m | [90mdotenv.main                   [0m | sid=[35m-[0m | tid=[34m-[0m | [33mpython-dotenv could not parse statement starting at line 104[0m
+2026-04-02 19:39:53,812 | [33mWARNING[0m | [90msap_agent.features.audio_search[0m | sid=[35m-[0m | tid=[34m-[0m | [33mtransformers/torch not installed and no OPENAI_API_KEY — audio search unavailable[0m
+2026-04-02 19:39:53,813 | [33mWARNING[0m | [90msap_agent.features            [0m | sid=[35m-[0m | tid=[34m-[0m | [33mFeature 'audio_search' dependencies not met — skipping[0m
+2026-04-02 19:39:53,815 | [32mINFO [0m | [90msap_agent.app                 [0m | sid=[35m-[0m | tid=[34m-[0m | [32mActive features: ['recommendations'][0m
+2026-04-02 22:12:36,679 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://ximena-excurved-sallowly.ngrok-free.dev/occ/v2/electronics/products/search Client error '404 Not Found' for url 'https://ximena-excurved-sallowly.ngrok-free.dev/occ/v2/electronics/products/search?query=%2A%3A%2A&currentPage=0&pageSize=20&sort=relevance&fields=FULL'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404[0m
+2026-04-02 22:12:44,322 | [31mERROR[0m | [90msap_agent.storefront          [0m | sid=[35m-[0m | tid=[34m-[0m | [31mSAP OCC request failed: https://ximena-excurved-sallowly.ngrok-free.dev/occ/v2/electronics/products/search Client error '404 Not Found' for url 'https://ximena-excurved-sallowly.ngrok-free.dev/occ/v2/electronics/products/search?query=lens&currentPage=0&pageSize=20&sort=relevance&fields=FULL'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404[0m
+2026-04-02 22:12:49,272 | [33mWARNING[0m | [90msap_agent.redis               [0m | sid=[35m-[0m | tid=[34m-[0m | [33mRedis unavailable (Error 111 connecting to localhost:6379. Connection refused.) — using in-memory fallback[0m
