@@ -38,7 +38,7 @@ function formatText(text) {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(
     /`([^`]+)`/g,
-    '<code style="font-family:var(--font-mono);font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">$1</code>'
+    '<code style="font-family:monospace;font-size:12px;background:#f1f5f9;padding:2px 6px;border-radius:4px;border:1px solid #e2e8f0">$1</code>'
   );
   html = html.replace(/\n/g, '<br>');
   return html;
@@ -49,7 +49,10 @@ function formatText(text) {
 function setStatus(online) {
   const pill = document.getElementById('statusPill');
   pill.className = 'status-pill' + (online ? ' online' : '');
-  pill.querySelector('span').textContent = online ? 'connected' : 'offline';
+  const span = pill.querySelector('span');
+  if (span) span.textContent = online ? 'Online' : 'Offline';
+  // sync side menu (sidemenu.js)
+  if (typeof syncSideMenuStatus === 'function') syncSideMenuStatus(online);
 }
 
 async function checkHealth() {
@@ -78,8 +81,9 @@ function updateSidebar(d) {
     d.session_id ? d.session_id.slice(0, 8) + '...' : '\u2014';
   document.getElementById('sideTurns').textContent = App.turnCount;
   App.totalTokens = d.tokens_used || App.totalTokens;
-  document.getElementById('tokenBadge').textContent =
-    `${App.totalTokens.toLocaleString()} tokens`;
+  const tokenText = `${App.totalTokens.toLocaleString()} tokens`;
+  document.getElementById('tokenBadge').textContent = tokenText;
+  if (typeof syncSideMenuTokens === 'function') syncSideMenuTokens(tokenText);
 
   const r = (d.reply || '').toLowerCase();
   if (r.includes('found') || r.includes('product') || r.includes('result') || r.includes('here'))
@@ -123,6 +127,7 @@ function updateCartUI() {
   if (cwBadge) cwBadge.textContent = count;
   const navCount = document.getElementById('navCartCount');
   if (navCount) navCount.textContent = count;
+  if (typeof syncSideMenuCart === 'function') syncSideMenuCart(count);
 
   if (App.cartData.items.length === 0) {
     emptyEl.style.display = 'block';
@@ -159,10 +164,11 @@ async function loadFeatures() {
       App.features = features;
 
       // Show/hide input action buttons based on feature availability
+      // Buttons are always visible; only hide if backend explicitly marks as disabled
       const imageBtn = document.getElementById('imageSearchBtn');
       const audioBtn = document.getElementById('audioSearchBtn');
-      if (imageBtn) imageBtn.style.display = features.image_search?.enabled ? 'flex' : 'none';
-      if (audioBtn) audioBtn.style.display = features.audio_search?.enabled ? 'flex' : 'none';
+      if (imageBtn && features.image_search?.enabled === false) imageBtn.style.display = 'none';
+      if (audioBtn && features.audio_search?.enabled === false) audioBtn.style.display = 'none';
     }
   } catch {
     // Features endpoint not available — hide smart search buttons

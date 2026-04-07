@@ -32,6 +32,9 @@ function switchView(viewId) {
     const nav = document.querySelector(`.nav-link[data-view="${viewId}"]`);
     if (nav) nav.classList.add('active');
 
+    // Sync side menu active state
+    if (typeof syncSideMenuActiveView === 'function') syncSideMenuActiveView(viewId);
+
     // Load data for view
     if (viewId === 'store') {
         if (!document.getElementById('productGrid').querySelector('.product-card')) {
@@ -52,7 +55,8 @@ function toggleChatWidget() {
     if (widget.classList.contains('open')) {
         widget.classList.remove('open');
         bubble.classList.remove('active');
-        icon.innerHTML = '&#128172;';
+        icon.innerHTML = '<i data-lucide="message-circle" style="width:22px;height:22px;pointer-events:none"></i>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     } else {
         openChatWidget();
     }
@@ -65,7 +69,8 @@ function openChatWidget() {
 
     widget.classList.add('open');
     bubble.classList.add('active');
-    icon.innerHTML = '&#10005;';
+    icon.innerHTML = '<i data-lucide="x" style="width:20px;height:20px;pointer-events:none"></i>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     // Focus input after animation
     setTimeout(() => {
@@ -149,8 +154,8 @@ async function storeSearch(page = 0) {
                             </div>
                         ` : ''}
                     </div>
-                    <button class="product-card-add" onclick="event.stopPropagation();addToCartFromStore('${p.code}','${escapeHtml(p.name)}')">
-                        Add to Cart
+                    <button class="product-card-add" title="Add to Cart" onclick="event.stopPropagation();addToCartFromStore('${p.code}','${escapeHtml(p.name)}')">
+                        🛒
                     </button>
                 </div>
             `).join('');
@@ -299,7 +304,12 @@ function loadCartPage() {
     if (!cartItems || cartItems.querySelector('.cart-empty')) {
         container.innerHTML = `
             <div class="cart-page-empty">
-                <div style="font-size:48px;margin-bottom:16px">&#128722;</div>
+                <div style="width:68px;height:68px;background:#eff6ff;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                </div>
                 <h3>Your cart is empty</h3>
                 <p>Browse the store and add some products to get started.</p>
                 <button class="store-search-btn" onclick="switchView('store')" style="margin-top:16px">Browse Store</button>

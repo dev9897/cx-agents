@@ -1,0 +1,262 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark Mode — all rules use !important to beat inline <style> block
+   Applied when: html[data-theme="dark"]
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Design token overrides ─────────────────────────────────────────────── */
+html[data-theme="dark"] {
+  --bg:             #0f172a;
+  --surface:        #1e293b;
+  --border:         #334155;
+  --accent:         #3b82f6;
+  --accent-light:   #1e3a5f;
+  --accent-hover:   #2563eb;
+  --success:        #4ade80;
+  --success-bg:     #052e16;
+  --danger:         #f87171;
+  --danger-bg:      #450a0a;
+  --warning:        #fbbf24;
+  --warning-bg:     #431407;
+  --text:           #ffffff;
+  --text-secondary: #e2e8f0;
+  --muted:          #94a3b8;
+  --user-bg:        #2563eb;
+  --user-text:      #ffffff;
+  --agent-bg:       #1e293b;
+  --sidebar-bg:     #1e293b;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] body  { background: #0f172a !important; color: #ffffff !important; }
+html[data-theme="dark"] main  { background: #0f172a !important; }
+
+/* ── Store hero ─────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .store-hero h1        { color: #ffffff !important; }
+html[data-theme="dark"] .store-hero p         { color: #94a3b8 !important; }
+html[data-theme="dark"] .store-hero-label     { color: #60a5fa !important; }
+html[data-theme="dark"] .store-reco-title     { color: #ffffff !important; }
+html[data-theme="dark"] .store-reco-subtitle  { color: #94a3b8 !important; }
+html[data-theme="dark"] .store-results-info   { color: #94a3b8 !important; }
+
+/* ── Search bar ─────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .search-wrap {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+html[data-theme="dark"] .search-wrap:focus-within {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15) !important;
+}
+html[data-theme="dark"] .search-wrap input             { color: #ffffff !important; background: transparent !important; }
+html[data-theme="dark"] .search-wrap input::placeholder { color: #64748b !important; }
+
+/* ── Category chips ─────────────────────────────────────────────────────── */
+html[data-theme="dark"] .cat-chip              { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .cat-chip:hover        { background: #1e3a5f !important; border-color: #3b82f6 !important; color: #ffffff !important; }
+html[data-theme="dark"] .cat-chip.active       { background: #2563eb !important; border-color: #2563eb !important; color: #ffffff !important; }
+
+/* ── Product cards ──────────────────────────────────────────────────────── */
+html[data-theme="dark"] .product-card          { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="dark"] .product-card:hover    { border-color: #475569 !important; box-shadow: 0 4px 20px rgba(0,0,0,.4) !important; }
+html[data-theme="dark"] .product-card-image    { background: #0f172a !important; border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .product-card-name     { color: #ffffff !important; }
+html[data-theme="dark"] .product-card-price    { color: #60a5fa !important; }
+html[data-theme="dark"] .product-card-body     { background: #1e293b !important; }
+html[data-theme="dark"] .no-image              { color: #64748b !important; }
+html[data-theme="dark"] .product-card-rating span { color: #94a3b8 !important; }
+html[data-theme="dark"] .product-card-stock.in-stock  { color: #4ade80 !important; }
+html[data-theme="dark"] .product-card-stock.out-stock { color: #f87171 !important; }
+html[data-theme="dark"] .product-card-stock.low-stock { color: #fbbf24 !important; }
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .page-btn          { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .page-btn:hover    { border-color: #3b82f6 !important; color: #ffffff !important; }
+html[data-theme="dark"] .page-btn.active   { background: #2563eb !important; border-color: #2563eb !important; color: #ffffff !important; }
+
+/* ── Cart page ──────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .cart-page-empty h3 { color: #ffffff !important; }
+html[data-theme="dark"] .cart-page-empty p  { color: #94a3b8 !important; }
+html[data-theme="dark"] .cart-page-items    { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="dark"] .cart-page-total    { color: #ffffff !important; }
+html[data-theme="dark"] .info-row           { border-bottom-color: #334155 !important; color: #e2e8f0 !important; }
+
+/* ── Product detail overlay ─────────────────────────────────────────────── */
+html[data-theme="dark"] .detail-box         { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="dark"] .detail-close       { background: rgba(255,255,255,.1) !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .detail-close:hover { background: rgba(255,255,255,.18) !important; }
+
+/* ── Modals ─────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .modal-box          { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="dark"] .modal-close        { background: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .modal-close:hover  { background: #475569 !important; }
+html[data-theme="dark"] .modal-title        { color: #ffffff !important; }
+html[data-theme="dark"] .modal-sub          { color: #94a3b8 !important; }
+html[data-theme="dark"] .field-label        { color: #cbd5e1 !important; }
+html[data-theme="dark"] .input-field        { border-color: #334155 !important; background: #0f172a !important; }
+html[data-theme="dark"] .input-field:focus-within { border-color: #3b82f6 !important; }
+html[data-theme="dark"] .input-field input  { color: #ffffff !important; background: transparent !important; }
+html[data-theme="dark"] .input-field input::placeholder { color: #64748b !important; }
+html[data-theme="dark"] .modal-divider      { color: #64748b !important; }
+html[data-theme="dark"] .btn-secondary      { background: #1e293b !important; border-color: #3b82f6 !important; color: #60a5fa !important; }
+html[data-theme="dark"] .btn-secondary:hover { background: #1e3a5f !important; }
+html[data-theme="dark"] #loginError         { background: #450a0a !important; border-color: #7f1d1d !important; color: #f87171 !important; }
+
+/* Settings */
+html[data-theme="dark"] .settings-tab            { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .settings-tab.active     { background: #2563eb !important; border-color: #2563eb !important; color: #ffffff !important; }
+html[data-theme="dark"] .empty-state             { background: #0f172a !important; border-color: #334155 !important; }
+html[data-theme="dark"] .empty-state p           { color: #94a3b8 !important; }
+html[data-theme="dark"] .stripe-element-wrap     { background: #0f172a !important; border-color: #334155 !important; }
+
+/* ── Chat widget ────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .chat-widget             { background: #1e293b !important; border-color: #334155 !important; }
+html[data-theme="dark"] .cw-tabs                 { background: #1e293b !important; border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .cw-tab                  { color: #94a3b8 !important; }
+html[data-theme="dark"] .cw-tab.active           { color: #60a5fa !important; border-bottom-color: #3b82f6 !important; }
+html[data-theme="dark"] .messages-area           { background: #1e293b !important; }
+
+html[data-theme="dark"] .wchip                   { background: #1e3a5f !important; border-color: #2563eb !important; color: #60a5fa !important; }
+html[data-theme="dark"] .wchip:hover             { background: #2563eb !important; color: #ffffff !important; }
+
+/* Chat input area */
+html[data-theme="dark"] .chat-input-area         { background: #1e293b !important; border-top-color: #334155 !important; }
+html[data-theme="dark"] .chat-input-box          { background: #0f172a !important; border-color: #334155 !important; }
+html[data-theme="dark"] .chat-input-box:focus-within { border-color: #3b82f6 !important; }
+html[data-theme="dark"] .chat-input-box textarea { color: #ffffff !important; background: transparent !important; }
+html[data-theme="dark"] .chat-input-box textarea::placeholder { color: #64748b !important; }
+html[data-theme="dark"] .input-action-btn        { background: #1e293b !important; border-color: #334155 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .input-action-btn:hover  { background: #1e3a5f !important; border-color: #3b82f6 !important; color: #ffffff !important; }
+html[data-theme="dark"] .input-hint              { color: #475569 !important; }
+html[data-theme="dark"] .input-hint kbd          { background: #1e293b !important; color: #94a3b8 !important; }
+
+html[data-theme="dark"] .image-preview-bar           { background: #1e3a5f !important; }
+html[data-theme="dark"] .image-preview-info strong   { color: #ffffff !important; }
+html[data-theme="dark"] .image-preview-info span     { color: #94a3b8 !important; }
+
+/* Voice recording */
+html[data-theme="dark"] .audio-recording-bar    { background: rgba(15,23,42,.97) !important; }
+html[data-theme="dark"] .audio-recording-timer  { color: #ffffff !important; }
+html[data-theme="dark"] .audio-recording-cancel { background: #334155 !important; border-color: #475569 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .audio-recording-cancel:hover { background: #475569 !important; }
+
+/* CW Cart panel */
+html[data-theme="dark"] .cw-cart-panel           { background: #1e293b !important; }
+html[data-theme="dark"] .cw-section-label        { color: #94a3b8 !important; }
+html[data-theme="dark"] .cart-item               { border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .cart-item-name          { color: #ffffff !important; }
+html[data-theme="dark"] .cart-item-qty           { color: #94a3b8 !important; }
+html[data-theme="dark"] .cart-item-price         { color: #60a5fa !important; }
+html[data-theme="dark"] .cart-total              { background: #1e3a5f !important; }
+html[data-theme="dark"] .cart-total span         { color: #e2e8f0 !important; }
+html[data-theme="dark"] .cart-total .price       { color: #60a5fa !important; }
+html[data-theme="dark"] .cart-empty              { color: #94a3b8 !important; }
+html[data-theme="dark"] .quick-btn               { background: #0f172a !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+html[data-theme="dark"] .quick-btn:hover         { background: #1e3a5f !important; border-color: #3b82f6 !important; color: #ffffff !important; }
+
+/* CW Progress panel */
+html[data-theme="dark"] .cw-progress-panel       { background: #1e293b !important; }
+html[data-theme="dark"] .session-card            { background: #0f172a !important; border-color: #334155 !important; }
+html[data-theme="dark"] .session-row             { border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .session-row span:first-child { color: #94a3b8 !important; }
+html[data-theme="dark"] .session-row span:last-child  { color: #e2e8f0 !important; }
+html[data-theme="dark"] .step-num                { background: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important; }
+html[data-theme="dark"] .step.done .step-num     { background: #2563eb !important; border-color: #2563eb !important; color: #ffffff !important; }
+html[data-theme="dark"] .step.active .step-num   { border-color: #3b82f6 !important; color: #60a5fa !important; }
+html[data-theme="dark"] .step-connector          { background: #334155 !important; }
+html[data-theme="dark"] .step-text p:first-child { color: #e2e8f0 !important; }
+html[data-theme="dark"] .step-text p:last-child  { color: #94a3b8 !important; }
+html[data-theme="dark"] .user-pill               { background: #1e3a5f !important; color: #60a5fa !important; }
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .toast { background: #f1f5f9 !important; color: #0f172a !important; }
+
+/* ── Side menu (white → dark) ───────────────────────────────────────────── */
+html[data-theme="dark"] #sideMenu              { background: #1e293b !important; }
+html[data-theme="dark"] .sm-header             { border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .sm-logo-icon          { background: #1e3a5f !important; border-color: #2563eb !important; }
+html[data-theme="dark"] .sm-brand-name         { color: #ffffff !important; }
+html[data-theme="dark"] .sm-brand-sub          { color: #94a3b8 !important; }
+html[data-theme="dark"] .sm-close              { background: #334155 !important; border-color: #475569 !important; color: #cbd5e1 !important; }
+html[data-theme="dark"] .sm-close:hover        { background: #450a0a !important; border-color: #7f1d1d !important; color: #f87171 !important; }
+html[data-theme="dark"] .sm-status-row         { border-bottom-color: #334155 !important; }
+html[data-theme="dark"] .sm-stat-card          { background: #0f172a !important; border-color: #334155 !important; }
+html[data-theme="dark"] .sm-stat-label         { color: #94a3b8 !important; }
+html[data-theme="dark"] .sm-stat-value         { color: #ffffff !important; }
+html[data-theme="dark"] #smStatusPill.online .sm-stat-value { color: #4ade80 !important; }
+html[data-theme="dark"] .sm-section-label      { color: #94a3b8 !important; }
+html[data-theme="dark"] .sm-nav-btn            { color: #cbd5e1 !important; }
+html[data-theme="dark"] .sm-nav-btn svg        { color: #94a3b8 !important; }
+html[data-theme="dark"] .sm-nav-btn:hover,
+html[data-theme="dark"] .sm-nav-btn.active     { background: #1e3a5f !important; color: #ffffff !important; }
+html[data-theme="dark"] .sm-nav-btn:hover svg,
+html[data-theme="dark"] .sm-nav-btn.active svg { color: #60a5fa !important; }
+html[data-theme="dark"] .sm-divider            { background: #334155 !important; }
+html[data-theme="dark"] .sm-footer             { border-top-color: #334155 !important; }
+html[data-theme="dark"] .sm-auth-btn           { background: #2563eb !important; color: #ffffff !important; }
+html[data-theme="dark"] .sm-auth-btn:hover     { background: #1d4ed8 !important; }
+html[data-theme="dark"] .sm-auth-btn.logged-in { background: #052e16 !important; color: #4ade80 !important; border-color: #166534 !important; }
+html[data-theme="dark"] .sm-theme-label        { color: #cbd5e1 !important; }
+html[data-theme="dark"] .theme-switch-track    { background: #334155 !important; }
+html[data-theme="dark"] .theme-switch input:checked + .theme-switch-track { background: #3b82f6 !important; }
+
+/* ── Dark mode toggle button (navbar) ──────────────────────────────────── */
+.dark-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.dark-toggle:hover { background: rgba(255,255,255,.22); }
+.dark-toggle svg   { pointer-events: none; transition: transform .3s; }
+.dark-toggle:hover svg { transform: rotate(20deg); }
+
+/* ── Side menu theme toggle row ─────────────────────────────────────────── */
+.sm-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+.sm-theme-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #374151;
+}
+.sm-theme-label svg { width: 16px; height: 16px; color: #6b7280; pointer-events: none; flex-shrink: 0; }
+
+/* Toggle switch */
+.theme-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.theme-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.theme-switch-track {
+  position: absolute;
+  inset: 0;
+  background: #e5e7eb;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.theme-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.theme-switch input:checked + .theme-switch-track { background: #1d4ed8; }
+.theme-switch input:checked + .theme-switch-track::after { transform: translateX(18px); }

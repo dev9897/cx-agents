@@ -3,304 +3,954 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SAP Commerce Shopping Assistant</title>
+<title>AgentixForce · Commerce AI Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script src="https://js.stripe.com/v3/"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['Poppins','sans-serif']}}}}</script>
+<link rel="stylesheet" href="/static/css/styles.css">
+<link rel="stylesheet" href="/static/css/sidemenu.css">
+<!-- Apply theme before paint to avoid flash -->
+<script>
+  (function(){var t=localStorage.getItem('cx-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)})();
+</script>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Poppins',sans-serif;background:#f8fafc;color:#111827;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#bfdbfe;border-radius:10px}
+
+/* ── Navbar ───────────────────────────────────────────────────────────────── */
+.navbar{position:fixed;top:0;left:0;right:0;height:62px;z-index:200;background:#1d4ed8;display:flex;align-items:center;padding:0 22px;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;box-shadow:0 2px 20px rgba(29,78,216,.35)}
+.nav-logo{display:flex;align-items:center;gap:10px;flex-shrink:0;text-decoration:none}
+.nav-logo-icon{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+.nav-brand{display:flex;flex-direction:column;line-height:1.2;flex-shrink:0}
+.nav-brand-name{font-size:14.5px;font-weight:700;color:#fff;letter-spacing:-.2px}
+.nav-brand-sub{font-size:9.5px;font-weight:400;color:rgba(255,255,255,.55);letter-spacing:.2px}
+.nav-divider{width:1px;height:24px;background:rgba(255,255,255,.25);flex-shrink:0}
+.nav-btn{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:8px;border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:13px;font-weight:500;background:transparent;color:rgba(255,255,255,.75);transition:all .15s;text-decoration:none}
+.nav-btn:hover,.nav-btn:focus{background:rgba(255,255,255,.15);color:#fff;outline:none}
+.nav-btn.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.nav-cart-badge{background:#fff;color:#2563eb;font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px;min-width:18px;text-align:center;margin-left:2px}
+.token-pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:500;padding:5px 11px;border-radius:100px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+/* status-pill — app.js replaces className to 'status-pill' or 'status-pill online' */
+.status-pill{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);padding:5px 11px;border-radius:100px;display:flex;align-items:center;gap:6px}
+.status-pill span{font-size:11px;font-weight:500;color:rgba(255,255,255,.7)}
+.status-pill.online span{color:#4ade80}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;animation:blink-dot 2s ease-in-out infinite;flex-shrink:0}
+.status-pill.online .status-dot{background:#4ade80}
+@keyframes blink-dot{0%,100%{opacity:1}50%{opacity:.35}}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:none;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.icon-btn:hover{background:rgba(255,255,255,.22)}
+.auth-btn{display:flex;align-items:center;gap:7px;background:#fff;color:#1d4ed8;border:none;border-radius:8px;cursor:pointer;padding:7px 14px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;transition:background .15s;white-space:nowrap}
+.auth-btn:hover{background:#eff6ff}
+.auth-btn.logged-in{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.auth-btn.logged-in:hover{background:rgba(255,255,255,.25)}
+
+/* ── Main Layout ──────────────────────────────────────────────────────────── */
+main{padding-top:60px;min-height:100vh;background:#f8fafc}
+
+/* ── Store View ───────────────────────────────────────────────────────────── */
+.store-container{max-width:1280px;margin:0 auto;padding:32px 20px 60px}
+
+/* Hero & Search */
+.store-hero{text-align:center;margin-bottom:28px}
+.store-hero-label{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#2563eb;margin-bottom:8px}
+.store-hero h1{font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.5px;margin-bottom:5px}
+.store-hero p{font-size:13px;color:#94a3b8;margin-bottom:22px}
+.search-wrap{max-width:540px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:8px 10px 8px 16px;transition:border-color .2s,box-shadow .2s}
+.search-wrap:focus-within{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.search-wrap input{flex:1;border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13px;color:#111827;background:transparent}
+.search-wrap input::placeholder{color:#9ca3af}
+.btn-primary{background:#1d4ed8;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s;white-space:nowrap;flex-shrink:0;width:auto}
+.btn-primary:hover{background:#1e40af}
+.btn-primary:active{transform:scale(.97)}
+
+/* Category chips */
+.store-categories{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:22px}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-family:'Poppins',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cat-chip:hover{border-color:#2563eb;color:#1d4ed8;background:#eff6ff}
+.cat-chip.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.cat-chip i{pointer-events:none}
+
+/* Results bar */
+.store-results-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.store-results-info{font-size:12px;color:#94a3b8}
+
+/* Product Grid (store view) */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.store-loading{grid-column:1/-1;text-align:center;padding:60px 20px;font-size:13px;color:#94a3b8}
+.store-empty{grid-column:1/-1;text-align:center;padding:60px 20px;font-size:13px;color:#94a3b8}
+
+/* Store product card */
+.product-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;animation:fadeUp .35s ease forwards;opacity:0;display:flex;flex-direction:column}
+.product-card:hover{border-color:#d1d5db;box-shadow:0 4px 18px rgba(0,0,0,.09);transform:translateY(-2px) scale(1.01)}
+.product-card:nth-child(1){animation-delay:.04s}.product-card:nth-child(2){animation-delay:.08s}
+.product-card:nth-child(3){animation-delay:.12s}.product-card:nth-child(4){animation-delay:.16s}
+.product-card:nth-child(5){animation-delay:.20s}.product-card:nth-child(6){animation-delay:.24s}
+.product-card:nth-child(7){animation-delay:.28s}.product-card:nth-child(8){animation-delay:.32s}
+.product-card:nth-child(9){animation-delay:.36s}.product-card:nth-child(10){animation-delay:.40s}
+.product-card:nth-child(n+11){animation-delay:.44s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.product-card-image{background:#f0f6ff;border-bottom:1px solid #e5e7eb;height:160px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.product-card-image img{width:100%;height:100%;object-fit:contain;padding:10px}
+.no-image{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8}
+.product-card-body{padding:12px 14px 14px;flex:1;display:flex;flex-direction:column}
+.product-card-name{font-size:13px;font-weight:600;color:#0f172a;line-height:1.35;margin-bottom:6px;flex:1}
+.product-card-price{font-size:14px;font-weight:700;color:#1d4ed8;margin-bottom:6px}
+.product-card-stock{font-size:11px;font-weight:500;margin-bottom:8px}
+.product-card-stock.in-stock{color:#16a34a}.product-card-stock.out-stock{color:#dc2626}.product-card-stock.low-stock{color:#d97706}
+.product-card-rating{display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;margin-bottom:8px}
+.product-card-rating span{color:#94a3b8;font-size:10.5px}
+.product-card-add{width:100%;border:none;background:#1d4ed8;color:#fff;font-family:'Poppins',sans-serif;font-size:12px;font-weight:600;padding:9px;cursor:pointer;transition:background .15s;border-radius:0 0 12px 12px;margin-top:auto;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px}
+.product-card-add:hover{background:#1e40af}
+
+/* Recommendations section */
+.store-reco-section{margin-bottom:24px}
+.store-reco-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.store-reco-title{font-size:14px;font-weight:700;color:#0f172a}
+.store-reco-subtitle{font-size:11px;color:#94a3b8}
+.store-reco-carousel{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.store-reco-carousel::-webkit-scrollbar{display:none}
+
+/* Pagination */
+.store-pagination{display:flex;justify-content:center;gap:6px;margin-top:32px;flex-wrap:wrap}
+.page-btn{min-width:34px;height:34px;padding:0 10px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-family:'Poppins',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.page-btn:hover{border-color:#1d4ed8;color:#1d4ed8}
+.page-btn.active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+
+/* ── Cart Page View ───────────────────────────────────────────────────────── */
+.cart-page-container{max-width:720px;margin:0 auto;padding:32px 20px 60px}
+.cart-page-empty{text-align:center;padding:72px 0}
+.cart-page-empty h3{font-size:17px;font-weight:700;color:#0f172a;margin-bottom:6px}
+.cart-page-empty p{font-size:13px;color:#94a3b8;margin-bottom:18px}
+.cart-page-items{background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;overflow:hidden;margin-bottom:14px}
+.cart-page-total{padding:14px 18px;text-align:right;font-size:14px;font-weight:600;color:#0f172a}
+.cart-page-actions{display:flex;gap:10px;flex-wrap:wrap}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px}
+.info-row:last-child{border-bottom:none}
+
+/* ── Product Detail Overlay ───────────────────────────────────────────────── */
+.detail-overlay-wrap{position:fixed;inset:0;z-index:500;background:rgba(17,24,39,.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center}
+.detail-box{background:#fff;border-radius:18px;overflow:hidden;width:100%;max-width:460px;margin:0 16px;border:1px solid #e5e7eb;box-shadow:0 24px 70px rgba(0,0,0,.15);position:relative;max-height:90vh;overflow-y:auto;animation:modalIn .28s cubic-bezier(.16,1,.3,1)}
+@keyframes modalIn{from{opacity:0;transform:scale(.93) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.detail-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,.06);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .15s;color:#6b7280}
+.detail-close:hover{background:rgba(0,0,0,.12)}
+
+/* ── Chat FAB ─────────────────────────────────────────────────────────────── */
+.chat-fab{position:fixed;bottom:24px;right:24px;z-index:1001;width:56px;height:56px;border-radius:50%;background:#1d4ed8;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(29,78,216,.4);transition:background .2s,transform .2s}
+.chat-fab:hover{background:#1e40af;transform:scale(1.07)}
+.chat-fab.active{background:#0f172a}
+.fab-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(37,99,235,.3);animation:ring-pulse 2.2s ease-in-out infinite;pointer-events:none}
+@keyframes ring-pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.22);opacity:0}}
+
+/* ── Chat Widget ──────────────────────────────────────────────────────────── */
+.chat-widget{position:fixed;bottom:92px;right:24px;z-index:1000;width:372px;height:608px;background:#fff;border-radius:20px;border:1.5px solid #e5e7eb;box-shadow:0 12px 50px rgba(0,0,0,.13);display:flex;flex-direction:column;overflow:hidden;transform:scale(.88) translateY(22px);opacity:0;pointer-events:none;transition:all .28s cubic-bezier(.16,1,.3,1)}
+.chat-widget.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.chat-header{background:#1d4ed8;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-avatar-wrap{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cw-close-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.cw-close-btn:hover{background:rgba(255,255,255,.28)}
+.cw-online-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink-dot 2s infinite;flex-shrink:0}
+
+/* CW Tabs */
+.cw-tabs{display:flex;border-bottom:1px solid #e5e7eb;background:#fff;flex-shrink:0}
+.cw-tab{flex:1;padding:10px 4px 9px;border:none;background:transparent;cursor:pointer;font-family:'Poppins',sans-serif;font-size:11px;font-weight:500;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2px solid transparent;transition:all .15s}
+.cw-tab.active{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.cw-tab i{pointer-events:none}
+.cw-cart-badge-wrap{display:inline-flex;align-items:center;justify-content:center;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px;line-height:1.4;min-width:16px}
+
+/* CW Panels */
+.cw-panel{display:none;flex-direction:column;flex:1;overflow:hidden;position:relative}
+.cw-panel.active{display:flex}
+.messages-area{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+
+/* Welcome */
+.welcome-wrap{text-align:center;padding:18px 6px 10px}
+.wchip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:100px;font-family:'Poppins',sans-serif;font-size:11.5px;font-weight:500;color:#1d4ed8;cursor:pointer;transition:all .15s;white-space:nowrap}
+.wchip:hover{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.wchip i{pointer-events:none}
+
+/* Chat Input */
+.chat-input-area{padding:12px 14px 14px;border-top:1px solid #e5e7eb;background:#fff;flex-shrink:0}
+.chat-input-box{background:#f8fafc;border:1.5px solid #e5e7eb;border-radius:12px;padding:6px 8px 6px 10px;display:flex;flex-direction:row;align-items:flex-end;gap:6px;transition:border-color .2s}
+.chat-input-box:focus-within{border-color:#1d4ed8}
+.chat-input-box textarea{border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13px;background:transparent;color:#111827;resize:none;line-height:1.5;min-height:34px;max-height:90px;flex:1;padding:4px 0;align-self:flex-end}
+.chat-input-box textarea::placeholder{color:#9ca3af}
+.send-btn{width:32px;height:32px;border-radius:8px;border:none;background:#1d4ed8;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.send-btn:hover{background:#1e40af}
+.send-btn:disabled{background:#93c5fd;cursor:not-allowed}
+.input-action-btn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border:1.5px solid #e5e7eb;border-radius:20px;background:#fff;cursor:pointer;color:#374151;font-size:11.5px;font-family:'Poppins',sans-serif;font-weight:500;transition:all .15s;white-space:nowrap}
+.input-action-btn:hover{background:#eff6ff;border-color:#1d4ed8;color:#1d4ed8}
+.input-hint{text-align:center;font-size:10.5px;color:#d1d5db;margin-top:6px}
+.input-hint kbd{background:#f3f4f6;color:#9ca3af;padding:1px 5px;border-radius:4px;font-size:9.5px}
+
+/* Image preview bar */
+.image-preview-bar{display:none;align-items:center;gap:10px;padding:8px 12px;background:#eff6ff;border-radius:10px;margin-bottom:8px;font-size:12px}
+.image-preview-bar.active{display:flex}
+.image-preview-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover}
+.image-preview-info{flex:1;min-width:0}
+.image-preview-info strong{display:block;font-size:12px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.image-preview-info span{font-size:10.5px;color:#64748b}
+.image-preview-btn{padding:5px 12px;border-radius:7px;border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:11.5px;font-weight:600;transition:all .15s}
+.image-preview-btn.primary{background:#1d4ed8;color:#fff}
+.image-preview-btn.primary:hover{background:#1e40af}
+.image-preview-btn{background:#e5e7eb;color:#374151}
+.image-preview-btn:hover{background:#d1d5db}
+
+/* Voice Search Overlay — full panel over the chat area */
+.audio-recording-bar{display:none;position:absolute;inset:0;z-index:50;background:rgba(255,255,255,.97);border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px 24px;text-align:center}
+.audio-recording-bar.active{display:flex}
+.vr-mic-ring{width:90px;height:90px;border-radius:50%;background:#fef2f2;border:2px solid #fca5a5;display:flex;align-items:center;justify-content:center;animation:vr-pulse 1.4s ease-in-out infinite}
+@keyframes vr-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.25)}50%{box-shadow:0 0 0 18px rgba(220,38,38,0)}}
+.vr-title{font-size:17px;font-weight:700;color:#dc2626;font-family:'Poppins',sans-serif}
+.vr-subtitle{font-size:12px;color:#6b7280;font-family:'Poppins',sans-serif;margin-top:-10px}
+.vr-waveform{display:flex;align-items:center;gap:4px;height:48px}
+.vr-waveform .bar{width:5px;background:#1d4ed8;border-radius:3px;animation:vr-wave .8s ease-in-out infinite alternate}
+.vr-waveform .bar:nth-child(1){height:10px;animation-delay:0s}
+.vr-waveform .bar:nth-child(2){height:26px;animation-delay:.08s}
+.vr-waveform .bar:nth-child(3){height:38px;animation-delay:.16s}
+.vr-waveform .bar:nth-child(4){height:20px;animation-delay:.24s}
+.vr-waveform .bar:nth-child(5){height:44px;animation-delay:.32s}
+.vr-waveform .bar:nth-child(6){height:16px;animation-delay:.4s}
+.vr-waveform .bar:nth-child(7){height:30px;animation-delay:.48s}
+@keyframes vr-wave{from{transform:scaleY(.25);opacity:.5}to{transform:scaleY(1);opacity:1}}
+.audio-recording-timer{font-size:20px;font-weight:700;color:#0f172a;font-family:'Poppins',sans-serif;letter-spacing:.05em}
+.vr-actions{display:flex;gap:12px;margin-top:4px}
+.audio-recording-cancel{padding:9px 22px;border-radius:8px;border:1.5px solid #e5e7eb;background:#f9fafb;color:#374151;font-size:13px;font-weight:500;cursor:pointer;font-family:'Poppins',sans-serif;transition:all .15s}
+.audio-recording-cancel:hover{background:#f3f4f6;border-color:#d1d5db}
+.vr-stop-btn{padding:9px 26px;border-radius:8px;border:none;background:#dc2626;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;display:flex;align-items:center;gap:7px;transition:background .15s}
+.vr-stop-btn:hover{background:#b91c1c}
+.vr-hint{font-size:11px;color:#9ca3af;font-family:'Poppins',sans-serif}
+
+/* CW Cart Panel */
+.cw-cart-panel{overflow-y:auto;padding:14px;flex:1}
+.cw-section-label{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#94a3b8;margin-bottom:10px}
+.cart-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cart-count-badge{background:#1d4ed8;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;min-width:20px;text-align:center}
+.cart-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.cart-item:last-child{border-bottom:none}
+.cart-item-name{flex:1;font-size:12px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cart-item-qty{font-size:11px;color:#94a3b8}
+.cart-item-price{font-size:12px;font-weight:600;color:#1d4ed8}
+.cart-total{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#eff6ff;border-radius:10px;margin-top:10px}
+.cart-total span{font-size:13px;font-weight:600;color:#374151}
+.cart-total .price{font-size:15px;font-weight:700;color:#1d4ed8}
+.cart-empty{text-align:center;padding:32px 0;font-size:13px;color:#94a3b8}
+.quick-btn{width:100%;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:500;color:#374151;font-family:'Poppins',sans-serif;transition:all .15s;margin-bottom:6px;text-align:left}
+.quick-btn:hover{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.quick-btn i{color:#1d4ed8;flex-shrink:0;pointer-events:none}
+
+/* CW Progress Panel */
+.cw-progress-panel{overflow-y:auto;padding:14px;flex:1}
+.session-card{background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:16px}
+.session-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px}
+.session-row:last-child{border-bottom:none}
+.session-row span:first-child{color:#94a3b8}
+.session-row span:last-child{font-weight:600;color:#374151;font-family:monospace;font-size:11px}
+
+/* Steps */
+.step{display:flex;align-items:flex-start;gap:12px;padding:6px 0}
+.step-num{width:26px;height:26px;border-radius:50%;border:2px solid #e5e7eb;color:#9ca3af;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;transition:all .25s}
+.step.done .step-num{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.step.active .step-num{border-color:#1d4ed8;color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+.step-text{display:flex;flex-direction:column}
+.step-text p:first-child{font-size:12.5px;font-weight:600;color:#374151}
+.step-text p:last-child{font-size:11px;color:#94a3b8}
+.step-connector{width:1px;height:12px;background:#e5e7eb;margin-left:12px}
+
+/* User pill in cart panel */
+.user-pill{display:none;align-items:center;gap:6px;padding:6px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1d4ed8;font-weight:500;margin-bottom:10px}
+.user-pill .uname{font-weight:600}
+.user-pill .logout-link{color:#94a3b8;cursor:pointer;font-size:11px;margin-left:auto}
+.user-pill .logout-link:hover{color:#dc2626}
+
+/* ── Modals ───────────────────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;z-index:2000;background:rgba(17,24,39,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:400px;margin:0 16px;box-shadow:0 20px 60px rgba(0,0,0,.15);border:1px solid #e5e7eb;position:relative;transform:scale(.93) translateY(10px);transition:transform .26s cubic-bezier(.16,1,.3,1)}
+.modal-overlay.open .modal-box{transform:scale(1) translateY(0)}
+.modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:none;background:#f3f4f6;cursor:pointer;color:#6b7280;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.modal-close:hover{background:#e5e7eb}
+.modal-icon-wrap{width:46px;height:46px;border-radius:12px;background:#1d4ed8;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.modal-title{font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px}
+.modal-sub{font-size:12.5px;color:#94a3b8;margin-bottom:20px;line-height:1.55}
+
+/* Fields */
+.field-label{font-size:10.5px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.input-field{border:1.5px solid #e5e7eb;border-radius:10px;display:flex;align-items:center;gap:8px;padding:10px 13px;transition:all .2s}
+.input-field:focus-within{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+.input-field input{flex:1;border:none;outline:none;font-family:'Poppins',sans-serif;font-size:13px;background:transparent;color:#111827}
+.input-field input::placeholder{color:#9ca3af}
+.input-field i{flex-shrink:0;color:#1d4ed8}
+
+/* Login error */
+#loginError{display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:12.5px;border-radius:9px;padding:10px 12px;margin-bottom:14px}
+#loginError.show{display:block}
+
+/* Buttons in modals */
+.btn-secondary{background:#fff;color:#1d4ed8;border:1.5px solid #2563eb;border-radius:9px;padding:8px 16px;font-family:'Poppins',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;width:100%}
+.btn-secondary:hover{background:#eff6ff}
+.modal-divider{text-align:center;font-size:12px;color:#94a3b8;margin:10px 0}
+
+/* Login spinner */
+.login-spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Settings tabs */
+.settings-tabs{display:flex;gap:8px;margin-bottom:18px}
+.settings-tab{flex:1;padding:8px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-family:'Poppins',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.settings-tab.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.settings-tab i{pointer-events:none}
+
+/* Settings panels */
+.settings-panel{display:none}
+.settings-panel.active{display:block}
+
+/* Empty state in settings */
+.empty-state{background:#f8fafc;border:1.5px dashed #e5e7eb;border-radius:12px;padding:24px;text-align:center;margin-bottom:12px}
+.empty-icon{font-size:24px;margin-bottom:6px}
+.empty-state p{font-size:12.5px;color:#94a3b8}
+
+/* Stripe element */
+.stripe-element-wrap{border:1.5px solid #e5e7eb;border-radius:10px;padding:14px;background:#f8fafc;margin-top:12px}
+.card-form-error{font-size:12px;color:#dc2626;margin-top:6px}
+
+/* Address form */
+#addressFormWrap{display:none;flex-direction:column;gap:10px;margin-top:12px}
+#addressFormWrap.open{display:flex}
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);z-index:9999;animation:fadeUp .22s ease;font-family:'Poppins',sans-serif;white-space:nowrap}
+
+/* ── Mobile Responsive ────────────────────────────────────────────────────── */
+@media(max-width:640px){
+  .navbar{padding:0 12px;position:relative}
+  #navDesktopItems{display:none !important}
+  .nav-divider{display:none}
+  .nav-brand-sub{display:none}
+  .chat-widget{width:calc(100vw - 16px);right:8px;bottom:80px;height:calc(100dvh - 90px);max-height:600px;border-radius:16px}
+  .chat-fab{right:14px;bottom:14px;width:50px;height:50px}
+  .store-hero h1{font-size:20px}
+  .store-hero p{display:none}
+  .product-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .modal-box{padding:20px;margin:0 12px}
+  .search-wrap{border-radius:10px}
+  .store-container{padding:20px 12px 80px}
+  .cart-page-container{padding:20px 12px 80px}
+}
+@media(max-width:400px){
+  .product-grid{grid-template-columns:repeat(2,1fr)}
+  .store-categories{gap:6px}
+  .cat-chip{font-size:11px;padding:5px 10px}
+}
+</style>
+<!-- darkmode.css loads AFTER inline <style> so it wins the cascade -->
+<link rel="stylesheet" href="/static/css/darkmode.css">
 </head>
 <body>
 
-<!-- ── Header ── -->
-<header>
-  <div class="logo">
-    <div class="logo-icon">S</div>
-    <span><span class="brand-sap">SAP</span> Commerce Electronics</span>
-  </div>
-  <nav class="main-nav">
-    <a class="nav-link active" data-view="store" onclick="switchView('store')">&#127968; Store</a>
-    <a class="nav-link" data-view="cart-page" onclick="switchView('cart-page')">&#128722; Cart <span class="nav-cart-count" id="navCartCount">0</span></a>
-  </nav>
-  <div class="header-right">
-    <div class="token-badge" id="tokenBadge">0 tokens</div>
-    <div class="status-pill" id="statusPill">
-      <div class="dot"></div>
-      <span>connecting</span>
+<!-- ══ NAVBAR ══ -->
+<header class="navbar">
+
+  <!-- Hamburger LEFT — mobile only, shown via sidemenu.css -->
+  <button id="navHamburger" onclick="openSideMenu()" aria-label="Open menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+
+  <!-- Logo — desktop: normal flow | mobile: absolute center via CSS -->
+  <a class="nav-logo" id="navLogo" href="#" onclick="switchView('store');return false">
+    <div class="nav-brand">
+      <span class="nav-brand-name">AgentixForce</span>
+      <span class="nav-brand-sub">Commerce AI &nbsp;·&nbsp; v3.0</span>
     </div>
-    <button class="header-btn settings-btn" onclick="openSettings()" title="Settings">
-      &#9881;
-    </button>
-    <button class="header-btn" id="authBtn" onclick="openLogin()">
-      <span class="auth-icon">&#128100;</span>
-      <span id="authBtnLabel">Sign In</span>
-    </button>
+  </a>
+
+  <!-- Desktop items (hidden on mobile) -->
+  <div id="navDesktopItems" style="display:contents">
+    <div class="nav-divider"></div>
+    <nav style="display:flex;align-items:center;gap:4px">
+      <button class="nav-btn nav-link active" data-view="store" onclick="switchView('store')">
+        <i data-lucide="store" style="width:14px;height:14px;pointer-events:none"></i>
+        Store
+      </button>
+      <button class="nav-btn nav-link" data-view="cart-page" onclick="switchView('cart-page')">
+        <i data-lucide="shopping-cart" style="width:14px;height:14px;pointer-events:none"></i>
+        Cart
+        <span class="nav-cart-badge" id="navCartCount">0</span>
+      </button>
+    </nav>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="token-pill">
+        <i data-lucide="cpu" style="width:12px;height:12px;pointer-events:none"></i>
+        <span id="tokenBadge">0 tokens</span>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <div class="status-dot"></div>
+        <span>connecting</span>
+      </div>
+      <button class="dark-toggle" id="darkToggleBtn" onclick="toggleDarkMode()" title="Switch to Dark Mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">
+        <i data-lucide="settings" style="width:15px;height:15px;pointer-events:none"></i>
+      </button>
+      <button class="auth-btn" id="authBtn" onclick="openLogin()">
+        <i data-lucide="user" style="width:14px;height:14px;pointer-events:none"></i>
+        <span id="authBtnLabel">Sign In</span>
+      </button>
+    </div>
   </div>
+
 </header>
 
-<!-- ── Store View (default) ── -->
-<div class="store-view" id="view-store">
-  <div class="store-container">
+<!-- ══ SIDE MENU DRAWER (mobile) ══ -->
+<div id="sideMenuOverlay" onclick="closeSideMenu()"></div>
 
-    <!-- Search bar -->
-    <div class="store-search-bar">
-      <input type="text" id="storeSearchInput" placeholder="Search electronics catalog..." onkeydown="if(event.key==='Enter')storeSearch()">
-      <button class="store-search-btn" onclick="storeSearch()">&#128269; Search</button>
-    </div>
+<aside id="sideMenu">
 
-    <!-- Category chips -->
-    <div class="store-categories" id="storeCategories">
-      <button class="store-chip active" onclick="storeSearchCategory('')">All Products</button>
-      <button class="store-chip" onclick="storeSearchCategory('camera')">Cameras</button>
-      <button class="store-chip" onclick="storeSearchCategory('lens')">Lenses</button>
-      <button class="store-chip" onclick="storeSearchCategory('memory card')">Memory Cards</button>
-      <button class="store-chip" onclick="storeSearchCategory('tripod')">Tripods</button>
-      <button class="store-chip" onclick="storeSearchCategory('battery')">Batteries</button>
-      <button class="store-chip" onclick="storeSearchCategory('flash')">Flash</button>
-      <button class="store-chip" onclick="storeSearchCategory('bag')">Bags</button>
-    </div>
-
-    <!-- Recommendations row (visible after login) -->
-    <div class="store-reco-section" id="storeRecoSection" style="display:none">
-      <div class="store-reco-header">
-        <span class="store-reco-icon">&#9733;</span>
-        <span class="store-reco-title">Recommended for You</span>
-        <span class="store-reco-subtitle">Based on your purchase history</span>
+  <!-- Header: logo + close -->
+  <div class="sm-header">
+    <div class="sm-logo">
+      <div class="sm-logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/>
+        </svg>
       </div>
-      <div class="store-reco-carousel" id="storeRecoCarousel"></div>
-    </div>
-
-    <!-- Product grid -->
-    <div class="store-results-info" id="storeResultsInfo"></div>
-    <div class="product-grid" id="productGrid">
-      <div class="store-loading" id="storeLoading">Loading products...</div>
-    </div>
-
-    <!-- Pagination -->
-    <div class="store-pagination" id="storePagination"></div>
-  </div>
-
-  <!-- Product detail overlay -->
-  <div class="product-detail-overlay" id="productDetailOverlay" style="display:none" onclick="if(event.target===this)closeProductDetail()">
-    <div class="product-detail-modal">
-      <button class="product-detail-close" onclick="closeProductDetail()">&#10005;</button>
-      <div id="productDetailContent"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Cart Page View ── -->
-<div class="cart-page-view" id="view-cart-page" style="display:none">
-  <div class="cart-page-container">
-    <h2>&#128722; Shopping Cart</h2>
-    <p class="cart-page-subtitle">Manage your cart items below or use the Agent Chat to complete checkout.</p>
-    <div id="cartPageContent">
-      <div class="cart-page-empty">
-        <div style="font-size:48px;margin-bottom:16px">&#128722;</div>
-        <h3>Your cart is empty</h3>
-        <p>Browse the store and add some products to get started.</p>
-        <button class="store-search-btn" onclick="switchView('store')" style="margin-top:16px">Browse Store</button>
+      <div class="sm-brand">
+        <span class="sm-brand-name">AgentixForce</span>
+        <span class="sm-brand-sub">Commerce AI &nbsp;·&nbsp; v3.0</span>
       </div>
     </div>
+    <button class="sm-close" onclick="closeSideMenu()" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
   </div>
-</div>
 
-<!-- ── Floating Chat Widget ── -->
-<div class="chat-widget" id="chatWidget">
-  <div class="chat-widget-header">
-    <div class="chat-widget-title">
-      <div class="chat-widget-avatar">AI</div>
+  <!-- Status row — tokens + online status side by side -->
+  <div class="sm-status-row">
+    <div class="sm-stat-card">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
+        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+        <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+      </svg>
       <div>
-        <div class="chat-widget-name">Shopping Assistant</div>
-        <div class="chat-widget-status">
-          <span class="cw-dot"></span> Ask me anything
-        </div>
+        <div class="sm-stat-label">Tokens</div>
+        <div class="sm-stat-value" id="smTokenBadge">0</div>
       </div>
     </div>
-    <div class="chat-widget-actions">
-      <button class="cw-header-btn" onclick="toggleChatWidgetSize()" id="cwExpandBtn" title="Expand">
-        &#9634;
-      </button>
-      <button class="cw-header-btn" onclick="toggleChatWidget()" title="Close">
-        &#10005;
-      </button>
+    <div class="sm-stat-card" id="smStatusPill">
+      <div class="sm-status-dot"></div>
+      <div>
+        <div class="sm-stat-label">Status</div>
+        <div class="sm-stat-value" id="smStatusText">Connecting</div>
+      </div>
     </div>
   </div>
 
-  <!-- Compact sidebar tabs inside widget -->
+  <!-- Body: nav links -->
+  <div class="sm-body">
+
+    <div class="sm-section-label">Navigation</div>
+    <button class="sm-nav-btn active" id="smBtnStore" onclick="switchView('store');closeSideMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
+      </svg>
+      Store
+    </button>
+    <button class="sm-nav-btn" id="smBtnCart" onclick="switchView('cart-page');closeSideMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      Cart
+      <span class="sm-cart-badge" id="smCartCount">0</span>
+    </button>
+
+    <div class="sm-divider"></div>
+
+    <div class="sm-section-label">Account</div>
+
+    <!-- Dark mode toggle row -->
+    <div class="sm-theme-row">
+      <span class="sm-theme-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        Dark Mode
+      </span>
+      <label class="theme-switch" title="Toggle dark mode">
+        <input type="checkbox" id="smDarkToggle" onchange="toggleDarkMode()">
+        <span class="theme-switch-track"></span>
+      </label>
+    </div>
+
+    <button class="sm-nav-btn" onclick="openSettings();closeSideMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Settings
+    </button>
+
+  </div>
+
+  <!-- Footer: sign in -->
+  <div class="sm-footer">
+    <button class="sm-auth-btn" id="smAuthBtn" onclick="openLogin();closeSideMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span id="smAuthBtnLabel">Sign In</span>
+    </button>
+  </div>
+
+</aside>
+
+<!-- ══ MAIN ══ -->
+<main>
+
+  <!-- ── STORE VIEW ── -->
+  <div id="view-store" style="animation:fadeIn .3s ease">
+    <div class="store-container">
+
+      <!-- Hero -->
+      <div class="store-hero">
+        <p class="store-hero-label">AI-Powered Shopping</p>
+        <h1>Find exactly what you need</h1>
+        <p>Browse our catalog or let the AI assistant guide you</p>
+        <div class="search-wrap">
+          <i data-lucide="search" style="width:16px;height:16px;color:#2563eb;flex-shrink:0;pointer-events:none"></i>
+          <input id="storeSearchInput" type="text" placeholder="Search cameras, lenses, accessories..."
+            onkeydown="if(event.key==='Enter')storeSearch()">
+          <button class="btn-primary" onclick="storeSearch()" style="padding:7px 16px;font-size:12px;border-radius:8px;flex-shrink:0">
+            Search
+          </button>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="store-categories" id="storeCategories">
+        <button class="cat-chip active" onclick="filterCat(this,'')">
+          <i data-lucide="layout-grid" style="width:12px;height:12px"></i> All
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'camera')">
+          <i data-lucide="camera" style="width:12px;height:12px"></i> Cameras
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'lens')">
+          <i data-lucide="aperture" style="width:12px;height:12px"></i> Lenses
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'memory card')">
+          <i data-lucide="hard-drive" style="width:12px;height:12px"></i> Memory Cards
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'tripod')">
+          <i data-lucide="sliders" style="width:12px;height:12px"></i> Tripods
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'battery')">
+          <i data-lucide="battery-charging" style="width:12px;height:12px"></i> Batteries
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'flash')">
+          <i data-lucide="zap" style="width:12px;height:12px"></i> Flash
+        </button>
+        <button class="cat-chip" onclick="filterCat(this,'bag')">
+          <i data-lucide="briefcase" style="width:12px;height:12px"></i> Bags
+        </button>
+      </div>
+
+      <!-- Recommendations row (shown after login) -->
+      <div class="store-reco-section" id="storeRecoSection" style="display:none">
+        <div class="store-reco-header">
+          <i data-lucide="star" style="width:15px;height:15px;color:#f59e0b"></i>
+          <span class="store-reco-title">Recommended for You</span>
+          <span class="store-reco-subtitle">Based on your history</span>
+        </div>
+        <div class="store-reco-carousel" id="storeRecoCarousel"></div>
+      </div>
+
+      <!-- Results bar -->
+      <div class="store-results-bar">
+        <p class="store-results-info" id="storeResultsInfo"></p>
+        <div style="display:flex;gap:6px">
+          <button style="width:32px;height:32px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8">
+            <i data-lucide="grid-3x3" style="width:13px;height:13px;pointer-events:none"></i>
+          </button>
+          <button style="width:32px;height:32px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8">
+            <i data-lucide="list" style="width:13px;height:13px;pointer-events:none"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div class="product-grid" id="productGrid">
+        <div class="store-loading" id="storeLoading">Loading products...</div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="store-pagination" id="storePagination"></div>
+    </div>
+
+    <!-- Product Detail Overlay -->
+    <div id="productDetailOverlay" class="detail-overlay-wrap" style="display:none"
+         onclick="if(event.target===this)closeProductDetail()">
+      <div class="detail-box">
+        <button class="detail-close" onclick="closeProductDetail()">
+          <i data-lucide="x" style="width:13px;height:13px;pointer-events:none"></i>
+        </button>
+        <div id="productDetailContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CART PAGE VIEW ── -->
+  <div id="view-cart-page" style="display:none;animation:fadeIn .3s ease">
+    <div class="cart-page-container">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <!-- <i data-lucide="shopping-cart" style="width:22px;height:22px;color:#1d4ed8"></i> -->
+        <!-- <h2 style="font-size:21px;font-weight:700;color:#0f172a;letter-spacing:-.3px">Shopping Cart</h2> -->
+      </div>
+      <div id="cartPageContent">
+        <div class="cart-page-empty">
+          <div style="width:68px;height:68px;background:#eff6ff;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i data-lucide="shopping-cart" style="width:30px;height:30px;color:#93c5fd"></i>
+          </div>
+          <h3>Your cart is empty</h3>
+          <p>Browse the store and add some products to get started.</p>
+          <button class="btn-primary" onclick="switchView('store')" style="margin:0 auto;display:flex">
+            <i data-lucide="store" style="width:14px;height:14px;pointer-events:none"></i> Browse Store
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ══ CHAT FAB ══ -->
+<button id="chatToggleBubble" class="chat-fab" onclick="toggleChatWidget()" title="Chat with AI Assistant">
+  <div class="fab-ring"></div>
+  <span id="chatBubbleIcon" style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center">
+    <i data-lucide="message-circle" style="width:22px;height:22px;pointer-events:none"></i>
+  </span>
+</button>
+
+<!-- ══ CHAT WIDGET ══ -->
+<div class="chat-widget" id="chatWidget">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="chat-avatar-wrap">
+      <i data-lucide="bot" style="width:20px;height:20px;color:#fff;pointer-events:none"></i>
+    </div>
+    <div style="flex:1">
+      <div style="color:#fff;font-weight:600;font-size:14px;line-height:1.2">Shopping Assistant</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+        <div class="cw-online-dot"></div>
+        <span style="color:rgba(255,255,255,.7);font-size:11px">Ask me anything</span>
+      </div>
+    </div>
+    <button class="cw-close-btn" onclick="toggleChatWidget()" title="Close">
+      <i data-lucide="x" style="width:14px;height:14px;pointer-events:none"></i>
+    </button>
+  </div>
+
+  <!-- Tabs -->
   <div class="cw-tabs">
-    <button class="cw-tab active" data-cwtab="chat" onclick="switchCwTab('chat')">&#128172; Chat</button>
-    <button class="cw-tab" data-cwtab="cart" onclick="switchCwTab('cart')">&#128722; Cart <span class="cw-cart-badge" id="cwCartBadge">0</span></button>
-    <button class="cw-tab" data-cwtab="progress" onclick="switchCwTab('progress')">&#9776; Progress</button>
+    <button class="cw-tab active" data-cwtab="chat" onclick="switchCwTab('chat')">
+      <i data-lucide="message-circle" style="width:14px;height:14px"></i>Chat
+    </button>
+    <button class="cw-tab" data-cwtab="cart" onclick="switchCwTab('cart')">
+      <i data-lucide="shopping-cart" style="width:14px;height:14px"></i>Cart
+      <span class="cw-cart-badge-wrap" id="cwCartBadge">0</span>
+    </button>
+    <button class="cw-tab" data-cwtab="progress" onclick="switchCwTab('progress')">
+      <i data-lucide="bar-chart-2" style="width:14px;height:14px"></i>Progress
+    </button>
   </div>
 
-  <!-- Chat tab -->
+  <!-- ── CHAT PANEL ── -->
   <div class="cw-panel active" id="cwPanel-chat">
-    <div class="chat-wrap">
-      <div id="messages">
-        <div class="welcome" id="welcome">
-          <div class="welcome-icon" style="width:56px;height:56px;border-radius:14px;font-size:28px;margin-bottom:14px">&#128247;</div>
-          <h2 style="font-size:18px">How can I help?</h2>
-          <p style="font-size:13px">Search products, manage your cart, checkout &mdash; all through conversation.</p>
-          <div class="chips" style="margin-top:14px">
-            <div class="chip" onclick="sendQuick('Show me Canon EOS cameras')"><span class="chip-icon">&#128247;</span> Canon Cameras</div>
-            <div class="chip" onclick="sendQuick('Show me digital cameras')"><span class="chip-icon">&#128247;</span> Digital Cameras</div>
-            <div class="chip" onclick="sendQuick('Show me memory cards')"><span class="chip-icon">&#128190;</span> Memory Cards</div>
-            <div class="chip" onclick="sendQuick('Show me tripods and camera accessories')"><span class="chip-icon">&#129523;</span> Accessories</div>
-            <div class="chip" onclick="sendQuick('I want to checkout')"><span class="chip-icon">&#128179;</span> Checkout</div>
-          </div>
+    <div class="messages-area" id="messages">
+      <div class="welcome-wrap" id="welcome">
+        <h3 style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px">How can I help?</h3>
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:14px">Search, cart, checkout — all via chat</p>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center">
+          <button class="wchip" onclick="sendQuick('Show me Canon EOS cameras')">
+            <i data-lucide="camera" style="width:11px;height:11px"></i> Canon Cameras
+          </button>
+          <button class="wchip" onclick="sendQuick('Show me memory cards')">
+            <i data-lucide="hard-drive" style="width:11px;height:11px"></i> Memory Cards
+          </button>
+          <button class="wchip" onclick="sendQuick('I want to checkout')">
+            <i data-lucide="credit-card" style="width:11px;height:11px"></i> Checkout
+          </button>
+          <button class="wchip" onclick="sendQuick('Show me tripods and camera accessories')">
+            <i data-lucide="sliders" style="width:11px;height:11px"></i> Accessories
+          </button>
+          <button class="wchip" onclick="toggleAudioRecording()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;flex-shrink:0"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg> Voice Search
+          </button>
+          <button class="wchip" onclick="triggerImageUpload()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg> Image Search
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice Search Overlay (covers entire chat panel while recording) -->
+    <div class="audio-recording-bar" id="audioRecordingBar">
+      <div class="vr-mic-ring">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </div>
+      <div class="vr-title">Listening…</div>
+      <div class="vr-subtitle">Speak your product search query</div>
+      <div class="vr-waveform">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+      <div class="audio-recording-timer" id="audioTimer">0:00</div>
+      <div class="vr-actions">
+        <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
+        <button class="vr-stop-btn" onclick="stopAudioRecording()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="pointer-events:none"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          Done
+        </button>
+      </div>
+      <p class="vr-hint">Tap Done when finished · auto-stops after 60s</p>
+    </div>
+
+    <div class="chat-input-area">
+      <!-- Image preview bar -->
+      <div class="image-preview-bar" id="imagePreviewBar">
+        <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
+        <div class="image-preview-info">
+          <strong id="imagePreviewName">image.jpg</strong>
+          <span id="imagePreviewSize">0 KB</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
+          <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
         </div>
       </div>
 
-      <div class="input-bar">
-        <!-- Image preview bar -->
-        <div class="image-preview-bar" id="imagePreviewBar">
-          <img class="image-preview-thumb" id="imagePreviewThumb" src="" alt="Preview"/>
-          <div class="image-preview-info">
-            <strong id="imagePreviewName">image.jpg</strong>
-            <span id="imagePreviewSize">0 KB</span>
-          </div>
-          <div class="image-preview-actions">
-            <button class="image-preview-btn primary" onclick="submitImageSearch()">Search</button>
-            <button class="image-preview-btn" onclick="cancelImagePreview()">Cancel</button>
-          </div>
+      <div class="chat-input-box">
+        <!-- Left: action buttons -->
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding-bottom:5px">
+          <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Search by image">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;flex-shrink:0">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21,15 16,10 5,21"/>
+            </svg>
+            <span style="pointer-events:none">Image</span>
+          </button>
+          <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;flex-shrink:0">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            <span style="pointer-events:none">Voice</span>
+          </button>
         </div>
-
-        <!-- Audio recording bar -->
-        <div class="audio-recording-bar" id="audioRecordingBar">
-          <div class="audio-recording-dot"></div>
-          <span>Recording</span>
-          <div class="audio-waveform">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-          </div>
-          <span class="audio-recording-timer" id="audioTimer">0:00</span>
-          <button class="audio-recording-cancel" onclick="cancelAudioRecording()">Cancel</button>
-        </div>
-
-        <div class="input-wrap">
-          <div class="input-actions">
-            <button class="input-action-btn" id="imageSearchBtn" onclick="triggerImageUpload()" title="Image Search">
-              &#128247;
-              <span class="tooltip">Search by image</span>
-            </button>
-            <button class="input-action-btn" id="audioSearchBtn" onclick="toggleAudioRecording()" title="Voice Search">
-              &#127908;
-              <span class="tooltip">Voice search</span>
-            </button>
-          </div>
-          <textarea id="userInput" rows="1" placeholder="Ask about products, cart, checkout..."></textarea>
-          <button id="sendBtn" onclick="sendMessage()" title="Send">&#10148;</button>
-        </div>
-        <div class="input-hint"><kbd>Enter</kbd> send &middot; &#128247; Image &middot; &#127908; Voice</div>
-
-        <!-- Hidden file inputs -->
-        <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
-        <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
+        <!-- Middle: textarea -->
+        <textarea id="userInput" rows="1" placeholder="Ask about products..."></textarea>
+        <!-- Right: send button -->
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" style="flex-shrink:0;margin-bottom:4px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/>
+          </svg>
+        </button>
       </div>
+      <p class="input-hint"><kbd>Enter</kbd> to send</p>
+
+      <!-- Hidden file inputs -->
+      <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageSelect(event)"/>
+      <input type="file" id="audioFileInput" accept="audio/*" style="display:none" onchange="handleAudioFileSelect(event)"/>
     </div>
   </div>
 
-  <!-- Cart tab -->
+  <!-- ── CART PANEL ── -->
   <div class="cw-panel" id="cwPanel-cart">
-    <div class="cw-cart-content">
-      <div id="userPill" class="user-pill" style="display:none">
-        <span>&#10003;</span>
+    <div class="cw-cart-panel">
+      <!-- User pill (shown when logged in by auth.js) -->
+      <div id="userPill" class="user-pill">
+        <i data-lucide="check-circle" style="width:13px;height:13px;color:#16a34a;flex-shrink:0"></i>
         <span class="uname" id="userPillName"></span>
         <span class="logout-link" onclick="doLogout()">logout</span>
       </div>
-      <div class="sidebar-section">
-        <div class="sidebar-label">Shopping Cart</div>
-        <div class="cart-panel">
-          <div class="cart-header">
-            <span>Cart</span>
-            <span class="cart-count" id="cartCount">0</span>
-          </div>
-          <div class="cart-items" id="cartItems">
-            <div class="cart-empty" id="cartEmpty">Your cart is empty</div>
-          </div>
-          <div class="cart-total" id="cartTotal" style="display:none">
-            <span>Total</span>
-            <span class="price" id="cartTotalPrice">&mdash;</span>
-          </div>
+
+      <div class="cw-section-label">Shopping Cart</div>
+      <div class="cart-panel-header">
+        <span style="font-size:13px;font-weight:600;color:#0f172a">Items</span>
+        <span class="cart-count-badge" id="cartCount">0</span>
+      </div>
+      <div id="cartItems">
+        <div class="cart-empty" id="cartEmpty">
+          <i data-lucide="shopping-cart" style="width:26px;height:26px;color:#bfdbfe;display:block;margin:0 auto 8px"></i>
+          Your cart is empty
         </div>
       </div>
-      <div class="sidebar-section">
-        <div class="sidebar-label">Quick Actions</div>
-        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me digital cameras')"><span class="icon">&#128247;</span> Browse cameras</button>
-        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me my cart')"><span class="icon">&#128722;</span> View cart</button>
-        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('I want to checkout')"><span class="icon">&#128179;</span> Checkout</button>
+      <div class="cart-total" id="cartTotal" style="display:none">
+        <span>Total</span>
+        <span class="price" id="cartTotalPrice">&mdash;</span>
+      </div>
+
+      <div style="margin-top:18px">
+        <div class="cw-section-label">Quick Actions</div>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me digital cameras')">
+          <i data-lucide="camera" style="width:14px;height:14px"></i> Browse Cameras
+        </button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('Show me my cart')">
+          <i data-lucide="shopping-bag" style="width:14px;height:14px"></i> View Cart Details
+        </button>
+        <button class="quick-btn" onclick="switchCwTab('chat');sendQuick('I want to checkout')">
+          <i data-lucide="credit-card" style="width:14px;height:14px"></i> Start Checkout
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Progress tab -->
+  <!-- ── PROGRESS PANEL ── -->
   <div class="cw-panel" id="cwPanel-progress">
-    <div class="cw-progress-content">
-      <div class="sidebar-section">
-        <div class="sidebar-label">Session</div>
-        <div class="session-card">
-          <div class="row"><span>ID</span><span id="sessionId">&mdash;</span></div>
-          <div class="row"><span>User</span><span id="sideUser">guest</span></div>
-          <div class="row"><span>Turns</span><span id="sideTurns">0</span></div>
+    <div class="cw-progress-panel">
+      <div class="cw-section-label">Session</div>
+      <div class="session-card">
+        <div class="session-row">
+          <span>Session ID</span>
+          <span id="sessionId">&mdash;</span>
+        </div>
+        <div class="session-row">
+          <span>User</span>
+          <span id="sideUser">guest</span>
+        </div>
+        <div class="session-row">
+          <span>Turns</span>
+          <span id="sideTurns">0</span>
         </div>
       </div>
-      <div class="flow-steps" style="padding:0 16px">
-        <div class="sidebar-label">Checkout Progress</div>
-        <div class="step" id="step-search"><div class="step-num">1</div><div class="step-text">Browse & search</div></div>
-        <div class="step" id="step-cart"><div class="step-num">2</div><div class="step-text">Add to cart</div></div>
-        <div class="step" id="step-address"><div class="step-num">3</div><div class="step-text">Delivery address</div></div>
-        <div class="step" id="step-payment"><div class="step-num">4</div><div class="step-text">Payment</div></div>
-        <div class="step" id="step-order"><div class="step-num">5</div><div class="step-text">Place order</div></div>
+
+      <div class="cw-section-label">Checkout Progress</div>
+      <div style="display:flex;flex-direction:column">
+        <div class="step done" id="step-search">
+          <div class="step-num"><i data-lucide="check" style="width:11px;height:11px;pointer-events:none"></i></div>
+          <div class="step-text">
+            <p>Browse &amp; Search</p>
+            <p>Find your products</p>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-cart">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <p>Add to Cart</p>
+            <p>Build your order</p>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-address">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <p>Delivery Address</p>
+            <p>Where to ship</p>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-payment">
+          <div class="step-num">4</div>
+          <div class="step-text">
+            <p>Payment</p>
+            <p>Secure checkout</p>
+          </div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-order">
+          <div class="step-num">5</div>
+          <div class="step-text">
+            <p>Place Order</p>
+            <p>Confirm &amp; done</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ── Chat Toggle Bubble ── -->
-<button class="chat-toggle-bubble" id="chatToggleBubble" onclick="toggleChatWidget()" title="Chat with AI Assistant">
-  <span class="chat-bubble-icon" id="chatBubbleIcon">&#128172;</span>
-  <span class="chat-bubble-pulse"></span>
-</button>
+</div><!-- end chat-widget -->
 
-<!-- ── Login Modal ── -->
+<!-- ══ LOGIN MODAL ══ -->
 <div class="modal-overlay" id="loginModal" onclick="handleOverlayClick(event)">
-  <div class="modal">
-    <button class="modal-close" onclick="closeLogin()">&#10005;</button>
-    <div class="modal-icon">&#128100;</div>
-    <h2>Sign In</h2>
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeLogin()">
+      <i data-lucide="x" style="width:13px;height:13px;pointer-events:none"></i>
+    </button>
+    <div class="modal-icon-wrap">
+      <i data-lucide="user" style="width:20px;height:20px;color:#fff;pointer-events:none"></i>
+    </div>
+    <h2 class="modal-title">Sign In</h2>
     <p class="modal-sub">Enter your SAP Commerce account credentials.<br>Your password is sent securely and never shared with the AI.</p>
-    <div class="modal-error" id="loginError"></div>
-    <div class="field">
-      <label>Username / Email</label>
-      <input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"/>
+    <div id="loginError"></div>
+    <div style="margin-bottom:14px">
+      <label class="field-label">Username / Email</label>
+      <div class="input-field">
+        <i data-lucide="mail" style="width:15px;height:15px"></i>
+        <input type="text" id="loginUser" placeholder="user@example.com" autocomplete="username"/>
+      </div>
     </div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"/>
+    <div style="margin-bottom:20px">
+      <label class="field-label">Password</label>
+      <div class="input-field">
+        <i data-lucide="lock" style="width:15px;height:15px"></i>
+        <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password"/>
+      </div>
     </div>
-    <button id="loginBtn" onclick="doLogin()">
-      <div class="login-spinner" id="loginSpinner"></div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()"
+      style="width:100%;justify-content:center;padding:12px;font-size:14px;border-radius:10px;margin-bottom:10px">
+      <div class="login-spinner" id="loginSpinner" style="display:none"></div>
+      <i data-lucide="log-in" style="width:15px;height:15px;pointer-events:none"></i>
       <span id="loginBtnLabel">Sign In</span>
     </button>
     <div class="modal-divider">or</div>
-    <button id="guestBtn" onclick="closeLogin()">Continue as Guest</button>
+    <button class="btn-secondary" onclick="closeLogin()">Continue as Guest</button>
   </div>
 </div>
 
-<!-- ── Settings Modal ── -->
+<!-- ══ SETTINGS MODAL ══ -->
 <div class="modal-overlay settings-modal" id="settingsModal" onclick="handleSettingsOverlayClick(event)">
-  <div class="modal" style="max-width:520px">
-    <button class="modal-close" onclick="closeSettings()">&#10005;</button>
-    <div class="modal-icon">&#9881;</div>
-    <h2>Settings</h2>
+  <div class="modal-box" style="max-width:460px;max-height:90vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeSettings()">
+      <i data-lucide="x" style="width:13px;height:13px;pointer-events:none"></i>
+    </button>
+    <div class="modal-icon-wrap">
+      <i data-lucide="settings" style="width:20px;height:20px;color:#fff;pointer-events:none"></i>
+    </div>
+    <h2 class="modal-title">Settings</h2>
     <p class="modal-sub">Manage your payment methods and delivery addresses.</p>
 
     <!-- Tabs -->
     <div class="settings-tabs">
       <button class="settings-tab active" data-tab="cards" onclick="switchSettingsTab('cards')">
-        &#128179; Payment Cards
+        <i data-lucide="credit-card" style="width:13px;height:13px"></i> Payment Cards
       </button>
       <button class="settings-tab" data-tab="addresses" onclick="switchSettingsTab('addresses')">
-        &#127968; Addresses
+        <i data-lucide="map-pin" style="width:13px;height:13px"></i> Addresses
       </button>
     </div>
 
@@ -308,13 +958,19 @@
     <div class="settings-panel active" id="panel-cards">
       <div id="cardsList"></div>
       <div id="addCardSection">
-        <button class="btn-primary" id="addCardBtn" onclick="initStripeElements()" style="margin-top:12px">+ Add New Card</button>
+        <button class="btn-primary" id="addCardBtn" onclick="initStripeElements()"
+          style="width:100%;justify-content:center;padding:11px;border-radius:10px;margin-top:4px">
+          <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none"></i> Add New Card
+        </button>
         <div id="cardFormWrap" style="display:none;margin-top:12px">
           <div class="stripe-element-wrap">
             <div id="stripeCardElement"></div>
           </div>
           <div class="card-form-error" id="cardFormError"></div>
-          <button class="btn-primary" id="saveCardBtn" onclick="saveCard()" style="margin-top:10px">Save Card</button>
+          <button class="btn-primary" id="saveCardBtn" onclick="saveCard()"
+            style="width:100%;justify-content:center;padding:11px;border-radius:10px;margin-top:10px">
+            Save Card
+          </button>
         </div>
       </div>
     </div>
@@ -323,36 +979,90 @@
     <div class="settings-panel" id="panel-addresses">
       <div id="addressesList"></div>
       <div id="addAddressSection">
-        <button class="btn-primary" id="addAddressBtn" onclick="toggleAddressForm()" style="margin-top:12px">+ Add New Address</button>
-        <div id="addressFormWrap" style="display:none;margin-top:12px">
-          <div class="field"><label>Full Name *</label><input type="text" id="addrName" placeholder="John Doe"/></div>
-          <div class="field"><label>Address Line 1 *</label><input type="text" id="addrLine1" placeholder="123 Main Street"/></div>
-          <div class="field"><label>Address Line 2</label><input type="text" id="addrLine2" placeholder="Apt 4B (optional)"/></div>
-          <div style="display:flex;gap:10px">
-            <div class="field" style="flex:1"><label>City *</label><input type="text" id="addrCity" placeholder="New York"/></div>
-            <div class="field" style="flex:1"><label>State</label><input type="text" id="addrState" placeholder="NY"/></div>
+        <button class="btn-primary" id="addAddressBtn" onclick="toggleAddressForm()"
+          style="width:100%;justify-content:center;padding:11px;border-radius:10px;margin-top:4px">
+          <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none"></i> Add New Address
+        </button>
+        <div id="addressFormWrap" style="display:none;margin-top:12px;flex-direction:column;gap:10px">
+          <div>
+            <label class="field-label">Full Name *</label>
+            <div class="input-field"><input type="text" id="addrName" placeholder="John Doe"/></div>
+          </div>
+          <div>
+            <label class="field-label">Address Line 1 *</label>
+            <div class="input-field"><input type="text" id="addrLine1" placeholder="123 Main Street"/></div>
+          </div>
+          <div>
+            <label class="field-label">Address Line 2</label>
+            <div class="input-field"><input type="text" id="addrLine2" placeholder="Apt 4B (optional)"/></div>
           </div>
           <div style="display:flex;gap:10px">
-            <div class="field" style="flex:1"><label>Postal Code *</label><input type="text" id="addrPostal" placeholder="10001"/></div>
-            <div class="field" style="flex:1"><label>Country *</label><input type="text" id="addrCountry" placeholder="US" value="US"/></div>
+            <div style="flex:1">
+              <label class="field-label">City *</label>
+              <div class="input-field"><input type="text" id="addrCity" placeholder="New York"/></div>
+            </div>
+            <div style="flex:1">
+              <label class="field-label">State</label>
+              <div class="input-field"><input type="text" id="addrState" placeholder="NY"/></div>
+            </div>
           </div>
-          <button class="btn-primary" id="saveAddressBtn" onclick="saveAddress()" style="margin-top:4px">Save Address</button>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <label class="field-label">Postal Code *</label>
+              <div class="input-field"><input type="text" id="addrPostal" placeholder="10001"/></div>
+            </div>
+            <div style="flex:1">
+              <label class="field-label">Country *</label>
+              <div class="input-field"><input type="text" id="addrCountry" placeholder="US" value="US"/></div>
+            </div>
+          </div>
+          <button class="btn-primary" id="saveAddressBtn" onclick="saveAddress()"
+            style="width:100%;justify-content:center;padding:11px;border-radius:10px">
+            Save Address
+          </button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Scripts (order matters: app first, then modules that depend on it) ── -->
-<script src="/static/js/app.js?v=10"></script>
-<script src="/static/js/renderers.js?v=10"></script>
-<script src="/static/js/auth.js?v=10"></script>
-<script src="/static/js/chat.js?v=10"></script>
-<script src="/static/js/settings.js?v=10"></script>
-<script src="/static/js/image_search.js?v=10"></script>
-<script src="/static/js/audio_search.js?v=10"></script>
-<script src="/static/js/recommendations.js?v=10"></script>
-<script src="/static/js/storefront.js?v=10"></script>
+<!-- ══ INIT ══ -->
+<script>
+  lucide.createIcons();
+
+  // Category filter — uses cat-chip class, updates storeSearchInput, calls storeSearch()
+  function filterCat(el, cat) {
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    const input = document.getElementById('storeSearchInput');
+    if (input) input.value = cat;
+    if (typeof storeSearch === 'function') storeSearch();
+  }
+
+  // Re-init Lucide icons after dynamic DOM updates
+  function reInitIcons() {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  // Patch storefront icon re-init into chat widget toggle
+  document.addEventListener('DOMContentLoaded', () => {
+    // Re-run lucide after all external scripts loaded
+    setTimeout(reInitIcons, 300);
+  });
+</script>
+
+<!-- ══ EXTERNAL SCRIPTS (order matters) ══ -->
+<script src="/static/js/app.js?v=11"></script>
+<script src="/static/js/renderers.js?v=11"></script>
+<script src="/static/js/auth.js?v=11"></script>
+<script src="/static/js/chat.js?v=11"></script>
+<script src="/static/js/settings.js?v=11"></script>
+<script src="/static/js/image_search.js?v=11"></script>
+<script src="/static/js/audio_search.js?v=11"></script>
+<script src="/static/js/recommendations.js?v=11"></script>
+<script src="/static/js/storefront.js?v=11"></script>
+<script src="/static/js/sidemenu.js?v=1"></script>
+<script src="/static/js/darkmode.js?v=1"></script>
 
 </body>
 </html>

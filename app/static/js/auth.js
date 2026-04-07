@@ -43,6 +43,7 @@ function updateAuthUI(username) {
     label.textContent  = 'Sign In';
     pill.style.display = 'none';
   }
+  if (typeof syncSideMenuAuth === 'function') syncSideMenuAuth(username);
 }
 
 async function doLogin() {
